@@ -28,11 +28,14 @@ pub fn load_system(mut commands: Commands, asset_server: Res<AssetServer>) {
     info!("load_system");
     // "Spawning" a scene bundle creates a new entity and spawns new instances
     // of the given scene's entities as children of that entity.
-    commands.spawn(DynamicSceneBundle {
-        // Scenes are loaded just like any other asset.
-        scene: asset_server.load(SCENE_FILE_PATH),
-        ..default()
-    });
+    commands.spawn((
+        DynamicSceneBundle {
+            // Scenes are loaded just like any other asset.
+            scene: asset_server.load(SCENE_FILE_PATH),
+            ..default()
+        },
+        Name::new("DynamicScene"),
+    ));
 }
 
 pub fn save_system(

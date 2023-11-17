@@ -1,13 +1,17 @@
 (
   resources: {},
   entities: {
-    4: (
+    7: (
       components: {
-        "bevy_hierarchy::components::parent::Parent": (3),
+        "bevy_core::name::Name": (
+          hash: 2205575933602841800,
+          name: "BirdSpawner",
+        ),
+        "bevy_hierarchy::components::parent::Parent": (6),
         "birdflow::bird::BirdSpawner": (
-          num_birds: 12,
+          num_birds: 10,
           theta_factor: 0.001,
-          translation_factor: 20.0,
+          translation_factor: 10.0,
           max_velocity: 10.0,
         ),
         "birdflow::scene::SaveEntity": (),

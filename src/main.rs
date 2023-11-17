@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_editor_pls::prelude::*;
 
 mod bird;
 mod scene;
@@ -14,9 +15,11 @@ fn main() {
                 watch_for_changes_override: Some(true),
                 ..default()
             }),
+            EditorPlugin::default(),
             bird::BirdsPlugin,
             scene::LoadableScenePlugin,
         ))
+        .register_type::<Name>()
         .add_systems(Startup, startup)
         .run();
 }
@@ -30,6 +33,7 @@ fn startup(mut commands: Commands) {
                 "Spawn birds: Left click",
                 "Despawn birds: 'd'",
                 "Save scene: 's'",
+                "Open editor: 'e'",
             ]
             .join("\n"),
             TextStyle {

@@ -93,6 +93,7 @@ impl<M: Material2d> BirdBundler<M> {
                 material: self.material,
                 ..default()
             },
+            Name::new("Bird"),
         )
     }
 }

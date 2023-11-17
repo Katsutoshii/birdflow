@@ -1,15 +1,18 @@
 (
   resources: {},
   entities: {
-    1: (
+    6: (
       components: {
         "birdflow::bird::BirdSpawner": (
-          num_birds: 12,
+          num_birds: 10,
           theta_factor: 0.001,
-          translation_factor: 20.0,
+          translation_factor: 10.0,
           max_velocity: 10.0,
         ),
-        "birdflow::scene::SaveEntity": ()
+        "birdflow::scene::SaveEntity": (),
+        "bevy_core::name::Name": (
+          name: "BirdSpawner",
+        ),
       },
     ),
   },
