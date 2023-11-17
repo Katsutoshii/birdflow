@@ -1,0 +1,16 @@
+(
+  resources: {},
+  entities: {
+    1: (
+      components: {
+        "birdflow::bird::BirdSpawner": (
+          num_birds: 12,
+          theta_factor: 0.001,
+          translation_factor: 20.0,
+          max_velocity: 10.0,
+        ),
+        "birdflow::scene::SaveEntity": ()
+      },
+    ),
+  },
+)
