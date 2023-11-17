@@ -98,11 +98,8 @@ impl<M: Material2d> BirdBundler<M> {
     }
 }
 
-const THETA_FACTOR: f32 = 0.001;
-const TRANSLATION_FACTOR: f32 = 10.0;
-
-#[derive(Component, Reflect)]
-#[reflect(Component)]
+#[derive(Resource, Reflect)]
+#[reflect(Resource)]
 pub struct BirdSpawner {
     num_birds: usize,
     theta_factor: f32,
@@ -122,13 +119,12 @@ impl Default for BirdSpawner {
 impl BirdSpawner {
     /// System to spawn birds on left mouse button.
     pub fn spawn(
-        query: Query<&Self>,
+        spawner: Res<Self>,
         mut commands: Commands,
         mut meshes: ResMut<Assets<Mesh>>,
         mut materials: ResMut<Assets<ColorMaterial>>,
         buttons: Res<Input<MouseButton>>,
     ) {
-        let spawner = query.single();
         if !buttons.just_pressed(MouseButton::Left) {
             return;
         }
@@ -140,26 +136,26 @@ impl BirdSpawner {
             commands.spawn(
                 BirdBundler {
                     bird: Bird {
-                        theta: PI * THETA_FACTOR * (i as f32),
+                        theta: PI * spawner.theta_factor * (i as f32),
                         max_velocity: spawner.max_velocity,
                         ..default()
                     },
                     mesh: mesh.clone(),
                     material: green_material.clone(),
-                    translation: Vec3::ONE * TRANSLATION_FACTOR * (i as f32),
+                    translation: Vec3::ONE * spawner.translation_factor * (i as f32),
                 }
                 .bundle(),
             );
             commands.spawn(
                 BirdBundler {
                     bird: Bird {
-                        theta: PI * THETA_FACTOR * (i as f32),
+                        theta: PI * spawner.theta_factor * (i as f32),
                         max_velocity: spawner.max_velocity,
                         ..default()
                     },
                     mesh: mesh.clone(),
                     material: tomato_material.clone(),
-                    translation: Vec3::NEG_ONE * TRANSLATION_FACTOR * (i as f32),
+                    translation: Vec3::NEG_ONE * spawner.translation_factor * (i as f32),
                 }
                 .bundle(),
             );

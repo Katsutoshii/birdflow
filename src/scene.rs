@@ -3,6 +3,8 @@ use std::io::Write;
 
 use bevy::{prelude::*, tasks::IoTaskPool};
 
+use crate::bird;
+
 /// Plugin for saving and loading scenes.
 pub struct LoadableScenePlugin;
 impl Plugin for LoadableScenePlugin {
@@ -48,6 +50,8 @@ pub fn save_system(
     }
     let scene = DynamicSceneBuilder::from_world(&world)
         .extract_entities(query.iter())
+        .allow_resource::<bird::BirdSpawner>()
+        .extract_resources()
         .build();
 
     // Scenes can be serialized like this:
