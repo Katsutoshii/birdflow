@@ -16,8 +16,8 @@ fn main() {
                 ..default()
             }),
             EditorPlugin::default(),
-            bird::BirdsPlugin,
             scene::LoadableScenePlugin,
+            bird::BirdsPlugin,
         ))
         .register_type::<Name>()
         .add_systems(Startup, startup)

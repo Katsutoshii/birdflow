@@ -4,7 +4,7 @@
       num_birds: 40,
       theta_factor: 0.001,
       translation_factor: 10.0,
-      max_velocity: 15.0,
+      max_velocity: 10.0,
     ),
   },
   entities: {},

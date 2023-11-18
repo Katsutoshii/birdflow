@@ -14,6 +14,7 @@ impl Plugin for BirdsPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<Bird>()
             .register_type::<BirdSpawner>()
+            .init_resource::<BirdAssets>()
             .add_systems(
                 FixedUpdate,
                 (BirdSpawner::spawn, BirdSpawner::despawn, Bird::update),
@@ -98,6 +99,35 @@ impl<M: Material2d> BirdBundler<M> {
     }
 }
 
+/// Handles to common bird assets.
+#[derive(Resource)]
+pub struct BirdAssets {
+    pub mesh: Handle<Mesh>,
+    pub green_material: Handle<ColorMaterial>,
+    pub tomato_material: Handle<ColorMaterial>,
+}
+impl FromWorld for BirdAssets {
+    fn from_world(world: &mut World) -> Self {
+        let mesh = {
+            let mut meshes = world.get_resource_mut::<Assets<Mesh>>().unwrap();
+            meshes.add(Mesh::from(shape::Circle::default()))
+        };
+        let (green_material, tomato_material) = {
+            let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
+            (
+                materials.add(ColorMaterial::from(Color::LIME_GREEN)),
+                materials.add(ColorMaterial::from(Color::TOMATO)),
+            )
+        };
+        Self {
+            mesh,
+            green_material,
+            tomato_material,
+        }
+    }
+}
+
+/// Singleton that spawns birds with specified stats.
 #[derive(Resource, Reflect)]
 #[reflect(Resource)]
 pub struct BirdSpawner {
@@ -112,25 +142,21 @@ impl Default for BirdSpawner {
             num_birds: 40,
             theta_factor: 0.001,
             translation_factor: 10.0,
-            max_velocity: 15.0,
+            max_velocity: 10.0,
         }
     }
 }
 impl BirdSpawner {
     /// System to spawn birds on left mouse button.
     pub fn spawn(
-        spawner: Res<Self>,
         mut commands: Commands,
-        mut meshes: ResMut<Assets<Mesh>>,
-        mut materials: ResMut<Assets<ColorMaterial>>,
+        spawner: Res<Self>,
+        assets: Res<BirdAssets>,
         buttons: Res<Input<MouseButton>>,
     ) {
         if !buttons.just_pressed(MouseButton::Left) {
             return;
         }
-        let mesh = meshes.add(Mesh::from(shape::Circle::default()));
-        let green_material = materials.add(ColorMaterial::from(Color::LIME_GREEN));
-        let tomato_material = materials.add(ColorMaterial::from(Color::TOMATO));
 
         for i in 1..(spawner.num_birds / 2) {
             commands.spawn(
@@ -140,8 +166,8 @@ impl BirdSpawner {
                         max_velocity: spawner.max_velocity,
                         ..default()
                     },
-                    mesh: mesh.clone(),
-                    material: green_material.clone(),
+                    mesh: assets.mesh.clone(),
+                    material: assets.green_material.clone(),
                     translation: Vec3::ONE * spawner.translation_factor * (i as f32),
                 }
                 .bundle(),
@@ -153,8 +179,8 @@ impl BirdSpawner {
                         max_velocity: spawner.max_velocity,
                         ..default()
                     },
-                    mesh: mesh.clone(),
-                    material: tomato_material.clone(),
+                    mesh: assets.mesh.clone(),
+                    material: assets.tomato_material.clone(),
                     translation: Vec3::NEG_ONE * spawner.translation_factor * (i as f32),
                 }
                 .bundle(),
