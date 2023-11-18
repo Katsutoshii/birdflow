@@ -6,6 +6,12 @@
       translation_factor: 10.0,
       max_velocity: 12.0,
     ),
+    "birdflow::grid::EntityGridSpec": (
+      rows: 20,
+      cols: 30,
+      width: 150.0,
+      visualize: false,
+    ),
   },
   entities: {},
 )

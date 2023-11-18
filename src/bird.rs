@@ -6,7 +6,7 @@ use bevy::{
     window::PrimaryWindow,
 };
 
-use crate::MainCamera;
+use crate::{grid::EntityGrid, MainCamera};
 
 /// Plugin for running birds.
 pub struct BirdsPlugin;
@@ -44,10 +44,11 @@ impl Bird {
         q_windows: Query<&Window, With<PrimaryWindow>>,
         // query to get camera transform
         q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-        mut sprite_position: Query<(&mut Bird, &mut Transform)>,
+        mut sprite_position: Query<(Entity, &mut Bird, &mut Transform)>,
+        mut grid: ResMut<EntityGrid>,
     ) {
         let (camera, camera_transform) = q_camera.single();
-        for (mut bird, mut transform) in &mut sprite_position {
+        for (entity, mut bird, mut transform) in &mut sprite_position {
             if let Some(position) = q_windows
                 .single()
                 .cursor_position()
@@ -58,6 +59,7 @@ impl Bird {
                 bird.velocity = Vec2::ZERO;
             }
             transform.translation += bird.velocity.extend(0.0);
+            grid.update(entity, transform.translation.truncate());
         }
     }
 
@@ -158,7 +160,7 @@ impl BirdSpawner {
             return;
         }
 
-        for i in 1..(spawner.num_birds / 2) {
+        for i in 1..(spawner.num_birds / 2 + 1) {
             commands.spawn(
                 BirdBundler {
                     bird: Bird {
@@ -168,7 +170,7 @@ impl BirdSpawner {
                     },
                     mesh: assets.mesh.clone(),
                     material: assets.green_material.clone(),
-                    translation: Vec3::ONE * spawner.translation_factor * (i as f32),
+                    translation: (Vec3::X + Vec3::Y) * spawner.translation_factor * (i as f32),
                 }
                 .bundle(),
             );
@@ -181,7 +183,7 @@ impl BirdSpawner {
                     },
                     mesh: assets.mesh.clone(),
                     material: assets.tomato_material.clone(),
-                    translation: Vec3::NEG_ONE * spawner.translation_factor * (i as f32),
+                    translation: -(Vec3::X + Vec3::Y) * spawner.translation_factor * (i as f32),
                 }
                 .bundle(),
             );
@@ -192,12 +194,14 @@ impl BirdSpawner {
     pub fn despawn(
         birds: Query<Entity, With<Bird>>,
         mut commands: Commands,
+        mut grid: ResMut<EntityGrid>,
         keyboard_input: Res<Input<KeyCode>>,
     ) {
         if !keyboard_input.just_pressed(KeyCode::D) {
             return;
         }
         for entity in &birds {
+            grid.remove(entity);
             commands.entity(entity).despawn();
         }
     }

@@ -3,14 +3,14 @@ use std::io::Write;
 
 use bevy::{prelude::*, tasks::IoTaskPool};
 
-use crate::bird;
+use crate::{bird, grid};
 
 /// Plugin for saving and loading scenes.
 pub struct LoadableScenePlugin;
 impl Plugin for LoadableScenePlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<SaveEntity>()
-            .add_systems(Startup, load_system)
+            .add_systems(PreStartup, load_system)
             .add_systems(FixedUpdate, save_system);
     }
 }
@@ -51,6 +51,7 @@ pub fn save_system(
     let scene = DynamicSceneBuilder::from_world(&world)
         .extract_entities(query.iter())
         .allow_resource::<bird::BirdSpawner>()
+        .allow_resource::<grid::EntityGrid>()
         .extract_resources()
         .build();
 
