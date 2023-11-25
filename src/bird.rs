@@ -6,7 +6,7 @@ use bevy::{
     window::PrimaryWindow,
 };
 
-use crate::{grid::EntityGrid, MainCamera};
+use crate::{camera::MainCamera, grid::EntityGrid};
 
 /// Plugin for running birds.
 pub struct BirdsPlugin;

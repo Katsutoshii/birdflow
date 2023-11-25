@@ -2,35 +2,39 @@ use bevy::{prelude::*, window::PrimaryWindow};
 use bevy_editor_pls::prelude::*;
 use grid::EntityGrid;
 
+mod aabb;
 mod bird;
+mod camera;
 mod grid;
 mod scene;
+mod window;
 
-/// Used to help identify our main camera
-#[derive(Component)]
-pub struct MainCamera;
+pub use aabb::Aabb2;
 
 fn main() {
     App::new()
         .add_plugins((
-            DefaultPlugins.set(AssetPlugin {
-                watch_for_changes_override: Some(true),
-                ..default()
-            }),
+            DefaultPlugins
+                .set(AssetPlugin {
+                    watch_for_changes_override: Some(true),
+                    ..default()
+                })
+                .set(window::custom_plugin()),
             EditorPlugin::default(),
             grid::GridPlugin,
             bird::BirdsPlugin,
             scene::LoadableScenePlugin,
+            camera::CameraPlugin,
         ))
         .register_type::<Name>()
+        .register_type::<core::num::NonZeroU16>()
         .add_systems(Startup, startup)
         .add_systems(FixedUpdate, position_debug)
         .run();
 }
 
 fn startup(mut commands: Commands) {
-    commands.spawn((Camera2dBundle::default(), MainCamera));
-    commands.spawn(
+    commands.spawn((
         TextBundle::from_section(
             vec![
                 "Controls:",
@@ -49,11 +53,12 @@ fn startup(mut commands: Commands) {
             align_self: AlignSelf::FlexEnd,
             ..default()
         }),
-    );
+        scene::SaveEntity,
+    ));
 }
 
 fn position_debug(
-    camera_query: Query<(Entity, &Camera, &GlobalTransform), With<MainCamera>>,
+    camera_query: Query<(Entity, &Camera, &GlobalTransform), With<camera::MainCamera>>,
     window_query: Query<&Window, With<PrimaryWindow>>,
     mouse_input: Res<Input<MouseButton>>,
     _grid: ResMut<EntityGrid>,

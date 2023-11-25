@@ -1,7 +1,7 @@
 (
   resources: {
     "birdflow::bird::BirdSpawner": (
-      num_birds: 40,
+      num_birds: 100,
       theta_factor: 0.001,
       translation_factor: 10.0,
       max_velocity: 12.0,
@@ -10,7 +10,7 @@
       rows: 20,
       cols: 30,
       width: 150.0,
-      visualize: false,
+      visualize: true,
     ),
   },
   entities: {},

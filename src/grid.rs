@@ -6,6 +6,8 @@ use bevy::{
     utils::{HashMap, HashSet},
 };
 
+use crate::Aabb2;
+
 /// Plugin for an spacial entity paritioning grid with optional debug functionality.
 pub struct GridPlugin;
 impl Plugin for GridPlugin {
@@ -94,6 +96,14 @@ impl EntityGridSpec {
             y: self.width * self.rows as f32 / 2.,
         }
     }
+
+    /// Compute the (min, max) position for the grid.
+    pub fn world2d_bounds(&self) -> Aabb2 {
+        Aabb2 {
+            min: -self.offset(),
+            max: self.offset(),
+        }
+    }
 }
 
 /// A grid of cells that keep track of what entities are contained within them.
@@ -137,7 +147,11 @@ impl EntityGrid {
         if let Some(&(row, col)) = self.entity_to_rowcol.get(&entity) {
             if let Some(cell) = self.get_mut(row, col) {
                 cell.remove(&entity);
+            } else {
+                error!("No cell at {:?}.", (row, col))
             }
+        } else {
+            error!("No row col for {:?}", entity)
         }
     }
 
