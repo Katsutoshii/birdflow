@@ -6,7 +6,7 @@ use bevy::{
     utils::{HashMap, HashSet},
 };
 
-use crate::Aabb2;
+use crate::{zindex, Aabb2};
 
 /// Plugin for an spacial entity paritioning grid with optional debug functionality.
 pub struct GridPlugin;
@@ -244,7 +244,6 @@ pub struct CellVisualizer {
 impl CellVisualizer {
     pub fn bundle(self, spec: &EntityGridSpec, assets: &GridAssets) -> impl Bundle {
         (
-            self.clone(),
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: assets.mesh.clone().into(),
                 transform: Transform::default()
@@ -254,13 +253,14 @@ impl CellVisualizer {
                         Vec3 {
                             x: (0.5 + self.col as f32) * spec.width,
                             y: (0.5 + self.row as f32) * spec.width,
-                            z: -10.0,
+                            z: zindex::BACKGROUND,
                         } - spec.offset().extend(0.),
                     ),
                 material: self.get_color_material(assets),
                 ..default()
             },
             Name::new("Cell"),
+            self,
         )
     }
 

@@ -10,6 +10,8 @@ pub struct LoadableScenePlugin;
 impl Plugin for LoadableScenePlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<SaveEntity>()
+            .register_type::<Name>()
+            .register_type::<core::num::NonZeroU16>()
             .add_systems(PreStartup, load_system)
             .add_systems(FixedUpdate, save_system);
     }

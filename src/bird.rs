@@ -3,10 +3,13 @@ use std::f32::consts::PI;
 use bevy::{
     prelude::*,
     sprite::{Material2d, MaterialMesh2dBundle},
-    window::PrimaryWindow,
 };
 
-use crate::{camera::MainCamera, grid::EntityGrid};
+use crate::{
+    grid::EntityGrid,
+    waypoint::{Waypoint, WaypointFollower},
+    zindex,
+};
 
 /// Plugin for running birds.
 pub struct BirdsPlugin;
@@ -41,20 +44,16 @@ impl Default for Bird {
 }
 impl Bird {
     pub fn update(
-        q_windows: Query<&Window, With<PrimaryWindow>>,
-        // query to get camera transform
-        q_camera: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
-        mut sprite_position: Query<(Entity, &mut Bird, &mut Transform)>,
+        mut sprite_position: Query<(Entity, &mut Bird, &mut Transform, &WaypointFollower)>,
+        waypoints: Query<(&Waypoint, &Transform), Without<Bird>>,
         mut grid: ResMut<EntityGrid>,
     ) {
-        let (camera, camera_transform) = q_camera.single();
-        for (entity, mut bird, mut transform) in &mut sprite_position {
-            if let Some(position) = q_windows
-                .single()
-                .cursor_position()
-                .and_then(|cursor| camera.viewport_to_world_2d(camera_transform, cursor))
-            {
-                bird.update_velocity(position, &transform);
+        for (entity, mut bird, mut transform, follower) in &mut sprite_position {
+            if let Some(waypoint_id) = follower.waypoint_id {
+                let (_waypoint, waypoint_transform) = waypoints
+                    .get(waypoint_id)
+                    .expect(&format!("Invalid waypoint ID: {:?}", &follower.waypoint_id));
+                bird.update_velocity(waypoint_transform.translation.truncate(), &transform);
             } else {
                 bird.velocity = Vec2::ZERO;
             }
@@ -83,11 +82,13 @@ pub struct BirdBundler<M: Material2d> {
     pub mesh: Handle<Mesh>,
     pub material: Handle<M>,
     pub translation: Vec3,
+    pub follower: WaypointFollower,
 }
 impl<M: Material2d> BirdBundler<M> {
     pub fn bundle(self) -> impl Bundle {
         (
             self.bird,
+            self.follower,
             MaterialMesh2dBundle::<M> {
                 mesh: self.mesh.into(),
                 transform: Transform::default()
@@ -154,13 +155,19 @@ impl BirdSpawner {
         mut commands: Commands,
         spawner: Res<Self>,
         assets: Res<BirdAssets>,
-        buttons: Res<Input<MouseButton>>,
+        keyboard: Res<Input<KeyCode>>,
+        waypoint: Query<Entity, With<Waypoint>>,
     ) {
-        if !buttons.just_pressed(MouseButton::Left) {
+        if !keyboard.just_pressed(KeyCode::B) {
             return;
         }
 
+        let waypoint_id = waypoint.single();
+
         for i in 1..(spawner.num_birds / 2 + 1) {
+            let zindex =
+                zindex::BIRDS_MIN + (i as f32) * 0.00001 * (zindex::BIRDS_MAX - zindex::BIRDS_MIN);
+
             commands.spawn(
                 BirdBundler {
                     bird: Bird {
@@ -170,7 +177,9 @@ impl BirdSpawner {
                     },
                     mesh: assets.mesh.clone(),
                     material: assets.green_material.clone(),
-                    translation: (Vec3::X + Vec3::Y) * spawner.translation_factor * (i as f32),
+                    translation: (Vec3::X + Vec3::Y) * spawner.translation_factor * (i as f32)
+                        + Vec3::Z * zindex,
+                    follower: WaypointFollower::new(waypoint_id),
                 }
                 .bundle(),
             );
@@ -183,7 +192,9 @@ impl BirdSpawner {
                     },
                     mesh: assets.mesh.clone(),
                     material: assets.tomato_material.clone(),
-                    translation: -(Vec3::X + Vec3::Y) * spawner.translation_factor * (i as f32),
+                    translation: -(Vec3::X + Vec3::Y) * spawner.translation_factor * (i as f32)
+                        + Vec3::Z * zindex,
+                    follower: WaypointFollower::new(waypoint_id),
                 }
                 .bundle(),
             );
