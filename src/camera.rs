@@ -9,7 +9,11 @@ impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(Startup, MainCamera::startup).add_systems(
             FixedUpdate,
-            (CameraController::update_bounds, CameraController::update),
+            (
+                CameraController::update_bounds,
+                CameraController::update,
+                CameraController::update_drag,
+            ),
         );
     }
 }
@@ -33,6 +37,7 @@ pub struct CameraController {
     pub initialized: bool,
     pub sensitivity: f32,
     pub velocity: Vec2,
+    pub last_drag_position: Option<Vec2>,
     world2d_bounds: Aabb2,
 }
 impl Default for CameraController {
@@ -42,6 +47,7 @@ impl Default for CameraController {
             initialized: false,
             sensitivity: 1000.0,
             velocity: Vec2::ZERO,
+            last_drag_position: None,
             world2d_bounds: Aabb2::default(),
         }
     }
@@ -85,6 +91,42 @@ impl CameraController {
         Some(camera_max - camera_min)
     }
 
+    pub fn update_drag(
+        mut controller_query: Query<
+            (&mut Self, &mut Transform, &Camera, &GlobalTransform),
+            With<MainCamera>,
+        >,
+        window_query: Query<&Window, With<PrimaryWindow>>,
+        mouse_input: Res<Input<MouseButton>>,
+    ) {
+        let window = window_query.single();
+        let (mut controller, mut camera_transform, camera, camera_global_transform) =
+            controller_query.single_mut();
+
+        if let Some(cursor_position) = window.cursor_position() {
+            // Middle mouse drag
+            if mouse_input.pressed(MouseButton::Middle) {
+                if let Some(cursor_world2d) =
+                    camera.viewport_to_world_2d(camera_global_transform, cursor_position)
+                {
+                    if let Some(last_drag_position) = controller.last_drag_position {
+                        let delta = last_drag_position - cursor_world2d;
+                        // Why is this 0.5 here?
+                        // Must have something to do with the default orthographic projection...
+                        // This is probably why it feels so slow, too.
+                        camera_transform.translation += (0.5 * delta).extend(0.);
+                    }
+                    controller.last_drag_position = Some(cursor_world2d);
+                }
+            } else if mouse_input.just_released(MouseButton::Middle) {
+                controller.last_drag_position = None;
+            }
+        }
+        controller
+            .world2d_bounds
+            .clamp3(&mut camera_transform.translation)
+    }
+
     pub fn update(
         time: Res<Time>,
         mut controller_query: Query<(&mut Self, &mut Transform), With<MainCamera>>,
@@ -97,6 +139,7 @@ impl CameraController {
         let mut acceleration = Vec2::ZERO;
         controller.velocity = Vec2::ZERO;
         if let Some(cursor_position) = window.cursor_position() {
+            // Screen border panning.
             acceleration += if cursor_position.x < 1. {
                 -Vec2::X
             } else if cursor_position.x > window::DIMENSIONS.x - 1. {
