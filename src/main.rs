@@ -1,16 +1,31 @@
-use bevy::prelude::*;
+use bevy::{ecs::schedule::SystemSetConfigs, prelude::*};
 use bevy_editor_pls::prelude::*;
 
 mod aabb;
 mod bird;
 mod camera;
 mod grid;
+mod physics;
 mod scene;
 mod waypoint;
 mod window;
 mod zindex;
 
 pub use aabb::Aabb2;
+
+/// Stage of computation
+#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
+pub enum SystemStage {
+    Spawn,
+    Compute,
+    Apply,
+    Despawn,
+}
+impl SystemStage {
+    pub fn get_config() -> SystemSetConfigs {
+        (Self::Compute, Self::Apply).chain()
+    }
+}
 
 fn main() {
     App::new()

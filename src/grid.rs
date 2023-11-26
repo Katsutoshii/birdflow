@@ -284,7 +284,11 @@ impl CellVisualizer {
         grid: Res<EntityGrid>,
         assets: Res<GridAssets>,
         mut query: Query<(&mut Self, &mut Handle<ColorMaterial>)>,
+        input: Res<Input<KeyCode>>,
     ) {
+        if input.just_pressed(KeyCode::G) {
+            dbg!(&grid.cells);
+        }
         if !grid.is_changed() {
             return;
         }

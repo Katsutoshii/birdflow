@@ -7,8 +7,9 @@ use bevy::{
 
 use crate::{
     grid::EntityGrid,
+    physics::{NewVelocity, Velocity},
     waypoint::{Waypoint, WaypointFollower},
-    zindex,
+    zindex, SystemStage,
 };
 
 /// Plugin for running birds.
@@ -18,9 +19,15 @@ impl Plugin for BirdsPlugin {
         app.register_type::<Bird>()
             .register_type::<BirdSpawner>()
             .init_resource::<BirdAssets>()
+            .configure_sets(FixedUpdate, SystemStage::get_config())
             .add_systems(
                 FixedUpdate,
-                (BirdSpawner::spawn, BirdSpawner::despawn, Bird::update),
+                (
+                    BirdSpawner::spawn.in_set(SystemStage::Spawn),
+                    Bird::update_velocity.in_set(SystemStage::Compute),
+                    Bird::apply_velocity.in_set(SystemStage::Apply),
+                    BirdSpawner::despawn.in_set(SystemStage::Despawn),
+                ),
             );
     }
 }
@@ -29,40 +36,61 @@ impl Plugin for BirdsPlugin {
 #[derive(Component, Reflect)]
 #[reflect(Component)]
 pub struct Bird {
-    pub velocity: Vec2,
     pub theta: f32,
     pub max_velocity: f32,
 }
 impl Default for Bird {
     fn default() -> Self {
         Self {
-            velocity: Vec2::ZERO,
             theta: 0.0,
             max_velocity: 10.0,
         }
     }
 }
 impl Bird {
-    pub fn update(
-        mut sprite_position: Query<(Entity, &mut Bird, &mut Transform, &WaypointFollower)>,
+    pub fn update_velocity(
+        mut birds: Query<(
+            Entity,
+            &Bird,
+            &Velocity,
+            &mut NewVelocity,
+            &Transform,
+            &WaypointFollower,
+        )>,
         waypoints: Query<(&Waypoint, &Transform), Without<Bird>>,
-        mut grid: ResMut<EntityGrid>,
+        _grid: Res<EntityGrid>,
     ) {
-        for (entity, mut bird, mut transform, follower) in &mut sprite_position {
+        for (_entity, bird, _velocity, mut new_velocity, transform, follower) in &mut birds {
+            let mut acceleration = Vec2::ZERO;
             if let Some(waypoint_id) = follower.waypoint_id {
                 let (_waypoint, waypoint_transform) = waypoints
                     .get(waypoint_id)
                     .expect(&format!("Invalid waypoint ID: {:?}", &follower.waypoint_id));
-                bird.update_velocity(waypoint_transform.translation.truncate(), &transform);
+                acceleration += bird.get_waypoint_acceleration(
+                    waypoint_transform.translation.truncate(),
+                    &transform,
+                );
             } else {
-                bird.velocity = Vec2::ZERO;
+                acceleration = Vec2::ZERO;
             }
-            transform.translation += bird.velocity.extend(0.0);
+
+            new_velocity.0 += acceleration;
+            new_velocity.0 = new_velocity.0.clamp_length_max(bird.max_velocity);
+        }
+    }
+
+    pub fn apply_velocity(
+        mut birds: Query<(Entity, &mut Velocity, &NewVelocity, &mut Transform), With<Self>>,
+        mut grid: ResMut<EntityGrid>,
+    ) {
+        for (entity, mut velocity, new_velocity, mut transform) in &mut birds {
+            velocity.0 = new_velocity.0;
+            transform.translation += velocity.0.extend(0.);
             grid.update(entity, transform.translation.truncate());
         }
     }
 
-    fn update_velocity(&mut self, cursor_position: Vec2, transform: &Transform) {
+    fn get_waypoint_acceleration(&self, cursor_position: Vec2, transform: &Transform) -> Vec2 {
         let mut delta = cursor_position - transform.translation.xy();
         let rotation_mat = Mat2::from_angle(self.theta);
         delta = rotation_mat * delta;
@@ -70,8 +98,7 @@ impl Bird {
         if delta.length_squared() < 2500.0 {
             delta = -50.0 / delta.clamp_length_min(0.1)
         }
-        self.velocity += delta.normalize_or_zero() * 0.5;
-        self.velocity = self.velocity.clamp_length_max(self.max_velocity);
+        delta.normalize_or_zero() * 0.5
     }
 }
 
@@ -88,6 +115,8 @@ impl<M: Material2d> BirdBundler<M> {
     pub fn bundle(self) -> impl Bundle {
         (
             self.bird,
+            Velocity::default(),
+            NewVelocity::default(),
             self.follower,
             MaterialMesh2dBundle::<M> {
                 mesh: self.mesh.into(),
@@ -225,13 +254,12 @@ mod tests {
 
     #[test]
     fn test_update() {
-        let mut bird = Bird {
-            velocity: Vec2::ZERO,
+        let bird = Bird {
             ..Default::default()
         };
         let cursor_position = Vec2 { x: 10.0, y: 10.0 };
         let mut transform = Transform::default();
-        bird.update_velocity(cursor_position, &mut transform);
-        println!("translation: {:?}", transform.translation);
+        let velocity = bird.get_waypoint_acceleration(cursor_position, &mut transform);
+        println!("velocity: {:?}", velocity);
     }
 }
