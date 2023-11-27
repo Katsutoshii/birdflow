@@ -75,22 +75,29 @@ impl Bird {
             }
 
             // Forces from other entities
-            for other_entity in grid.get_in_radius(transform.translation.truncate(), 20.) {
-                if entity == other_entity {
+            let others = grid.get_in_radius(transform.translation.truncate(), 20.);
+            for other_entity in &others {
+                if entity == *other_entity {
                     continue;
                 }
 
-                let (_other_velocity, other_transform) =
-                    other_birds.get(other_entity).expect("Invalid grid entity.");
+                let (other_velocity, other_transform) = other_birds
+                    .get(*other_entity)
+                    .expect("Invalid grid entity.");
 
                 // Separation
-                acceleration += Self::separation_acceleration(
-                    transform.translation.truncate(),
-                    other_transform.translation.truncate(),
+
+                let position_delta =
+                    transform.translation.truncate() - other_transform.translation.truncate(); // Towards self, away from bird.
+                acceleration += Self::separation_acceleration(position_delta, &spawner);
+
+                // Alignment
+                acceleration += Self::alignment_acceleration(
+                    position_delta,
+                    other_velocity.0,
+                    others.len(),
                     &spawner,
                 );
-
-                // TODO(alignment)
             }
 
             // Update new velocity.
@@ -125,21 +132,29 @@ impl Bird {
     /// The direction is towards self away from each nearby bird.
     /// The magnitude is computed by
     /// $ magnitude = sep * (-x^2 / r^2 + 1)$
-    fn separation_acceleration(
-        position: Vec2,
-        other_position: Vec2,
-        spawner: &BirdSpawner,
-    ) -> Vec2 {
-        let delta = position - other_position; // Towards self, away from bird.
+    fn separation_acceleration(position_delta: Vec2, spawner: &BirdSpawner) -> Vec2 {
         let radius = spawner.neighbor_radius;
         let magnitude = spawner.max_separation_acceleration
-            * (-delta.length_squared() / (radius * radius) + 1.);
-        // TODO: could we use the negative values for cohesion?
-        delta.normalize()
+            * (-position_delta.length_squared() / (radius * radius) + 1.);
+        position_delta.normalize()
             * magnitude.clamp(
                 -spawner.max_cohesion_acceleration,
                 spawner.max_separation_acceleration,
             )
+    }
+
+    /// ALignment acceleration.
+    /// For now we just nudge the birds in the direction of all the other birds.
+    /// We normalize by number of other birds to prevent a large flock
+    /// from being unable to turn.
+    fn alignment_acceleration(
+        position_delta: Vec2,
+        other_velocity: Vec2,
+        other_count: usize,
+        spawner: &BirdSpawner,
+    ) -> Vec2 {
+        other_velocity * spawner.alignment_factor
+            / (position_delta.length_squared() * other_count as f32)
     }
 }
 
@@ -211,6 +226,7 @@ pub struct BirdSpawner {
     neighbor_radius: f32,
     max_separation_acceleration: f32,
     max_cohesion_acceleration: f32,
+    alignment_factor: f32,
 }
 impl Default for BirdSpawner {
     fn default() -> Self {
@@ -222,6 +238,7 @@ impl Default for BirdSpawner {
             neighbor_radius: 10.0,
             max_separation_acceleration: 1.0,
             max_cohesion_acceleration: 1.0,
+            alignment_factor: 0.1,
         }
     }
 }
