@@ -57,23 +57,43 @@ impl Bird {
             &Transform,
             &WaypointFollower,
         )>,
+        other_birds: Query<(&Velocity, &Transform), With<Bird>>,
         waypoints: Query<(&Waypoint, &Transform), Without<Bird>>,
-        _grid: Res<EntityGrid>,
+        grid: Res<EntityGrid>,
+        spawner: Res<BirdSpawner>,
     ) {
-        for (_entity, bird, _velocity, mut new_velocity, transform, follower) in &mut birds {
+        for (entity, bird, _velocity, mut new_velocity, transform, follower) in &mut birds {
             let mut acceleration = Vec2::ZERO;
+
+            // Forces from waypoint
             if let Some(waypoint_id) = follower.waypoint_id {
                 let (_waypoint, waypoint_transform) = waypoints
                     .get(waypoint_id)
                     .expect(&format!("Invalid waypoint ID: {:?}", &follower.waypoint_id));
-                acceleration += bird.get_waypoint_acceleration(
-                    waypoint_transform.translation.truncate(),
-                    &transform,
-                );
-            } else {
-                acceleration = Vec2::ZERO;
+                acceleration += bird
+                    .waypoint_acceleration(waypoint_transform.translation.truncate(), &transform);
             }
 
+            // Forces from other entities
+            for other_entity in grid.get_in_radius(transform.translation.truncate(), 20.) {
+                if entity == other_entity {
+                    continue;
+                }
+
+                let (_other_velocity, other_transform) =
+                    other_birds.get(other_entity).expect("Invalid grid entity.");
+
+                // Separation
+                acceleration += Self::separation_acceleration(
+                    transform.translation.truncate(),
+                    other_transform.translation.truncate(),
+                    &spawner,
+                );
+
+                // TODO(alignment)
+            }
+
+            // Update new velocity.
             new_velocity.0 += acceleration;
             new_velocity.0 = new_velocity.0.clamp_length_max(bird.max_velocity);
         }
@@ -90,7 +110,7 @@ impl Bird {
         }
     }
 
-    fn get_waypoint_acceleration(&self, cursor_position: Vec2, transform: &Transform) -> Vec2 {
+    fn waypoint_acceleration(&self, cursor_position: Vec2, transform: &Transform) -> Vec2 {
         let mut delta = cursor_position - transform.translation.xy();
         let rotation_mat = Mat2::from_angle(self.theta);
         delta = rotation_mat * delta;
@@ -99,6 +119,27 @@ impl Bird {
             delta = -50.0 / delta.clamp_length_min(0.1)
         }
         delta.normalize_or_zero() * 0.5
+    }
+
+    /// Compute acceleration from separation.
+    /// The direction is towards self away from each nearby bird.
+    /// The magnitude is computed by
+    /// $ magnitude = sep * (-x^2 / r^2 + 1)$
+    fn separation_acceleration(
+        position: Vec2,
+        other_position: Vec2,
+        spawner: &BirdSpawner,
+    ) -> Vec2 {
+        let delta = position - other_position; // Towards self, away from bird.
+        let radius = spawner.neighbor_radius;
+        let magnitude = spawner.max_separation_acceleration
+            * (-delta.length_squared() / (radius * radius) + 1.);
+        // TODO: could we use the negative values for cohesion?
+        delta.normalize()
+            * magnitude.clamp(
+                -spawner.max_cohesion_acceleration,
+                spawner.max_separation_acceleration,
+            )
     }
 }
 
@@ -167,6 +208,9 @@ pub struct BirdSpawner {
     theta_factor: f32,
     translation_factor: f32,
     max_velocity: f32,
+    neighbor_radius: f32,
+    max_separation_acceleration: f32,
+    max_cohesion_acceleration: f32,
 }
 impl Default for BirdSpawner {
     fn default() -> Self {
@@ -175,6 +219,9 @@ impl Default for BirdSpawner {
             theta_factor: 0.001,
             translation_factor: 10.0,
             max_velocity: 10.0,
+            neighbor_radius: 10.0,
+            max_separation_acceleration: 1.0,
+            max_cohesion_acceleration: 1.0,
         }
     }
 }
@@ -259,7 +306,7 @@ mod tests {
         };
         let cursor_position = Vec2 { x: 10.0, y: 10.0 };
         let mut transform = Transform::default();
-        let velocity = bird.get_waypoint_acceleration(cursor_position, &mut transform);
+        let velocity = bird.waypoint_acceleration(cursor_position, &mut transform);
         println!("velocity: {:?}", velocity);
     }
 }

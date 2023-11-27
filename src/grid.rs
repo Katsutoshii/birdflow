@@ -172,14 +172,13 @@ impl EntityGrid {
     pub fn get_in_radius(&self, position: Vec2, radius: f32) -> Vec<Entity> {
         let mut result = vec![];
 
-        let min_position = position + Vec2::NEG_ONE * radius;
+        let min_position = position + (Vec2::NEG_ONE * radius);
         let (min_row, min_col) = self.to_rowcol(min_position);
 
-        let max_position = position + Vec2::ONE * radius;
+        let max_position = position + (Vec2::ONE * radius);
         let (max_row, max_col) = self.to_rowcol(max_position);
-
-        for row in min_row..max_row {
-            for col in min_col..max_col {
+        for row in min_row..=max_row {
+            for col in min_col..=max_col {
                 if let Some(set) = self.get(row, col) {
                     result.extend(set.iter());
                 }

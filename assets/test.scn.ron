@@ -1,15 +1,18 @@
 (
   resources: {
     "birdflow::bird::BirdSpawner": (
-      num_birds: 10,
+      num_birds: 2,
       theta_factor: 0.001,
       translation_factor: 10.0,
-      max_velocity: 9.0,
+      max_velocity: 8.0,
+      neighbor_radius: 150.0,
+      max_separation_acceleration: 2.0,
+      max_cohesion_acceleration: 0.5,
     ),
     "birdflow::grid::EntityGridSpec": (
-      rows: 20,
-      cols: 30,
-      width: 150.0,
+      rows: 10,
+      cols: 10,
+      width: 300.0,
       visualize: true,
     ),
   },
