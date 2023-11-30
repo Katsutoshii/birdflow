@@ -1,17 +1,2644 @@
 (
   resources: {
     "birdflow::bird::BirdSpawner": (
-      num_birds: 40,
+      num_birds: 2,
       theta_factor: 0.001,
       translation_factor: 10.0,
-      max_velocity: 12.0,
-    ),
-    "birdflow::grid::EntityGridSpec": (
-      rows: 20,
-      cols: 30,
-      width: 150.0,
-      visualize: false,
+      max_velocity: 8.0,
+      neighbor_radius: 150.0,
+      max_separation_acceleration: 2.0,
+      max_cohesion_acceleration: 0.5,
+      alignment_factor: 100.0,
     ),
   },
-  entities: {},
+  entities: {
+    5: (
+      components: {
+        "bevy_transform::components::transform::Transform": (
+          translation: (
+            x: 157.5,
+            y: 837.0,
+            z: 0.0,
+          ),
+          rotation: (
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            w: 1.0,
+          ),
+          scale: (
+            x: 1.0,
+            y: 1.0,
+            z: 1.0,
+          ),
+        ),
+        "bevy_transform::components::global_transform::GlobalTransform": ((
+          matrix3: (
+            x_axis: (
+              x: 1.0,
+              y: 0.0,
+              z: 0.0,
+            ),
+            y_axis: (
+              x: 0.0,
+              y: 1.0,
+              z: 0.0,
+            ),
+            z_axis: (
+              x: 0.0,
+              y: 0.0,
+              z: 1.0,
+            ),
+          ),
+          translation: (
+            x: 157.5,
+            y: 837.0,
+            z: 0.0,
+          ),
+        )),
+        "bevy_render::view::visibility::Visibility": Inherited,
+        "bevy_render::view::visibility::InheritedVisibility": (true),
+        "bevy_render::view::visibility::ViewVisibility": (true),
+        "bevy_ui::ui_node::Node": (
+          stack_index: 0,
+          calculated_size: (
+            x: 315.0,
+            y: 126.0,
+          ),
+          outline_width: 0.0,
+          outline_offset: 0.0,
+          unrounded_size: (
+            x: 315.33334,
+            y: 126.0,
+          ),
+        ),
+        "bevy_ui::ui_node::Style": (
+          display: Flex,
+          position_type: Relative,
+          overflow: (
+            x: Visible,
+            y: Visible,
+          ),
+          direction: Inherit,
+          left: Auto,
+          right: Auto,
+          top: Auto,
+          bottom: Auto,
+          width: Auto,
+          height: Auto,
+          min_width: Auto,
+          min_height: Auto,
+          max_width: Auto,
+          max_height: Auto,
+          aspect_ratio: None,
+          align_items: Default,
+          justify_items: Default,
+          align_self: FlexEnd,
+          justify_self: Auto,
+          align_content: Default,
+          justify_content: Default,
+          margin: (
+            left: Px(0.0),
+            right: Px(0.0),
+            top: Px(0.0),
+            bottom: Px(0.0),
+          ),
+          padding: (
+            left: Px(0.0),
+            right: Px(0.0),
+            top: Px(0.0),
+            bottom: Px(0.0),
+          ),
+          border: (
+            left: Px(0.0),
+            right: Px(0.0),
+            top: Px(0.0),
+            bottom: Px(0.0),
+          ),
+          flex_direction: Row,
+          flex_wrap: NoWrap,
+          flex_grow: 0.0,
+          flex_shrink: 1.0,
+          flex_basis: Auto,
+          row_gap: Px(0.0),
+          column_gap: Px(0.0),
+          grid_auto_flow: Row,
+          grid_template_rows: [],
+          grid_template_columns: [],
+          grid_auto_rows: [],
+          grid_auto_columns: [],
+          grid_row: (
+            start: None,
+            span: Some(1),
+            end: None,
+          ),
+          grid_column: (
+            start: None,
+            span: Some(1),
+            end: None,
+          ),
+        ),
+        "bevy_text::text::Text": (
+          sections: [
+            (
+              value: "Controls:\n  Move camera: move mouse to border\n  Move waypoint: right click\n  Spawn birds: \'b\'\n  Despawn birds: \'d\'\n  Save scene: \'s\'\n  Open editor: \'e\'",
+              style: (
+                font: Weak(Uuid(
+                  uuid: "97128bb1-2588-480b-bdc6-87b4adbec477",
+                )),
+                font_size: 18.0,
+                color: Rgba(
+                  red: 1.0,
+                  green: 1.0,
+                  blue: 1.0,
+                  alpha: 1.0,
+                ),
+              ),
+            ),
+          ],
+          alignment: Left,
+          linebreak_behavior: WordBoundary,
+        ),
+        "bevy_text::pipeline::TextLayoutInfo": (
+          glyphs: [
+            (
+              position: (
+                x: 7.0,
+                y: 14.5,
+              ),
+              size: (
+                x: 12.0,
+                y: 17.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 0,
+              ),
+              section_index: 0,
+              byte_index: 0,
+            ),
+            (
+              position: (
+                x: 21.0,
+                y: 16.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 1,
+              ),
+              section_index: 0,
+              byte_index: 1,
+            ),
+            (
+              position: (
+                x: 34.0,
+                y: 15.5,
+              ),
+              size: (
+                x: 10.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 2,
+              ),
+              section_index: 0,
+              byte_index: 2,
+            ),
+            (
+              position: (
+                x: 47.5,
+                y: 15.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 16.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 3,
+              ),
+              section_index: 0,
+              byte_index: 3,
+            ),
+            (
+              position: (
+                x: 61.5,
+                y: 15.5,
+              ),
+              size: (
+                x: 11.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 4,
+              ),
+              section_index: 0,
+              byte_index: 4,
+            ),
+            (
+              position: (
+                x: 75.0,
+                y: 16.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 1,
+              ),
+              section_index: 0,
+              byte_index: 5,
+            ),
+            (
+              position: (
+                x: 87.5,
+                y: 14.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 18.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 5,
+              ),
+              section_index: 0,
+              byte_index: 6,
+            ),
+            (
+              position: (
+                x: 101.5,
+                y: 16.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 6,
+              ),
+              section_index: 0,
+              byte_index: 7,
+            ),
+            (
+              position: (
+                x: 114.5,
+                y: 16.5,
+              ),
+              size: (
+                x: 5.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 7,
+              ),
+              section_index: 0,
+              byte_index: 8,
+            ),
+            (
+              position: (
+                x: 33.5,
+                y: 41.0,
+              ),
+              size: (
+                x: 13.0,
+                y: 16.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 8,
+              ),
+              section_index: 0,
+              byte_index: 12,
+            ),
+            (
+              position: (
+                x: 48.0,
+                y: 43.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 1,
+              ),
+              section_index: 0,
+              byte_index: 13,
+            ),
+            (
+              position: (
+                x: 61.0,
+                y: 43.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 12.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 9,
+              ),
+              section_index: 0,
+              byte_index: 14,
+            ),
+            (
+              position: (
+                x: 75.0,
+                y: 43.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 10,
+              ),
+              section_index: 0,
+              byte_index: 15,
+            ),
+            (
+              position: (
+                x: 101.5,
+                y: 43.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 11,
+              ),
+              section_index: 0,
+              byte_index: 17,
+            ),
+            (
+              position: (
+                x: 114.5,
+                y: 43.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 12,
+              ),
+              section_index: 0,
+              byte_index: 18,
+            ),
+            (
+              position: (
+                x: 128.5,
+                y: 42.5,
+              ),
+              size: (
+                x: 13.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 13,
+              ),
+              section_index: 0,
+              byte_index: 19,
+            ),
+            (
+              position: (
+                x: 142.0,
+                y: 43.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 10,
+              ),
+              section_index: 0,
+              byte_index: 20,
+            ),
+            (
+              position: (
+                x: 156.5,
+                y: 42.5,
+              ),
+              size: (
+                x: 11.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 4,
+              ),
+              section_index: 0,
+              byte_index: 21,
+            ),
+            (
+              position: (
+                x: 168.5,
+                y: 43.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 12,
+              ),
+              section_index: 0,
+              byte_index: 22,
+            ),
+            (
+              position: (
+                x: 182.5,
+                y: 43.5,
+              ),
+              size: (
+                x: 5.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 7,
+              ),
+              section_index: 0,
+              byte_index: 23,
+            ),
+            (
+              position: (
+                x: 209.5,
+                y: 42.5,
+              ),
+              size: (
+                x: 13.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 13,
+              ),
+              section_index: 0,
+              byte_index: 25,
+            ),
+            (
+              position: (
+                x: 223.0,
+                y: 43.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 1,
+              ),
+              section_index: 0,
+              byte_index: 26,
+            ),
+            (
+              position: (
+                x: 237.0,
+                y: 43.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 12.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 9,
+              ),
+              section_index: 0,
+              byte_index: 27,
+            ),
+            (
+              position: (
+                x: 250.0,
+                y: 43.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 10,
+              ),
+              section_index: 0,
+              byte_index: 28,
+            ),
+            (
+              position: (
+                x: 276.5,
+                y: 42.5,
+              ),
+              size: (
+                x: 13.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 13,
+              ),
+              section_index: 0,
+              byte_index: 30,
+            ),
+            (
+              position: (
+                x: 291.0,
+                y: 43.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 1,
+              ),
+              section_index: 0,
+              byte_index: 31,
+            ),
+            (
+              position: (
+                x: 304.0,
+                y: 43.5,
+              ),
+              size: (
+                x: 10.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 14,
+              ),
+              section_index: 0,
+              byte_index: 32,
+            ),
+            (
+              position: (
+                x: 317.5,
+                y: 43.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 6,
+              ),
+              section_index: 0,
+              byte_index: 33,
+            ),
+            (
+              position: (
+                x: 331.0,
+                y: 43.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 10,
+              ),
+              section_index: 0,
+              byte_index: 34,
+            ),
+            (
+              position: (
+                x: 357.5,
+                y: 42.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 16.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 3,
+              ),
+              section_index: 0,
+              byte_index: 36,
+            ),
+            (
+              position: (
+                x: 372.0,
+                y: 43.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 1,
+              ),
+              section_index: 0,
+              byte_index: 37,
+            ),
+            (
+              position: (
+                x: 399.5,
+                y: 41.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 18.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 15,
+              ),
+              section_index: 0,
+              byte_index: 39,
+            ),
+            (
+              position: (
+                x: 412.0,
+                y: 43.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 1,
+              ),
+              section_index: 0,
+              byte_index: 40,
+            ),
+            (
+              position: (
+                x: 426.5,
+                y: 42.5,
+              ),
+              size: (
+                x: 11.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 4,
+              ),
+              section_index: 0,
+              byte_index: 41,
+            ),
+            (
+              position: (
+                x: 438.5,
+                y: 41.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 18.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 16,
+              ),
+              section_index: 0,
+              byte_index: 42,
+            ),
+            (
+              position: (
+                x: 453.0,
+                y: 43.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 10,
+              ),
+              section_index: 0,
+              byte_index: 43,
+            ),
+            (
+              position: (
+                x: 466.5,
+                y: 42.5,
+              ),
+              size: (
+                x: 11.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 4,
+              ),
+              section_index: 0,
+              byte_index: 44,
+            ),
+            (
+              position: (
+                x: 33.5,
+                y: 68.0,
+              ),
+              size: (
+                x: 13.0,
+                y: 16.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 8,
+              ),
+              section_index: 0,
+              byte_index: 48,
+            ),
+            (
+              position: (
+                x: 48.0,
+                y: 70.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 1,
+              ),
+              section_index: 0,
+              byte_index: 49,
+            ),
+            (
+              position: (
+                x: 61.0,
+                y: 70.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 12.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 9,
+              ),
+              section_index: 0,
+              byte_index: 50,
+            ),
+            (
+              position: (
+                x: 75.0,
+                y: 70.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 10,
+              ),
+              section_index: 0,
+              byte_index: 51,
+            ),
+            (
+              position: (
+                x: 102.0,
+                y: 70.0,
+              ),
+              size: (
+                x: 14.0,
+                y: 12.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 17,
+              ),
+              section_index: 0,
+              byte_index: 53,
+            ),
+            (
+              position: (
+                x: 114.5,
+                y: 70.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 12,
+              ),
+              section_index: 0,
+              byte_index: 54,
+            ),
+            (
+              position: (
+                x: 129.0,
+                y: 72.5,
+              ),
+              size: (
+                x: 12.0,
+                y: 17.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 18,
+              ),
+              section_index: 0,
+              byte_index: 55,
+            ),
+            (
+              position: (
+                x: 142.5,
+                y: 72.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 18.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 19,
+              ),
+              section_index: 0,
+              byte_index: 56,
+            ),
+            (
+              position: (
+                x: 156.0,
+                y: 70.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 1,
+              ),
+              section_index: 0,
+              byte_index: 57,
+            ),
+            (
+              position: (
+                x: 169.0,
+                y: 67.0,
+              ),
+              size: (
+                x: 10.0,
+                y: 18.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 20,
+              ),
+              section_index: 0,
+              byte_index: 58,
+            ),
+            (
+              position: (
+                x: 183.0,
+                y: 69.5,
+              ),
+              size: (
+                x: 10.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 2,
+              ),
+              section_index: 0,
+              byte_index: 59,
+            ),
+            (
+              position: (
+                x: 195.5,
+                y: 69.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 16.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 3,
+              ),
+              section_index: 0,
+              byte_index: 60,
+            ),
+            (
+              position: (
+                x: 209.5,
+                y: 70.5,
+              ),
+              size: (
+                x: 5.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 7,
+              ),
+              section_index: 0,
+              byte_index: 61,
+            ),
+            (
+              position: (
+                x: 237.5,
+                y: 69.5,
+              ),
+              size: (
+                x: 11.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 4,
+              ),
+              section_index: 0,
+              byte_index: 63,
+            ),
+            (
+              position: (
+                x: 250.0,
+                y: 67.0,
+              ),
+              size: (
+                x: 10.0,
+                y: 18.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 20,
+              ),
+              section_index: 0,
+              byte_index: 64,
+            ),
+            (
+              position: (
+                x: 264.0,
+                y: 71.5,
+              ),
+              size: (
+                x: 12.0,
+                y: 19.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 21,
+              ),
+              section_index: 0,
+              byte_index: 65,
+            ),
+            (
+              position: (
+                x: 277.0,
+                y: 67.5,
+              ),
+              size: (
+                x: 10.0,
+                y: 17.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 22,
+              ),
+              section_index: 0,
+              byte_index: 66,
+            ),
+            (
+              position: (
+                x: 290.5,
+                y: 69.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 16.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 3,
+              ),
+              section_index: 0,
+              byte_index: 67,
+            ),
+            (
+              position: (
+                x: 317.5,
+                y: 70.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 11,
+              ),
+              section_index: 0,
+              byte_index: 69,
+            ),
+            (
+              position: (
+                x: 330.5,
+                y: 68.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 18.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 5,
+              ),
+              section_index: 0,
+              byte_index: 70,
+            ),
+            (
+              position: (
+                x: 345.0,
+                y: 67.0,
+              ),
+              size: (
+                x: 10.0,
+                y: 18.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 20,
+              ),
+              section_index: 0,
+              byte_index: 71,
+            ),
+            (
+              position: (
+                x: 357.5,
+                y: 70.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 11,
+              ),
+              section_index: 0,
+              byte_index: 72,
+            ),
+            (
+              position: (
+                x: 372.5,
+                y: 67.5,
+              ),
+              size: (
+                x: 11.0,
+                y: 17.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 23,
+              ),
+              section_index: 0,
+              byte_index: 73,
+            ),
+            (
+              position: (
+                x: 33.5,
+                y: 95.5,
+              ),
+              size: (
+                x: 13.0,
+                y: 17.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 24,
+              ),
+              section_index: 0,
+              byte_index: 77,
+            ),
+            (
+              position: (
+                x: 48.5,
+                y: 99.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 18.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 19,
+              ),
+              section_index: 0,
+              byte_index: 78,
+            ),
+            (
+              position: (
+                x: 60.5,
+                y: 97.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 12,
+              ),
+              section_index: 0,
+              byte_index: 79,
+            ),
+            (
+              position: (
+                x: 75.0,
+                y: 97.0,
+              ),
+              size: (
+                x: 14.0,
+                y: 12.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 17,
+              ),
+              section_index: 0,
+              byte_index: 80,
+            ),
+            (
+              position: (
+                x: 88.0,
+                y: 96.5,
+              ),
+              size: (
+                x: 10.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 2,
+              ),
+              section_index: 0,
+              byte_index: 81,
+            ),
+            (
+              position: (
+                x: 115.5,
+                y: 95.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 18.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 15,
+              ),
+              section_index: 0,
+              byte_index: 83,
+            ),
+            (
+              position: (
+                x: 129.0,
+                y: 94.0,
+              ),
+              size: (
+                x: 10.0,
+                y: 18.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 20,
+              ),
+              section_index: 0,
+              byte_index: 84,
+            ),
+            (
+              position: (
+                x: 142.5,
+                y: 96.5,
+              ),
+              size: (
+                x: 11.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 4,
+              ),
+              section_index: 0,
+              byte_index: 85,
+            ),
+            (
+              position: (
+                x: 155.5,
+                y: 95.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 18.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 16,
+              ),
+              section_index: 0,
+              byte_index: 86,
+            ),
+            (
+              position: (
+                x: 168.5,
+                y: 97.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 6,
+              ),
+              section_index: 0,
+              byte_index: 87,
+            ),
+            (
+              position: (
+                x: 182.5,
+                y: 97.5,
+              ),
+              size: (
+                x: 5.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 7,
+              ),
+              section_index: 0,
+              byte_index: 88,
+            ),
+            (
+              position: (
+                x: 210.0,
+                y: 89.5,
+              ),
+              size: (
+                x: 4.0,
+                y: 7.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 25,
+              ),
+              section_index: 0,
+              byte_index: 90,
+            ),
+            (
+              position: (
+                x: 223.5,
+                y: 95.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 18.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 15,
+              ),
+              section_index: 0,
+              byte_index: 91,
+            ),
+            (
+              position: (
+                x: 237.0,
+                y: 89.5,
+              ),
+              size: (
+                x: 4.0,
+                y: 7.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 25,
+              ),
+              section_index: 0,
+              byte_index: 92,
+            ),
+            (
+              position: (
+                x: 34.0,
+                y: 122.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 16.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 26,
+              ),
+              section_index: 0,
+              byte_index: 96,
+            ),
+            (
+              position: (
+                x: 48.0,
+                y: 124.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 10,
+              ),
+              section_index: 0,
+              byte_index: 97,
+            ),
+            (
+              position: (
+                x: 60.5,
+                y: 124.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 6,
+              ),
+              section_index: 0,
+              byte_index: 98,
+            ),
+            (
+              position: (
+                x: 75.5,
+                y: 126.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 18.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 19,
+              ),
+              section_index: 0,
+              byte_index: 99,
+            ),
+            (
+              position: (
+                x: 87.5,
+                y: 124.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 12,
+              ),
+              section_index: 0,
+              byte_index: 100,
+            ),
+            (
+              position: (
+                x: 102.0,
+                y: 124.0,
+              ),
+              size: (
+                x: 14.0,
+                y: 12.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 17,
+              ),
+              section_index: 0,
+              byte_index: 101,
+            ),
+            (
+              position: (
+                x: 115.0,
+                y: 123.5,
+              ),
+              size: (
+                x: 10.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 2,
+              ),
+              section_index: 0,
+              byte_index: 102,
+            ),
+            (
+              position: (
+                x: 142.5,
+                y: 122.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 18.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 15,
+              ),
+              section_index: 0,
+              byte_index: 104,
+            ),
+            (
+              position: (
+                x: 156.0,
+                y: 121.0,
+              ),
+              size: (
+                x: 10.0,
+                y: 18.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 20,
+              ),
+              section_index: 0,
+              byte_index: 105,
+            ),
+            (
+              position: (
+                x: 169.5,
+                y: 123.5,
+              ),
+              size: (
+                x: 11.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 4,
+              ),
+              section_index: 0,
+              byte_index: 106,
+            ),
+            (
+              position: (
+                x: 182.5,
+                y: 122.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 18.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 16,
+              ),
+              section_index: 0,
+              byte_index: 107,
+            ),
+            (
+              position: (
+                x: 195.5,
+                y: 124.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 6,
+              ),
+              section_index: 0,
+              byte_index: 108,
+            ),
+            (
+              position: (
+                x: 209.5,
+                y: 124.5,
+              ),
+              size: (
+                x: 5.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 7,
+              ),
+              section_index: 0,
+              byte_index: 109,
+            ),
+            (
+              position: (
+                x: 237.0,
+                y: 116.5,
+              ),
+              size: (
+                x: 4.0,
+                y: 7.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 25,
+              ),
+              section_index: 0,
+              byte_index: 111,
+            ),
+            (
+              position: (
+                x: 249.5,
+                y: 122.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 18.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 16,
+              ),
+              section_index: 0,
+              byte_index: 112,
+            ),
+            (
+              position: (
+                x: 264.0,
+                y: 116.5,
+              ),
+              size: (
+                x: 4.0,
+                y: 7.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 25,
+              ),
+              section_index: 0,
+              byte_index: 113,
+            ),
+            (
+              position: (
+                x: 33.5,
+                y: 149.5,
+              ),
+              size: (
+                x: 13.0,
+                y: 17.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 24,
+              ),
+              section_index: 0,
+              byte_index: 117,
+            ),
+            (
+              position: (
+                x: 47.5,
+                y: 151.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 12,
+              ),
+              section_index: 0,
+              byte_index: 118,
+            ),
+            (
+              position: (
+                x: 61.0,
+                y: 151.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 12.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 9,
+              ),
+              section_index: 0,
+              byte_index: 119,
+            ),
+            (
+              position: (
+                x: 75.0,
+                y: 151.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 10,
+              ),
+              section_index: 0,
+              byte_index: 120,
+            ),
+            (
+              position: (
+                x: 101.5,
+                y: 151.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 6,
+              ),
+              section_index: 0,
+              byte_index: 122,
+            ),
+            (
+              position: (
+                x: 114.5,
+                y: 151.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 11,
+              ),
+              section_index: 0,
+              byte_index: 123,
+            ),
+            (
+              position: (
+                x: 129.0,
+                y: 151.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 10,
+              ),
+              section_index: 0,
+              byte_index: 124,
+            ),
+            (
+              position: (
+                x: 142.0,
+                y: 150.5,
+              ),
+              size: (
+                x: 10.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 2,
+              ),
+              section_index: 0,
+              byte_index: 125,
+            ),
+            (
+              position: (
+                x: 156.0,
+                y: 151.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 10,
+              ),
+              section_index: 0,
+              byte_index: 126,
+            ),
+            (
+              position: (
+                x: 168.5,
+                y: 151.5,
+              ),
+              size: (
+                x: 5.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 7,
+              ),
+              section_index: 0,
+              byte_index: 127,
+            ),
+            (
+              position: (
+                x: 196.0,
+                y: 143.5,
+              ),
+              size: (
+                x: 4.0,
+                y: 7.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 25,
+              ),
+              section_index: 0,
+              byte_index: 129,
+            ),
+            (
+              position: (
+                x: 209.5,
+                y: 151.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 6,
+              ),
+              section_index: 0,
+              byte_index: 130,
+            ),
+            (
+              position: (
+                x: 223.0,
+                y: 143.5,
+              ),
+              size: (
+                x: 4.0,
+                y: 7.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 25,
+              ),
+              section_index: 0,
+              byte_index: 131,
+            ),
+            (
+              position: (
+                x: 33.5,
+                y: 176.5,
+              ),
+              size: (
+                x: 13.0,
+                y: 17.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 27,
+              ),
+              section_index: 0,
+              byte_index: 135,
+            ),
+            (
+              position: (
+                x: 48.5,
+                y: 180.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 18.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 19,
+              ),
+              section_index: 0,
+              byte_index: 136,
+            ),
+            (
+              position: (
+                x: 61.0,
+                y: 178.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 10,
+              ),
+              section_index: 0,
+              byte_index: 137,
+            ),
+            (
+              position: (
+                x: 75.0,
+                y: 177.5,
+              ),
+              size: (
+                x: 10.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 2,
+              ),
+              section_index: 0,
+              byte_index: 138,
+            ),
+            (
+              position: (
+                x: 102.0,
+                y: 178.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 10,
+              ),
+              section_index: 0,
+              byte_index: 140,
+            ),
+            (
+              position: (
+                x: 114.5,
+                y: 176.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 18.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 16,
+              ),
+              section_index: 0,
+              byte_index: 141,
+            ),
+            (
+              position: (
+                x: 129.0,
+                y: 175.0,
+              ),
+              size: (
+                x: 10.0,
+                y: 18.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 20,
+              ),
+              section_index: 0,
+              byte_index: 142,
+            ),
+            (
+              position: (
+                x: 141.5,
+                y: 177.0,
+              ),
+              size: (
+                x: 11.0,
+                y: 16.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 3,
+              ),
+              section_index: 0,
+              byte_index: 143,
+            ),
+            (
+              position: (
+                x: 156.0,
+                y: 178.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 1,
+              ),
+              section_index: 0,
+              byte_index: 144,
+            ),
+            (
+              position: (
+                x: 169.5,
+                y: 177.5,
+              ),
+              size: (
+                x: 11.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 4,
+              ),
+              section_index: 0,
+              byte_index: 145,
+            ),
+            (
+              position: (
+                x: 182.5,
+                y: 178.5,
+              ),
+              size: (
+                x: 5.0,
+                y: 13.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 7,
+              ),
+              section_index: 0,
+              byte_index: 146,
+            ),
+            (
+              position: (
+                x: 210.0,
+                y: 170.5,
+              ),
+              size: (
+                x: 4.0,
+                y: 7.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 25,
+              ),
+              section_index: 0,
+              byte_index: 148,
+            ),
+            (
+              position: (
+                x: 223.0,
+                y: 178.0,
+              ),
+              size: (
+                x: 12.0,
+                y: 14.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 10,
+              ),
+              section_index: 0,
+              byte_index: 149,
+            ),
+            (
+              position: (
+                x: 237.0,
+                y: 170.5,
+              ),
+              size: (
+                x: 4.0,
+                y: 7.0,
+              ),
+              atlas_info: (
+                texture_atlas: Weak(Index(
+                  index: (
+                    generation: 0,
+                    index: 0,
+                  ),
+                )),
+                glyph_index: 25,
+              ),
+              section_index: 0,
+              byte_index: 150,
+            ),
+          ],
+          logical_size: (
+            x: 315.00003,
+            y: 126.0,
+          ),
+        ),
+        "bevy_ui::widget::text::TextFlags": (
+          needs_new_measure_func: false,
+          needs_recompute: false,
+        ),
+        "bevy_ui::measurement::ContentSize": (),
+        "bevy_ui::focus::FocusPolicy": Pass,
+        "bevy_ui::ui_node::ZIndex": Local(0),
+        "bevy_ui::ui_node::BackgroundColor": (Rgba(
+          red: 0.0,
+          green: 0.0,
+          blue: 0.0,
+          alpha: 0.0,
+        )),
+        "birdflow::scene::SaveEntity": (),
+      },
+    ),
+  },
 )

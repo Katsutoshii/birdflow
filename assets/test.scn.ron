@@ -4,11 +4,14 @@
       num_birds: 2,
       theta_factor: 0.001,
       translation_factor: 10.0,
-      max_velocity: 8.0,
+      max_velocity: 6.0,
       neighbor_radius: 150.0,
-      max_separation_acceleration: 2.0,
-      max_cohesion_acceleration: 0.5,
-      alignment_factor: 2000.0
+      max_separation_acceleration: 1.0,
+      max_cohesion_acceleration: 0.2,
+      alignment_factor: 1000.0,
+      waypoint_acceleration: 1.0,
+      waypoint_repell_radius: 10.0,
+      velocity_smoothing: 0.5
     ),
     "birdflow::grid::EntityGridSpec": (
       rows: 10,

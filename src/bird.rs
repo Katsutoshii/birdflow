@@ -37,14 +37,10 @@ impl Plugin for BirdsPlugin {
 #[reflect(Component)]
 pub struct Bird {
     pub theta: f32,
-    pub max_velocity: f32,
 }
 impl Default for Bird {
     fn default() -> Self {
-        Self {
-            theta: 0.0,
-            max_velocity: 10.0,
-        }
+        Self { theta: 0.0 }
     }
 }
 impl Bird {
@@ -62,7 +58,7 @@ impl Bird {
         grid: Res<EntityGrid>,
         spawner: Res<BirdSpawner>,
     ) {
-        for (entity, bird, _velocity, mut new_velocity, transform, follower) in &mut birds {
+        for (entity, bird, velocity, mut new_velocity, transform, follower) in &mut birds {
             let mut acceleration = Vec2::ZERO;
 
             // Forces from waypoint
@@ -70,8 +66,11 @@ impl Bird {
                 let (_waypoint, waypoint_transform) = waypoints
                     .get(waypoint_id)
                     .expect(&format!("Invalid waypoint ID: {:?}", &follower.waypoint_id));
-                acceleration += bird
-                    .waypoint_acceleration(waypoint_transform.translation.truncate(), &transform);
+                acceleration += bird.waypoint_acceleration(
+                    waypoint_transform.translation.truncate(),
+                    &transform,
+                    &spawner,
+                );
             }
 
             // Forces from other entities
@@ -94,6 +93,7 @@ impl Bird {
                 // Alignment
                 acceleration += Self::alignment_acceleration(
                     position_delta,
+                    velocity.0,
                     other_velocity.0,
                     others.len(),
                     &spawner,
@@ -102,7 +102,9 @@ impl Bird {
 
             // Update new velocity.
             new_velocity.0 += acceleration;
-            new_velocity.0 = new_velocity.0.clamp_length_max(bird.max_velocity);
+            new_velocity.0 = new_velocity.0.clamp_length_max(spawner.max_velocity);
+            new_velocity.0 = (1. - spawner.velocity_smoothing) * new_velocity.0
+                + spawner.velocity_smoothing * velocity.0;
         }
     }
 
@@ -117,15 +119,21 @@ impl Bird {
         }
     }
 
-    fn waypoint_acceleration(&self, cursor_position: Vec2, transform: &Transform) -> Vec2 {
+    fn waypoint_acceleration(
+        &self,
+        cursor_position: Vec2,
+        transform: &Transform,
+        spawner: &BirdSpawner,
+    ) -> Vec2 {
         let mut delta = cursor_position - transform.translation.xy();
         let rotation_mat = Mat2::from_angle(self.theta);
         delta = rotation_mat * delta;
 
-        if delta.length_squared() < 2500.0 {
-            delta = -50.0 / delta.clamp_length_min(0.1)
+        if delta.length_squared() < spawner.waypoint_repell_radius * spawner.waypoint_repell_radius
+        {
+            delta *= -1.;
         }
-        delta.normalize_or_zero() * 0.5
+        delta.normalize_or_zero() * spawner.waypoint_acceleration
     }
 
     /// Compute acceleration from separation.
@@ -149,11 +157,12 @@ impl Bird {
     /// from being unable to turn.
     fn alignment_acceleration(
         position_delta: Vec2,
+        velocity: Vec2,
         other_velocity: Vec2,
         other_count: usize,
         spawner: &BirdSpawner,
     ) -> Vec2 {
-        other_velocity * spawner.alignment_factor
+        (other_velocity) * spawner.alignment_factor
             / (position_delta.length_squared() * other_count as f32)
     }
 }
@@ -227,6 +236,9 @@ pub struct BirdSpawner {
     max_separation_acceleration: f32,
     max_cohesion_acceleration: f32,
     alignment_factor: f32,
+    waypoint_acceleration: f32,
+    waypoint_repell_radius: f32,
+    velocity_smoothing: f32,
 }
 impl Default for BirdSpawner {
     fn default() -> Self {
@@ -239,6 +251,9 @@ impl Default for BirdSpawner {
             max_separation_acceleration: 1.0,
             max_cohesion_acceleration: 1.0,
             alignment_factor: 0.1,
+            waypoint_acceleration: 0.5,
+            waypoint_repell_radius: 50.0,
+            velocity_smoothing: 0.5,
         }
     }
 }
@@ -265,7 +280,6 @@ impl BirdSpawner {
                 BirdBundler {
                     bird: Bird {
                         theta: PI * spawner.theta_factor * (i as f32),
-                        max_velocity: spawner.max_velocity,
                         ..default()
                     },
                     mesh: assets.mesh.clone(),
@@ -280,7 +294,6 @@ impl BirdSpawner {
                 BirdBundler {
                     bird: Bird {
                         theta: PI * spawner.theta_factor * (i as f32),
-                        max_velocity: spawner.max_velocity,
                         ..default()
                     },
                     mesh: assets.mesh.clone(),
@@ -313,17 +326,20 @@ impl BirdSpawner {
 
 #[cfg(test)]
 mod tests {
+    use crate::bird::BirdSpawner;
+
     use super::Bird;
     use bevy::prelude::*;
 
     #[test]
     fn test_update() {
+        let spawner = BirdSpawner::default();
         let bird = Bird {
             ..Default::default()
         };
         let cursor_position = Vec2 { x: 10.0, y: 10.0 };
         let mut transform = Transform::default();
-        let velocity = bird.waypoint_acceleration(cursor_position, &mut transform);
+        let velocity = bird.waypoint_acceleration(cursor_position, &mut transform, &spawner);
         println!("velocity: {:?}", velocity);
     }
 }
