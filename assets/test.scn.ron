@@ -1,7 +1,6 @@
 (
   resources: {
-    "birdflow::bird::BirdSpawner": (
-      num_birds: 2,
+    "birdflow::zooid::ZooidConfig": (
       theta_factor: 0.001,
       translation_factor: 10.0,
       max_velocity: 7.0,
@@ -9,15 +8,29 @@
       max_separation_acceleration: 0.5,
       max_cohesion_acceleration: 0.1,
       alignment_factor: 1000.0,
-      waypoint_acceleration: 1.0,
-      waypoint_repell_radius: 30.0,
-      velocity_smoothing: 0.5
+      velocity_smoothing: 0.5,
+      waypoint: (
+        max_acceleration: 1.0,
+        repell_radius: 30.0,
+        slow_factor: 0.1
+      )
+    ),
+    "birdflow::zooid::ZooidHeadConfig": (
+      max_velocity: 8.0,
+      neighbor_radius: 100.0,
+      velocity_smoothing: 0.5,
+      spawn_velocity: 20.0,
+      waypoint: (
+        max_acceleration: 6.5,
+        repell_radius: 20.0,
+        slow_factor: 0.8
+      )
     ),
     "birdflow::grid::EntityGridSpec": (
       rows: 50,
       cols: 100,
       width: 100.0,
-      visualize: true,
+      visualize: false,
     ),
   },
   entities: {},

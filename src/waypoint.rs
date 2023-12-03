@@ -9,7 +9,8 @@ pub struct WaypointPlugin;
 impl Plugin for WaypointPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<WaypointAssets>()
-            .add_systems(PostStartup, Waypoint::startup)
+            .register_type::<WaypointConfig>()
+            .add_systems(PreStartup, Waypoint::startup)
             .add_systems(FixedUpdate, Waypoint::update);
     }
 }
@@ -84,8 +85,25 @@ impl Waypoint {
     }
 }
 
+#[derive(Resource, Debug, Clone, Reflect)]
+#[reflect(Resource)]
+pub struct WaypointConfig {
+    pub max_acceleration: f32,
+    pub repell_radius: f32,
+    pub slow_factor: f32,
+}
+impl Default for WaypointConfig {
+    fn default() -> Self {
+        Self {
+            max_acceleration: 1.0,
+            repell_radius: 30.0,
+            slow_factor: 0.5,
+        }
+    }
+}
+
 /// For storing the reference to the waypoint.
-#[derive(Component, Default, Debug)]
+#[derive(Component, Default, Debug, Clone)]
 pub struct WaypointFollower {
     pub waypoint_id: Option<Entity>,
 }
@@ -94,6 +112,37 @@ impl WaypointFollower {
         Self {
             waypoint_id: Some(waypoint_id),
         }
+    }
+
+    pub fn acceleration(
+        &self,
+        waypoints: &Query<(&Waypoint, &Transform), With<Waypoint>>,
+        transform: &Transform,
+        velocity: Vec2,
+        config: &WaypointConfig,
+    ) -> Vec2 {
+        if let Some(waypoint_id) = self.waypoint_id {
+            let (_waypoint, waypoint_transform) = waypoints
+                .get(waypoint_id)
+                .expect(&format!("Invalid waypoint ID: {:?}", &self.waypoint_id));
+
+            let position_delta = waypoint_transform.translation.xy() - transform.translation.xy();
+            let radius = config.repell_radius;
+            let max_magnitude = config.max_acceleration;
+            let dist_squared = position_delta.length_squared();
+            let radius_squared = radius * radius;
+            let magnitude = max_magnitude * (dist_squared / (radius_squared) - 1.);
+            let slow_force = config.slow_factor
+                * if dist_squared < radius_squared {
+                    Vec2::ZERO
+                } else {
+                    -1.0 * velocity
+                };
+            return position_delta.normalize_or_zero()
+                * magnitude.clamp(-max_magnitude, max_magnitude)
+                + slow_force;
+        }
+        Vec2::ZERO
     }
 }
 

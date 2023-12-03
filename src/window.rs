@@ -12,7 +12,7 @@ pub fn custom_plugin() -> WindowPlugin {
                 grab_mode: CursorGrabMode::Confined,
                 ..default()
             },
-            title: "Bevy Birds".into(),
+            title: "Bevy Zooids".into(),
             resolution: DIMENSIONS.into(),
             present_mode: PresentMode::AutoVsync,
             // Tells wasm to resize the window according to the available canvas

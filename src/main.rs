@@ -2,7 +2,6 @@ use bevy::{ecs::schedule::SystemSetConfigs, prelude::*};
 use bevy_editor_pls::prelude::*;
 
 mod aabb;
-mod bird;
 mod camera;
 mod grid;
 mod physics;
@@ -10,6 +9,7 @@ mod scene;
 mod waypoint;
 mod window;
 mod zindex;
+mod zooid;
 
 pub use aabb::Aabb2;
 
@@ -38,7 +38,7 @@ fn main() {
                 .set(window::custom_plugin()),
             EditorPlugin::default(),
             grid::GridPlugin,
-            bird::BirdsPlugin,
+            zooid::ZooidPlugin,
             scene::LoadableScenePlugin,
             camera::CameraPlugin,
             waypoint::WaypointPlugin,
@@ -54,8 +54,8 @@ fn startup(mut commands: Commands) {
                 "Controls:",
                 "  Move camera: move mouse to border",
                 "  Move waypoint: right click",
-                "  Spawn birds: 'b'",
-                "  Despawn birds: 'd'",
+                "  Spawn zooids: 'z'",
+                "  Despawn zooids: 'd'",
                 "  Save scene: 's'",
                 "  Open editor: 'e'",
             ]

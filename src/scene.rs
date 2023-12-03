@@ -3,7 +3,7 @@ use std::io::Write;
 
 use bevy::{prelude::*, tasks::IoTaskPool};
 
-use crate::{bird, grid};
+use crate::{grid, zooid};
 
 /// Plugin for saving and loading scenes.
 pub struct LoadableScenePlugin;
@@ -52,7 +52,7 @@ pub fn save_system(
     }
     let scene = DynamicSceneBuilder::from_world(&world)
         .extract_entities(query.iter())
-        .allow_resource::<bird::BirdSpawner>()
+        .allow_resource::<zooid::ZooidConfig>()
         .allow_resource::<grid::EntityGrid>()
         .extract_resources()
         .build();
