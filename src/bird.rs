@@ -74,7 +74,8 @@ impl Bird {
             }
 
             // Forces from other entities
-            let others = grid.get_in_radius(transform.translation.truncate(), 20.);
+            let others =
+                grid.get_in_radius(transform.translation.truncate(), spawner.neighbor_radius);
             for other_entity in &others {
                 if entity == *other_entity {
                     continue;
@@ -121,19 +122,20 @@ impl Bird {
 
     fn waypoint_acceleration(
         &self,
-        cursor_position: Vec2,
+        waypoint_position: Vec2,
         transform: &Transform,
         spawner: &BirdSpawner,
     ) -> Vec2 {
-        let mut delta = cursor_position - transform.translation.xy();
-        let rotation_mat = Mat2::from_angle(self.theta);
-        delta = rotation_mat * delta;
+        let position_delta = waypoint_position - transform.translation.xy();
+        let radius = spawner.waypoint_repell_radius;
+        let max_magnitude = spawner.waypoint_acceleration;
+        let magnitude = max_magnitude * (position_delta.length_squared() / (radius * radius) - 1.);
+        let acceleration =
+            position_delta.normalize() * magnitude.clamp(-max_magnitude, max_magnitude);
 
-        if delta.length_squared() < spawner.waypoint_repell_radius * spawner.waypoint_repell_radius
-        {
-            delta *= -1.;
-        }
-        delta.normalize_or_zero() * spawner.waypoint_acceleration
+        // Apply rotation.
+        let rotation_mat = Mat2::from_angle(self.theta);
+        rotation_mat * acceleration
     }
 
     /// Compute acceleration from separation.
@@ -162,7 +164,7 @@ impl Bird {
         other_count: usize,
         spawner: &BirdSpawner,
     ) -> Vec2 {
-        (other_velocity) * spawner.alignment_factor
+        (other_velocity - velocity) * spawner.alignment_factor
             / (position_delta.length_squared() * other_count as f32)
     }
 }

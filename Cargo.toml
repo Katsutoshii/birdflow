@@ -16,4 +16,5 @@ opt-level = 1
 
 # Enable max optimizations for dependencies, but not for our code:
 [profile.dev.package."*"]
+debug = false
 opt-level = 3

@@ -170,7 +170,7 @@ impl EntityGrid {
     /// Get all entities in radius.
     #[allow(dead_code)]
     pub fn get_in_radius(&self, position: Vec2, radius: f32) -> Vec<Entity> {
-        let mut result = vec![];
+        let mut result = HashSet::default();
 
         let min_position = position + (Vec2::NEG_ONE * radius);
         let (min_row, min_col) = self.to_rowcol(min_position);
@@ -184,7 +184,7 @@ impl EntityGrid {
                 }
             }
         }
-        result
+        result.into_iter().collect()
     }
 
     /// Returns (row, col) from a position in world space.
