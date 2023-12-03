@@ -17,8 +17,9 @@ pub struct ZooidPlugin;
 impl Plugin for ZooidPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<Zooid>()
+            .register_type::<ZooidConfigs>()
             .register_type::<ZooidConfig>()
-            .register_type::<ZooidHeadConfig>()
+            .register_type::<ZooidInteractionConfig>()
             .init_resource::<ZooidAssets>()
             .configure_sets(FixedUpdate, SystemStage::get_config())
             .add_systems(Startup, ZooidHead::spawn)
@@ -27,7 +28,6 @@ impl Plugin for ZooidPlugin {
                 (
                     Zooid::update_velocity.in_set(SystemStage::Compute),
                     Zooid::apply_velocity.in_set(SystemStage::Apply),
-                    ZooidHead::update.in_set(SystemStage::Apply),
                     ZooidHead::spawn_zooids.in_set(SystemStage::Spawn),
                     ZooidHead::despawn_zooids.in_set(SystemStage::Despawn),
                 ),
@@ -35,18 +35,107 @@ impl Plugin for ZooidPlugin {
     }
 }
 
-/// State for an individual bird.
+/// State for an individual zooid.
 #[derive(Component, Reflect)]
 #[reflect(Component)]
-pub struct Zooid {
+pub struct ZooidWorker {
     pub theta: f32,
 }
-impl Default for Zooid {
+impl Default for ZooidWorker {
     fn default() -> Self {
         Self { theta: 0.0 }
     }
 }
+
+#[derive(Component, Reflect)]
+#[reflect(Component)]
+pub enum Zooid {
+    Worker(ZooidWorker),
+    Head,
+    Food,
+}
+impl Default for Zooid {
+    fn default() -> Self {
+        Self::Worker(ZooidWorker::default())
+    }
+}
+
+/// State for an individual zooid.
 impl Zooid {
+    pub fn other_acceleration(
+        &self,
+        transform: &Transform,
+        velocity: &Velocity,
+        other: &Self,
+        other_transform: &Transform,
+        other_velocity: &Velocity,
+        config: &ZooidConfig,
+        num_others: usize,
+    ) -> Vec2 {
+        let mut acceleration = Vec2::ZERO;
+        let interaction = config.get_interaction(other);
+
+        // Separation
+        let position_delta =
+            transform.translation.truncate() - other_transform.translation.truncate(); // Towards self, away from other.
+        acceleration += Self::separation_acceleration(position_delta, velocity.0, &interaction);
+
+        // Alignment
+        acceleration += Self::alignment_acceleration(
+            position_delta,
+            velocity.0,
+            other_velocity.0,
+            num_others,
+            &interaction,
+        );
+        acceleration
+    }
+
+    pub fn acceleration(
+        &self,
+        entity: Entity,
+        velocity: &Velocity,
+        transform: &Transform,
+        follower: &WaypointFollower,
+        entities: &Query<(&Zooid, &Velocity, &Transform), Without<Waypoint>>,
+        waypoints: &Query<(&Waypoint, &Transform), With<Waypoint>>,
+        grid: &EntityGrid,
+        config: &ZooidConfig,
+    ) -> Vec2 {
+        let mut acceleration = Vec2::ZERO;
+
+        // Forces from waypoint
+        if let Zooid::Head = self {
+            let mut waypoint_acceleration =
+                follower.acceleration(&waypoints, transform, velocity.0, &config.waypoint);
+            if let Zooid::Worker(ZooidWorker { theta }) = self {
+                waypoint_acceleration += Mat2::from_angle(*theta) * waypoint_acceleration;
+            }
+            acceleration += waypoint_acceleration;
+        }
+
+        // Forces from other entities
+        let others = grid.get_in_radius(transform.translation.truncate(), config.neighbor_radius);
+        for other_entity in &others {
+            if entity == *other_entity {
+                continue;
+            }
+
+            let (other, other_velocity, other_transform) =
+                entities.get(*other_entity).expect("Invalid grid entity.");
+            acceleration += self.other_acceleration(
+                transform,
+                velocity,
+                other,
+                other_transform,
+                other_velocity,
+                config,
+                others.len(),
+            );
+        }
+        acceleration
+    }
+
     pub fn update_velocity(
         mut zooids: Query<(
             Entity,
@@ -56,51 +145,31 @@ impl Zooid {
             &Transform,
             &WaypointFollower,
         )>,
-        entities: Query<(&Velocity, &Transform), Without<Waypoint>>,
+        other_zooids: Query<(&Zooid, &Velocity, &Transform), Without<Waypoint>>,
         waypoints: Query<(&Waypoint, &Transform), With<Waypoint>>,
         grid: Res<EntityGrid>,
-        config: Res<ZooidConfig>,
+        configs: Res<ZooidConfigs>,
     ) {
-        for (entity, zooid, velocity, mut new_velocity, transform, follower) in &mut zooids {
-            let mut acceleration = Vec2::ZERO;
-
-            // Forces from waypoint
-            let waypoint_acceleration =
-                follower.acceleration(&waypoints, transform, velocity.0, &config.waypoint);
-            acceleration += Mat2::from_angle(zooid.theta) * waypoint_acceleration;
-
-            // Forces from other entities
-            let others =
-                grid.get_in_radius(transform.translation.truncate(), config.neighbor_radius);
-            for other_entity in &others {
-                if entity == *other_entity {
-                    continue;
-                }
-
-                let (other_velocity, other_transform) =
-                    entities.get(*other_entity).expect("Invalid grid entity.");
-
-                // Separation
-                let position_delta =
-                    transform.translation.truncate() - other_transform.translation.truncate(); // Towards self, away from other.
-                acceleration += Self::separation_acceleration(position_delta, &config);
-
-                // Alignment
-                acceleration += Self::alignment_acceleration(
-                    position_delta,
-                    velocity.0,
-                    other_velocity.0,
-                    others.len(),
+        zooids.par_iter_mut().for_each(
+            |(entity, zooid, velocity, mut new_velocity, transform, follower)| {
+                let config = configs.get(zooid);
+                let acceleration = zooid.acceleration(
+                    entity,
+                    velocity,
+                    transform,
+                    follower,
+                    &other_zooids,
+                    &waypoints,
+                    &grid,
                     &config,
                 );
-            }
-
-            // Update new velocity.
-            new_velocity.0 += acceleration;
-            new_velocity.0 = new_velocity.0.clamp_length_max(config.max_velocity);
-            new_velocity.0 = (1. - config.velocity_smoothing) * new_velocity.0
-                + config.velocity_smoothing * velocity.0;
-        }
+                // Update new velocity.
+                new_velocity.0 += acceleration;
+                new_velocity.0 = new_velocity.0.clamp_length_max(config.max_velocity);
+                new_velocity.0 = (1. - config.velocity_smoothing) * new_velocity.0
+                    + config.velocity_smoothing * velocity.0;
+            },
+        )
     }
 
     pub fn apply_velocity(
@@ -118,15 +187,30 @@ impl Zooid {
     /// The direction is towards self away from each nearby bird.
     /// The magnitude is computed by
     /// $ magnitude = sep * (-x^2 / r^2 + 1)$
-    fn separation_acceleration(position_delta: Vec2, config: &ZooidConfig) -> Vec2 {
-        let radius = config.neighbor_radius;
-        let magnitude = config.max_separation_acceleration
+    fn separation_acceleration(
+        position_delta: Vec2,
+        velocity: Vec2,
+        interaction: &ZooidInteractionConfig,
+    ) -> Vec2 {
+        let radius = interaction.separation_radius;
+        let dist_squared = position_delta.length_squared();
+        let radius_squared = radius * radius;
+
+        let slow_force = interaction.slow_factor
+            * if dist_squared < radius_squared {
+                Vec2::ZERO
+            } else {
+                -1.0 * velocity
+            };
+
+        let magnitude = interaction.separation_acceleration
             * (-position_delta.length_squared() / (radius * radius) + 1.);
         position_delta.normalize()
             * magnitude.clamp(
-                -config.max_cohesion_acceleration,
-                config.max_separation_acceleration,
+                -interaction.cohesion_acceleration,
+                interaction.separation_acceleration,
             )
+            + slow_force
     }
 
     /// ALignment acceleration.
@@ -138,7 +222,7 @@ impl Zooid {
         velocity: Vec2,
         other_velocity: Vec2,
         other_count: usize,
-        config: &ZooidConfig,
+        config: &ZooidInteractionConfig,
     ) -> Vec2 {
         (other_velocity - velocity) * config.alignment_factor
             / (position_delta.length_squared() * other_count as f32)
@@ -146,16 +230,9 @@ impl Zooid {
 }
 
 /// State for an individual bird.
-#[derive(Component, Reflect)]
+#[derive(Component, Reflect, Default, Clone, Copy)]
 #[reflect(Component)]
-pub struct ZooidHead {
-    pub health: f32,
-}
-impl Default for ZooidHead {
-    fn default() -> Self {
-        Self { health: 0.0 }
-    }
-}
+pub struct ZooidHead;
 impl ZooidHead {
     pub fn spawn(
         mut commands: Commands,
@@ -169,6 +246,7 @@ impl ZooidHead {
     pub fn bundle(self, assets: &ZooidAssets, waypoint_id: Entity) -> impl Bundle {
         (
             self,
+            Zooid::Head,
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: assets.mesh.clone().into(),
                 transform: Transform::default()
@@ -182,47 +260,17 @@ impl ZooidHead {
                 ..default()
             },
             Velocity::default(),
+            NewVelocity::default(),
             WaypointFollower::new(waypoint_id),
             Name::new("ZooidHead"),
         )
-    }
-
-    pub fn update(
-        mut query: Query<
-            (
-                &Self,
-                Entity,
-                &mut Transform,
-                &mut Velocity,
-                &WaypointFollower,
-            ),
-            Without<Waypoint>,
-        >,
-        waypoints: Query<(&Waypoint, &Transform), With<Waypoint>>,
-        config: Res<ZooidHeadConfig>,
-        mut grid: ResMut<EntityGrid>,
-    ) {
-        for (_head, entity, mut transform, mut velocity, follower) in &mut query {
-            let mut acceleration = Vec2::ZERO;
-            acceleration +=
-                2.0 * follower.acceleration(&waypoints, &transform, velocity.0, &config.waypoint);
-
-            let old_velocity = velocity.clone();
-            velocity.0 += acceleration;
-            velocity.0 = velocity.0.clamp_length_max(config.max_velocity);
-            velocity.0 = (1. - config.velocity_smoothing) * velocity.0
-                + config.velocity_smoothing * old_velocity.0;
-            transform.translation += velocity.0.extend(0.);
-            grid.update(entity, transform.translation.truncate());
-        }
     }
 
     /// System to spawn birds on left mouse button.
     pub fn spawn_zooids(
         mut commands: Commands,
         query: Query<(&Self, Entity, &Transform, &Velocity, &WaypointFollower)>,
-        config: Res<ZooidConfig>,
-        head_config: Res<ZooidHeadConfig>,
+        configs: Res<ZooidConfigs>,
         assets: Res<ZooidAssets>,
         keyboard: Res<Input<KeyCode>>,
     ) {
@@ -230,26 +278,24 @@ impl ZooidHead {
             return;
         }
 
-        info!("Spawn zooids");
+        let config = configs.get(&Zooid::Worker(ZooidWorker::default()));
 
-        for (_head, _head_id, transform, _velocity, follower) in &query {
+        for (_head, _head_id, transform, _velocity, _follower) in &query {
             for i in 1..2 {
                 let zindex = zindex::ZOOIDS_MIN
                     + (i as f32) * 0.00001 * (zindex::ZOOIDS_MAX - zindex::ZOOIDS_MIN);
-
                 commands.spawn(
                     ZooidBundler {
-                        zooid: Zooid {
-                            theta: PI * config.theta_factor * (i as f32),
-                            ..default()
-                        },
+                        zooid: Zooid::Worker(ZooidWorker {
+                            theta: PI * configs.theta_factor * (i as f32),
+                        }),
                         mesh: assets.mesh.clone(),
                         material: assets.green_material.clone(),
                         translation: transform.translation.xy().extend(0.0)
-                            + (Vec3::Y) * -config.translation_factor * (i as f32)
+                            + (Vec3::Y) * -configs.translation_factor * (i as f32)
                             + Vec3::Z * zindex,
-                        follower: follower.clone(),
-                        velocity: -head_config.spawn_velocity * Vec2::Y,
+                        follower: WaypointFollower::default(),
+                        velocity: -config.spawn_velocity * Vec2::Y,
                     }
                     .bundle(),
                 );
@@ -341,33 +387,21 @@ impl FromWorld for ZooidAssets {
 /// Singleton that spawns birds with specified stats.
 #[derive(Resource, Reflect)]
 #[reflect(Resource)]
-pub struct ZooidConfig {
-    pub theta_factor: f32,
-    pub translation_factor: f32,
-    pub max_velocity: f32,
-    pub neighbor_radius: f32,
-    pub max_separation_acceleration: f32,
-    pub max_cohesion_acceleration: f32,
+pub struct ZooidInteractionConfig {
+    pub separation_radius: f32,
+    pub separation_acceleration: f32,
+    pub cohesion_acceleration: f32,
     pub alignment_factor: f32,
-    pub waypoint_acceleration: f32,
-    pub waypoint_repell_radius: f32,
-    pub velocity_smoothing: f32,
-    pub waypoint: WaypointConfig,
+    pub slow_factor: f32,
 }
-impl Default for ZooidConfig {
+impl Default for ZooidInteractionConfig {
     fn default() -> Self {
         Self {
-            theta_factor: 0.001,
-            translation_factor: 10.0,
-            max_velocity: 10.0,
-            neighbor_radius: 10.0,
-            max_separation_acceleration: 1.0,
-            max_cohesion_acceleration: 1.0,
-            alignment_factor: 0.1,
-            waypoint_acceleration: 0.5,
-            waypoint_repell_radius: 50.0,
-            velocity_smoothing: 0.5,
-            waypoint: WaypointConfig::default(),
+            separation_radius: 1.0,
+            separation_acceleration: 0.0,
+            cohesion_acceleration: 0.0,
+            alignment_factor: 0.0,
+            slow_factor: 0.0,
         }
     }
 }
@@ -375,21 +409,72 @@ impl Default for ZooidConfig {
 /// Singleton that spawns birds with specified stats.
 #[derive(Resource, Reflect)]
 #[reflect(Resource)]
-pub struct ZooidHeadConfig {
+pub struct ZooidConfigs {
+    pub theta_factor: f32,
+    pub translation_factor: f32,
+    // Configs for each Zooid type.
+    pub worker: ZooidConfig,
+    pub head: ZooidConfig,
+    pub food: ZooidConfig,
+}
+impl Default for ZooidConfigs {
+    fn default() -> Self {
+        Self {
+            theta_factor: 0.001,
+            translation_factor: 10.0,
+            worker: ZooidConfig::default(),
+            head: ZooidConfig::default(),
+            food: ZooidConfig::default(),
+        }
+    }
+}
+impl ZooidConfigs {
+    fn get(&self, zooid: &Zooid) -> &ZooidConfig {
+        match zooid {
+            Zooid::Worker(_) => &self.worker,
+            Zooid::Head => &self.head,
+            Zooid::Food => &self.food,
+        }
+    }
+}
+
+/// Singleton that spawns birds with specified stats.
+#[derive(Resource, Reflect)]
+#[reflect(Resource)]
+pub struct ZooidConfig {
     pub max_velocity: f32,
     pub neighbor_radius: f32,
+    pub alignment_factor: f32,
     pub velocity_smoothing: f32,
     pub spawn_velocity: f32,
     pub waypoint: WaypointConfig,
+
+    // Interactions
+    pub worker: ZooidInteractionConfig,
+    pub head: ZooidInteractionConfig,
+    pub food: ZooidInteractionConfig,
 }
-impl Default for ZooidHeadConfig {
+impl Default for ZooidConfig {
     fn default() -> Self {
         Self {
             max_velocity: 10.0,
             neighbor_radius: 10.0,
+            alignment_factor: 0.1,
             velocity_smoothing: 0.5,
             spawn_velocity: 2.0,
             waypoint: WaypointConfig::default(),
+            worker: ZooidInteractionConfig::default(),
+            head: ZooidInteractionConfig::default(),
+            food: ZooidInteractionConfig::default(),
+        }
+    }
+}
+impl ZooidConfig {
+    fn get_interaction(&self, zooid: &Zooid) -> &ZooidInteractionConfig {
+        match zooid {
+            Zooid::Worker(_) => &self.worker,
+            Zooid::Head => &self.head,
+            Zooid::Food => &self.food,
         }
     }
 }

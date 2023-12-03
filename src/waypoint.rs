@@ -95,9 +95,9 @@ pub struct WaypointConfig {
 impl Default for WaypointConfig {
     fn default() -> Self {
         Self {
-            max_acceleration: 1.0,
-            repell_radius: 30.0,
-            slow_factor: 0.5,
+            max_acceleration: 0.0,
+            repell_radius: 0.0,
+            slow_factor: 0.0,
         }
     }
 }
