@@ -84,7 +84,7 @@ impl ZooidHead {
 
     /// System to despawn all zooids.
     pub fn despawn_zooids(
-        zooids: Query<Entity, With<Object>>,
+        objects: Query<(Entity, &Object)>,
         mut commands: Commands,
         mut grid: ResMut<EntityGrid>,
         keyboard_input: Res<Input<KeyCode>>,
@@ -92,9 +92,11 @@ impl ZooidHead {
         if !keyboard_input.just_pressed(KeyCode::D) {
             return;
         }
-        for entity in &zooids {
-            grid.remove(entity);
-            commands.entity(entity).despawn();
+        for (entity, object) in &objects {
+            if let Object::Worker(_) = object {
+                grid.remove(entity);
+                commands.entity(entity).despawn();
+            }
         }
     }
 }

@@ -163,6 +163,9 @@ impl Object {
         // Separation
         let position_delta =
             transform.translation.truncate() - other_transform.translation.truncate(); // Towards self, away from other.
+        if position_delta.length_squared() > config.neighbor_radius * config.neighbor_radius {
+            return acceleration;
+        }
         acceleration += Self::separation_acceleration(position_delta, velocity.0, &interaction);
 
         // Alignment
@@ -196,8 +199,8 @@ impl Object {
                 -1.0 * velocity
             };
 
-        let magnitude = interaction.separation_acceleration
-            * (-position_delta.length_squared() / (radius * radius) + 1.);
+        let magnitude =
+            interaction.separation_acceleration * (-dist_squared / (radius * radius) + 1.);
         position_delta.normalize()
             * magnitude.clamp(
                 -interaction.cohesion_acceleration,
@@ -237,21 +240,14 @@ impl FromWorld for ZooidAssets {
             let mut meshes = world.get_resource_mut::<Assets<Mesh>>().unwrap();
             meshes.add(Mesh::from(shape::Circle::default()))
         };
-        let (green_material, tomato_material, blue_material, transparent_blue_material) = {
-            let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
-            (
-                materials.add(ColorMaterial::from(Color::LIME_GREEN)),
-                materials.add(ColorMaterial::from(Color::TOMATO)),
-                materials.add(ColorMaterial::from(Color::ALICE_BLUE)),
-                materials.add(ColorMaterial::from(Color::ALICE_BLUE.with_a(0.5))),
-            )
-        };
+        let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
         Self {
             mesh,
-            green_material,
-            tomato_material,
-            blue_material,
-            transparent_blue_material,
+            green_material: materials.add(ColorMaterial::from(Color::LIME_GREEN)),
+            tomato_material: materials.add(ColorMaterial::from(Color::TOMATO)),
+            blue_material: materials.add(ColorMaterial::from(Color::ALICE_BLUE)),
+            transparent_blue_material: materials
+                .add(ColorMaterial::from(Color::ALICE_BLUE.with_a(0.5))),
         }
     }
 }

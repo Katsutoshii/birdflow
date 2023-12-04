@@ -7,6 +7,7 @@ mod grid;
 mod objects;
 mod physics;
 mod scene;
+mod selector;
 mod waypoint;
 mod window;
 mod zindex;
@@ -40,6 +41,7 @@ fn main() {
             grid::GridPlugin,
             objects::ObjectsPlugin,
             scene::LoadableScenePlugin,
+            selector::SelectorPlugin,
             camera::CameraPlugin,
             waypoint::WaypointPlugin,
         ))

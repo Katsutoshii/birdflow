@@ -1,5 +1,3 @@
-use std::f32::consts::PI;
-
 use bevy::{
     prelude::*,
     sprite::MaterialMesh2dBundle,
@@ -216,19 +214,22 @@ impl FromWorld for GridAssets {
         let mesh = {
             let mut meshes = world.get_resource_mut::<Assets<Mesh>>().unwrap();
             // Unit square
-            meshes.add(Mesh::from(shape::RegularPolygon {
-                radius: 2f32.sqrt() / 2.,
-                sides: 4,
+            meshes.add(Mesh::from(shape::Box {
+                min_x: -0.5,
+                max_x: 0.5,
+                min_y: -0.5,
+                max_y: 0.5,
+                min_z: 0.0,
+                max_z: 0.0,
             }))
         };
         let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
         Self {
             mesh,
-            gray_material: materials.add(ColorMaterial::from(Color::GRAY.with_a(0.2))),
-            dark_gray_material: materials.add(ColorMaterial::from(Color::DARK_GRAY.with_a(0.2))),
-            blue_material: materials.add(ColorMaterial::from(Color::BLUE.with_a(0.01))),
-            dark_blue_material: materials
-                .add(ColorMaterial::from(Color::MIDNIGHT_BLUE.with_a(0.3))),
+            gray_material: materials.add(ColorMaterial::from(Color::GRAY.with_a(0.15))),
+            dark_gray_material: materials.add(ColorMaterial::from(Color::DARK_GRAY.with_a(0.3))),
+            blue_material: materials.add(ColorMaterial::from(Color::GRAY.with_a(0.1))),
+            dark_blue_material: materials.add(ColorMaterial::from(Color::DARK_GRAY.with_a(0.1))),
         }
     }
 }
@@ -247,7 +248,6 @@ impl CellVisualizer {
                 mesh: assets.mesh.clone().into(),
                 transform: Transform::default()
                     .with_scale(Vec3::splat(spec.width))
-                    .with_rotation(Quat::from_axis_angle(Vec3::Z, PI / 4.))
                     .with_translation(
                         Vec3 {
                             x: (0.5 + self.col as f32) * spec.width,

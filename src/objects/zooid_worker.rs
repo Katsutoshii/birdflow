@@ -1,7 +1,4 @@
-use bevy::{
-    prelude::*,
-    sprite::{Material2d, MaterialMesh2dBundle},
-};
+use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
 use crate::{
     physics::{NewVelocity, Velocity},
@@ -24,22 +21,22 @@ impl Default for ZooidWorker {
 
 /// Creates bundle for the Bird with its associated material mesh.
 #[derive(Default)]
-pub struct ZooidBundler<M: Material2d> {
+pub struct ZooidBundler {
     pub zooid: Object,
     pub mesh: Handle<Mesh>,
-    pub material: Handle<M>,
+    pub material: Handle<ColorMaterial>,
     pub translation: Vec3,
     pub follower: WaypointFollower,
     pub velocity: Vec2,
 }
-impl<M: Material2d> ZooidBundler<M> {
+impl ZooidBundler {
     pub fn bundle(self) -> impl Bundle {
         (
             self.zooid,
             Velocity(self.velocity),
             NewVelocity::default(),
             self.follower,
-            MaterialMesh2dBundle::<M> {
+            MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: self.mesh.into(),
                 transform: Transform::default()
                     .with_scale(Vec3::splat(10.0))
