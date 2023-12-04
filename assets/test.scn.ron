@@ -6,9 +6,7 @@
       width: 100.0,
       visualize: true,
     ),
-    "birdflow::zooid::ZooidConfigs": (
-      theta_factor: 0.001,
-      translation_factor: 10.0,
+    "birdflow::objects::config::Configs": (
       worker: (
         max_velocity: 7.0,
         neighbor_radius: 300.0,
@@ -40,7 +38,7 @@
         velocity_smoothing: 0.7,
         spawn_velocity: 20.0,
         waypoint: (
-          max_acceleration: 5.5,
+          max_acceleration: 4.5,
           repell_radius: 20.0,
           slow_factor: 0.8
         ),

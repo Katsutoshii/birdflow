@@ -4,12 +4,12 @@ use bevy_editor_pls::prelude::*;
 mod aabb;
 mod camera;
 mod grid;
+mod objects;
 mod physics;
 mod scene;
 mod waypoint;
 mod window;
 mod zindex;
-mod zooid;
 
 pub use aabb::Aabb2;
 
@@ -38,7 +38,7 @@ fn main() {
                 .set(window::custom_plugin()),
             EditorPlugin::default(),
             grid::GridPlugin,
-            zooid::ZooidPlugin,
+            objects::ObjectsPlugin,
             scene::LoadableScenePlugin,
             camera::CameraPlugin,
             waypoint::WaypointPlugin,
