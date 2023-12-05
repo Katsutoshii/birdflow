@@ -8,7 +8,10 @@ use crate::{
 };
 
 pub use self::config::{Config, Configs, InteractionConfig};
-use self::{zooid_head::ZooidHead, zooid_worker::ZooidWorker};
+use self::{
+    zooid_head::{ZooidHead, ZooidHeadBackground},
+    zooid_worker::{ZooidWorker, ZooidWorkerBackground},
+};
 
 /// Plugin for running zooids simulation.
 pub struct ObjectsPlugin;
@@ -24,6 +27,8 @@ impl Plugin for ObjectsPlugin {
             .add_systems(
                 FixedUpdate,
                 (
+                    ZooidWorkerBackground::update.in_set(SystemStage::Compute),
+                    ZooidHeadBackground::update.in_set(SystemStage::Compute),
                     Object::update_velocity.in_set(SystemStage::Compute),
                     Object::apply_velocity.in_set(SystemStage::Apply),
                     ZooidHead::spawn_zooids.in_set(SystemStage::Spawn),
@@ -37,7 +42,7 @@ mod config;
 mod zooid_head;
 mod zooid_worker;
 
-#[derive(Component, Reflect)]
+#[derive(Component, Reflect, Clone)]
 #[reflect(Component)]
 pub enum Object {
     Worker(ZooidWorker),
@@ -232,7 +237,10 @@ pub struct ZooidAssets {
     pub blue_material: Handle<ColorMaterial>,
     pub transparent_blue_material: Handle<ColorMaterial>,
     pub green_material: Handle<ColorMaterial>,
+    pub tranparent_green_material: Handle<ColorMaterial>,
     pub tomato_material: Handle<ColorMaterial>,
+    pub white_material: Handle<ColorMaterial>,
+    pub transparent_white_material: Handle<ColorMaterial>,
 }
 impl FromWorld for ZooidAssets {
     fn from_world(world: &mut World) -> Self {
@@ -244,10 +252,15 @@ impl FromWorld for ZooidAssets {
         Self {
             mesh,
             green_material: materials.add(ColorMaterial::from(Color::LIME_GREEN)),
+            tranparent_green_material: materials
+                .add(ColorMaterial::from(Color::LIME_GREEN.with_a(0.2))),
             tomato_material: materials.add(ColorMaterial::from(Color::TOMATO)),
-            blue_material: materials.add(ColorMaterial::from(Color::ALICE_BLUE)),
+            blue_material: materials.add(ColorMaterial::from(Color::TURQUOISE)),
             transparent_blue_material: materials
-                .add(ColorMaterial::from(Color::ALICE_BLUE.with_a(0.5))),
+                .add(ColorMaterial::from(Color::TURQUOISE.with_a(0.2))),
+            white_material: materials.add(ColorMaterial::from(Color::ALICE_BLUE)),
+            transparent_white_material: materials
+                .add(ColorMaterial::from(Color::ALICE_BLUE.with_a(0.2))),
         }
     }
 }

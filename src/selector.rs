@@ -1,6 +1,18 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle, window::PrimaryWindow};
 
-use crate::{camera, zindex, Aabb2};
+use crate::{
+    camera,
+    grid::EntityGrid,
+    objects::{Object, ZooidAssets},
+    zindex, Aabb2,
+};
+
+#[derive(Component, Default, PartialEq)]
+pub enum Selected {
+    #[default]
+    Unselected,
+    Selected,
+}
 
 /// Plugin for an spacial entity paritioning grid with optional debug functionality.
 pub struct SelectorPlugin;
@@ -27,6 +39,17 @@ impl Selector {
         camera_query: Query<(Entity, &Camera, &GlobalTransform), With<camera::MainCamera>>,
         window_query: Query<&Window, With<PrimaryWindow>>,
         mouse_input: Res<Input<MouseButton>>,
+        mut objects: Query<
+            (
+                &Object,
+                &Transform,
+                &mut Selected,
+                &mut Handle<ColorMaterial>,
+            ),
+            Without<Self>,
+        >,
+        grid: Res<EntityGrid>,
+        assets: Res<ZooidAssets>,
     ) {
         let (_entity, camera, camera_transform) = camera_query.single();
         let (mut selector, mut transform, mut visibility) = query.single_mut();
@@ -37,6 +60,16 @@ impl Selector {
             .and_then(|cursor| camera.viewport_to_world_2d(camera_transform, cursor))
         {
             if mouse_input.just_pressed(MouseButton::Left) {
+                // Reset other selections.
+                for (object, _transform, mut selected, mut material) in &mut objects {
+                    *selected = Selected::Unselected;
+                    *material = match object {
+                        Object::Worker(_) => assets.green_material.clone(),
+                        Object::Head => assets.blue_material.clone(),
+                        _ => assets.tomato_material.clone(),
+                    }
+                }
+
                 selector.aabb.min = position;
                 selector.aabb.max = position;
 
@@ -48,6 +81,19 @@ impl Selector {
                 // Resize the square to match the bounding box.
                 transform.translation = selector.aabb.center().extend(zindex::SELECTOR);
                 transform.scale = selector.aabb.size().extend(0.0);
+
+                // Correct the bounding box before we check entity collision, since it might be backwards.
+                let mut aabb = selector.aabb.clone();
+                aabb.enforce_minmax();
+                // Check the grid for entities in this bounding box.
+                for entity in grid.get_in_aabb(&aabb) {
+                    let (_object, transform, mut selected, mut material) =
+                        objects.get_mut(entity).unwrap();
+                    if aabb.contains(transform.translation.xy()) {
+                        *selected = Selected::Selected;
+                        *material = assets.white_material.clone();
+                    }
+                }
             } else if mouse_input.just_released(MouseButton::Left) {
                 *visibility = Visibility::Hidden;
             }

@@ -165,16 +165,11 @@ impl EntityGrid {
         self.cells.get_mut(index)
     }
 
-    /// Get all entities in radius.
-    #[allow(dead_code)]
-    pub fn get_in_radius(&self, position: Vec2, radius: f32) -> Vec<Entity> {
+    pub fn get_in_aabb(&self, aabb: &Aabb2) -> Vec<Entity> {
         let mut result = HashSet::default();
 
-        let min_position = position + (Vec2::NEG_ONE * radius);
-        let (min_row, min_col) = self.to_rowcol(min_position);
-
-        let max_position = position + (Vec2::ONE * radius);
-        let (max_row, max_col) = self.to_rowcol(max_position);
+        let (min_row, min_col) = self.to_rowcol(aabb.min);
+        let (max_row, max_col) = self.to_rowcol(aabb.max);
         for row in min_row..=max_row {
             for col in min_col..=max_col {
                 if let Some(set) = self.get(row, col) {
@@ -183,6 +178,14 @@ impl EntityGrid {
             }
         }
         result.into_iter().collect()
+    }
+
+    /// Get all entities in radius.
+    pub fn get_in_radius(&self, position: Vec2, radius: f32) -> Vec<Entity> {
+        self.get_in_aabb(&Aabb2 {
+            min: position + (Vec2::NEG_ONE * radius),
+            max: position + (Vec2::ONE * radius),
+        })
     }
 
     /// Returns (row, col) from a position in world space.
