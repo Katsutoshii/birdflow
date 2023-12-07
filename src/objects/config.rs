@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::waypoint::WaypointConfig;
+use crate::objects::chaser::ChaserConfig;
 
 use super::Object;
 
@@ -63,7 +63,7 @@ pub struct Config {
     pub alignment_factor: f32,
     pub velocity_smoothing: f32,
     pub spawn_velocity: f32,
-    pub waypoint: WaypointConfig,
+    pub waypoint: ChaserConfig,
 
     // Interactions
     pub worker: InteractionConfig,
@@ -78,7 +78,7 @@ impl Default for Config {
             alignment_factor: 0.1,
             velocity_smoothing: 0.5,
             spawn_velocity: 2.0,
-            waypoint: WaypointConfig::default(),
+            waypoint: ChaserConfig::default(),
             worker: InteractionConfig::default(),
             head: InteractionConfig::default(),
             food: InteractionConfig::default(),

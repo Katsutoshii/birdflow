@@ -12,6 +12,11 @@
         neighbor_radius: 300.0,
         velocity_smoothing: 0.5,
         spawn_velocity: 20.0,
+        waypoint: (
+          max_acceleration: 3.5,
+          repell_radius: 20.0,
+          slow_factor: 0.8
+        ),
         worker:(
           separation_radius: 100.0,
           separation_acceleration: 0.5,
@@ -59,7 +64,6 @@
         max_velocity: 1.0,
         neighbor_radius: 100.0,
         velocity_smoothing: 0.5,
-        spawn_velocity: 20.0,
         worker: (
           separation_radius: 100.0,
           separation_acceleration: 0.05

@@ -1,17 +1,28 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
-use crate::{
-    grid::EntityGrid,
-    physics::{NewVelocity, Velocity},
-    selector::Selected,
-    waypoint::{Waypoint, WaypointFollower},
-    zindex,
-};
+use crate::grid::GridEntity;
+use crate::objects::chaser::Chaser;
+use crate::prelude::*;
+use crate::{grid::EntityGrid, selector::Selected, zindex};
 
 use super::{
     zooid_worker::{ZooidBundler, ZooidWorker},
     Configs, Object, ZooidAssets,
 };
+
+pub struct ZooidHeadPlugin;
+impl Plugin for ZooidHeadPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(Startup, ZooidHead::spawn).add_systems(
+            FixedUpdate,
+            (
+                ZooidHead::spawn_zooids.in_set(SystemStage::Spawn),
+                ZooidHead::despawn_zooids.in_set(SystemStage::Despawn),
+                ZooidHeadBackground::update.in_set(SystemStage::Compute),
+            ),
+        );
+    }
+}
 
 #[derive(Component, Default)]
 pub struct ZooidHeadBackground;
@@ -51,23 +62,19 @@ impl ZooidHeadBackground {
 #[reflect(Component)]
 pub struct ZooidHead;
 impl ZooidHead {
-    pub fn spawn(
-        mut commands: Commands,
-        assets: Res<ZooidAssets>,
-        waypoint: Query<Entity, With<Waypoint>>,
-    ) {
-        let waypoint_id = waypoint.single();
+    pub fn spawn(mut commands: Commands, assets: Res<ZooidAssets>) {
         commands
-            .spawn(ZooidHead::default().bundle(&assets, waypoint_id))
+            .spawn(ZooidHead::default().bundle(&assets))
             .with_children(|parent| {
                 parent.spawn(ZooidHeadBackground::default().bundle(&assets));
             });
     }
 
-    pub fn bundle(self, assets: &ZooidAssets, waypoint_id: Entity) -> impl Bundle {
+    pub fn bundle(self, assets: &ZooidAssets) -> impl Bundle {
         (
             self,
             Object::Head,
+            GridEntity::default(),
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: assets.mesh.clone().into(),
                 transform: Transform::default()
@@ -82,16 +89,16 @@ impl ZooidHead {
             },
             Velocity::default(),
             NewVelocity::default(),
-            WaypointFollower::new(waypoint_id),
+            Chaser::default(),
             Selected::default(),
             Name::new("ZooidHead"),
         )
     }
 
-    /// System to spawn birds on left mouse button.
+    /// System to spawn zooids on Z key.
     pub fn spawn_zooids(
         mut commands: Commands,
-        query: Query<(&Self, Entity, &Transform, &Velocity, &WaypointFollower)>,
+        query: Query<(&Self, Entity, &Transform, &Velocity)>,
         configs: Res<Configs>,
         assets: Res<ZooidAssets>,
         keyboard: Res<Input<KeyCode>>,
@@ -102,7 +109,7 @@ impl ZooidHead {
 
         let config = configs.get(&Object::Worker(ZooidWorker::default()));
 
-        for (_head, _head_id, transform, _velocity, _follower) in &query {
+        for (_head, _head_id, transform, _velocity) in &query {
             for i in 1..2 {
                 let zindex = zindex::ZOOIDS_MIN
                     + (i as f32) * 0.00001 * (zindex::ZOOIDS_MAX - zindex::ZOOIDS_MIN);
@@ -114,7 +121,7 @@ impl ZooidHead {
                     translation: transform.translation.xy().extend(0.0)
                         + Vec3::Y * config.spawn_velocity
                         + Vec3::Z * zindex,
-                    follower: WaypointFollower::default(),
+                    chaser: Chaser::default(),
                     velocity: config.spawn_velocity * Vec2::Y,
                 }
                 .spawn(&mut commands);
@@ -132,6 +139,7 @@ impl ZooidHead {
         if !keyboard_input.just_pressed(KeyCode::D) {
             return;
         }
+        info!("Despawn zooids");
         for (entity, object) in &objects {
             if let Object::Worker(_) = object {
                 grid.remove(entity);

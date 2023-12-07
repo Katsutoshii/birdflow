@@ -1,17 +1,17 @@
 use std::f32::consts::PI;
 
+use crate::prelude::*;
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle, window::PrimaryWindow};
 
-use crate::{camera, zindex};
+use super::chaser::Chaser;
 
 /// Plugin to add a waypoint system where the player can click to create a waypoint.
 pub struct WaypointPlugin;
 impl Plugin for WaypointPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<WaypointAssets>()
-            .register_type::<WaypointConfig>()
             .add_systems(PreStartup, Waypoint::startup)
-            .add_systems(FixedUpdate, Waypoint::update);
+            .add_systems(FixedUpdate, Waypoint::update.in_set(SystemStage::Compute));
     }
 }
 
@@ -35,11 +35,11 @@ impl Waypoint {
 
     pub fn update(
         mut query: Query<(&Self, &mut Transform)>,
-        camera_query: Query<(Entity, &Camera, &GlobalTransform), With<camera::MainCamera>>,
+        camera_query: Query<(Entity, &Camera, &GlobalTransform), With<MainCamera>>,
         window_query: Query<&Window, With<PrimaryWindow>>,
         waypoint: Query<Entity, With<Waypoint>>,
         mouse_input: Res<Input<MouseButton>>,
-        mut followers: Query<&mut WaypointFollower>,
+        mut followers: Query<(&Selected, &mut Chaser)>,
     ) {
         if !mouse_input.pressed(MouseButton::Right) {
             return;
@@ -54,8 +54,13 @@ impl Waypoint {
             waypoint_transform.translation = position.extend(zindex::WAYPOINT);
 
             let waypoint_id = waypoint.single();
-            for mut follower in followers.iter_mut() {
-                follower.waypoint_id = Some(waypoint_id);
+
+            for (selected, mut follower) in followers.iter_mut() {
+                if selected.is_selected() {
+                    follower.target_entity = Some(waypoint_id);
+                } else {
+                    follower.target_entity = None;
+                }
             }
 
             // Debug positions
@@ -82,67 +87,6 @@ impl Waypoint {
             },
             self,
         )
-    }
-}
-
-#[derive(Resource, Debug, Clone, Reflect)]
-#[reflect(Resource)]
-pub struct WaypointConfig {
-    pub max_acceleration: f32,
-    pub repell_radius: f32,
-    pub slow_factor: f32,
-}
-impl Default for WaypointConfig {
-    fn default() -> Self {
-        Self {
-            max_acceleration: 0.0,
-            repell_radius: 0.0,
-            slow_factor: 0.0,
-        }
-    }
-}
-
-/// For storing the reference to the waypoint.
-#[derive(Component, Default, Debug, Clone)]
-pub struct WaypointFollower {
-    pub waypoint_id: Option<Entity>,
-}
-impl WaypointFollower {
-    pub fn new(waypoint_id: Entity) -> Self {
-        Self {
-            waypoint_id: Some(waypoint_id),
-        }
-    }
-
-    pub fn acceleration(
-        &self,
-        waypoints: &Query<(&Waypoint, &Transform), With<Waypoint>>,
-        transform: &Transform,
-        velocity: Vec2,
-        config: &WaypointConfig,
-    ) -> Vec2 {
-        if let Some(waypoint_id) = self.waypoint_id {
-            let (_waypoint, waypoint_transform) = waypoints
-                .get(waypoint_id)
-                .expect(&format!("Invalid waypoint ID: {:?}", &self.waypoint_id));
-
-            let position_delta = waypoint_transform.translation.xy() - transform.translation.xy();
-            let radius = config.repell_radius;
-            let max_magnitude = config.max_acceleration;
-            let dist_squared = position_delta.length_squared();
-            let radius_squared = radius * radius;
-            let magnitude = max_magnitude * (dist_squared / (radius_squared) - 1.);
-            let slow_force = config.slow_factor
-                * if dist_squared < radius_squared {
-                    Vec2::ZERO
-                } else {
-                    -1.0 * velocity
-                };
-            return position_delta.normalize_or_zero()
-                * magnitude.clamp(-max_magnitude, max_magnitude)
-                + slow_force;
-        }
-        Vec2::ZERO
     }
 }
 

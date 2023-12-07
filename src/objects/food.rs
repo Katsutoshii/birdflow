@@ -1,16 +1,26 @@
-use std::f32::consts::PI;
-
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
+use crate::prelude::*;
 use crate::{
-    grid::{self, EntityGridSpec},
+    grid::{EntityGridSpec, GridEntity},
     physics::{NewVelocity, Velocity},
-    selector::Selected,
-    waypoint::WaypointFollower,
-    zindex,
 };
 
-use super::{Configs, Object, ZooidAssets};
+use super::{Object, ZooidAssets};
+
+pub struct FoodPlugin;
+impl Plugin for FoodPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            FixedUpdate,
+            (
+                Food::update.in_set(SystemStage::PreCompute),
+                Food::spawn.in_set(SystemStage::Spawn),
+                FoodBackground::update.in_set(SystemStage::Compute),
+            ),
+        );
+    }
+}
 
 #[derive(Component, Default)]
 pub struct Food {
@@ -20,13 +30,13 @@ impl Food {
     pub fn spawn(
         mut commands: Commands,
         assets: Res<ZooidAssets>,
-        configs: Res<Configs>,
         grid_spec: Res<EntityGridSpec>,
         keyboard_input: Res<Input<KeyCode>>,
     ) {
         if !keyboard_input.just_pressed(KeyCode::F) {
             return;
         }
+        println!("Spawn food");
         for row in 0..20 {
             for col in 0..20 {
                 commands
@@ -49,9 +59,9 @@ impl Food {
         (
             self,
             Object::Food,
+            GridEntity::default(),
             Velocity::default(),
             NewVelocity::default(),
-            WaypointFollower::default(),
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: assets.mesh.clone().into(),
                 transform: Transform::default()
@@ -60,13 +70,12 @@ impl Food {
                 material: assets.dark_green_material.clone(),
                 ..default()
             },
-            Selected::Unselected,
+            Selected::default(),
             Name::new("Zooid"),
         )
     }
 
     pub fn update(time: Res<Time>, mut query: Query<(&Self, &mut NewVelocity)>) {
-        // let dt = time.delta_seconds();
         for (food, mut new_velocity) in &mut query {
             let (x, y) = (time.elapsed_seconds() * food.period_sec).sin_cos();
             new_velocity.0 += 0.1 * Vec2 { x, y }

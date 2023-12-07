@@ -1,9 +1,9 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle, window::PrimaryWindow};
 
 use crate::{
-    camera,
     grid::EntityGrid,
     objects::{Object, ZooidAssets},
+    prelude::*,
     zindex, Aabb2,
 };
 
@@ -14,6 +14,11 @@ pub enum Selected {
     Selected {
         previous_material: Handle<ColorMaterial>,
     },
+}
+impl Selected {
+    pub fn is_selected(&self) -> bool {
+        return self != &Self::Unselected;
+    }
 }
 
 /// Plugin for an spacial entity paritioning grid with optional debug functionality.
@@ -38,7 +43,7 @@ impl Selector {
 
     pub fn update(
         mut query: Query<(&mut Self, &mut Transform, &mut Visibility)>,
-        camera_query: Query<(Entity, &Camera, &GlobalTransform), With<camera::MainCamera>>,
+        camera_query: Query<(Entity, &Camera, &GlobalTransform), With<MainCamera>>,
         window_query: Query<&Window, With<PrimaryWindow>>,
         mouse_input: Res<Input<MouseButton>>,
         mut objects: Query<
@@ -91,6 +96,9 @@ impl Selector {
                     let (_object, transform, mut selected, mut material) =
                         objects.get_mut(entity).unwrap();
                     if aabb.contains(transform.translation.xy()) {
+                        if selected.is_selected() {
+                            continue;
+                        }
                         *selected = Selected::Selected {
                             previous_material: material.clone(),
                         };

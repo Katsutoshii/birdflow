@@ -4,7 +4,7 @@ use bevy::{
     utils::{HashMap, HashSet},
 };
 
-use crate::{zindex, Aabb2};
+use crate::{zindex, Aabb2, SystemStage};
 
 /// Plugin for an spacial entity paritioning grid with optional debug functionality.
 pub struct GridPlugin;
@@ -16,11 +16,24 @@ impl Plugin for GridPlugin {
             .add_systems(
                 FixedUpdate,
                 (
+                    GridEntity::update.in_set(SystemStage::PostApply),
                     EntityGridSpec::visualize_on_change,
                     EntityGridSpec::resize_on_change,
                     CellVisualizer::update,
                 ),
             );
+    }
+}
+
+// Component to track an entity in the grid.
+#[derive(Component, Reflect, Default)]
+#[reflect(Component)]
+pub struct GridEntity;
+impl GridEntity {
+    pub fn update(query: Query<(Entity, &Transform), With<Self>>, mut grid: ResMut<EntityGrid>) {
+        for (entity, transform) in &query {
+            grid.update(entity, transform.translation.truncate());
+        }
     }
 }
 

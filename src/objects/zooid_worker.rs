@@ -1,13 +1,24 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
 use crate::{
+    grid::GridEntity,
+    objects::chaser::Chaser,
     physics::{NewVelocity, Velocity},
     selector::Selected,
-    waypoint::WaypointFollower,
-    zindex,
+    zindex, SystemStage,
 };
 
 use super::Object;
+
+pub struct ZooidWorkerPlugin;
+impl Plugin for ZooidWorkerPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(
+            FixedUpdate,
+            (ZooidWorkerBackground::update.in_set(SystemStage::Compute),),
+        );
+    }
+}
 
 /// State for an individual zooid.
 #[derive(Component, Reflect, Clone)]
@@ -29,7 +40,7 @@ pub struct ZooidBundler {
     pub material: Handle<ColorMaterial>,
     pub background_material: Handle<ColorMaterial>,
     pub translation: Vec3,
-    pub follower: WaypointFollower,
+    pub chaser: Chaser,
     pub velocity: Vec2,
 }
 impl ZooidBundler {
@@ -47,9 +58,10 @@ impl ZooidBundler {
     pub fn bundle(self) -> impl Bundle {
         (
             self.zooid,
+            GridEntity::default(),
             Velocity(self.velocity),
             NewVelocity::default(),
-            self.follower,
+            self.chaser,
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: self.mesh.into(),
                 transform: Transform::default()
