@@ -9,6 +9,7 @@ use crate::{
 
 pub use self::config::{Config, Configs, InteractionConfig};
 use self::{
+    food::{Food, FoodBackground},
     zooid_head::{ZooidHead, ZooidHeadBackground},
     zooid_worker::{ZooidWorker, ZooidWorkerBackground},
 };
@@ -23,15 +24,18 @@ impl Plugin for ObjectsPlugin {
             .register_type::<InteractionConfig>()
             .init_resource::<ZooidAssets>()
             .configure_sets(FixedUpdate, SystemStage::get_config())
-            .add_systems(Startup, ZooidHead::spawn)
+            .add_systems(Startup, (ZooidHead::spawn))
             .add_systems(
                 FixedUpdate,
                 (
+                    Food::update.in_set(SystemStage::PreCompute),
+                    FoodBackground::update.in_set(SystemStage::Compute),
                     ZooidWorkerBackground::update.in_set(SystemStage::Compute),
                     ZooidHeadBackground::update.in_set(SystemStage::Compute),
                     Object::update_velocity.in_set(SystemStage::Compute),
                     Object::apply_velocity.in_set(SystemStage::Apply),
                     ZooidHead::spawn_zooids.in_set(SystemStage::Spawn),
+                    Food::spawn.in_set(SystemStage::Spawn),
                     ZooidHead::despawn_zooids.in_set(SystemStage::Despawn),
                 ),
             );
@@ -39,6 +43,7 @@ impl Plugin for ObjectsPlugin {
 }
 
 mod config;
+mod food;
 mod zooid_head;
 mod zooid_worker;
 
@@ -238,6 +243,8 @@ pub struct ZooidAssets {
     pub transparent_blue_material: Handle<ColorMaterial>,
     pub green_material: Handle<ColorMaterial>,
     pub tranparent_green_material: Handle<ColorMaterial>,
+    pub dark_green_material: Handle<ColorMaterial>,
+    pub transparent_dark_green_material: Handle<ColorMaterial>,
     pub tomato_material: Handle<ColorMaterial>,
     pub white_material: Handle<ColorMaterial>,
     pub transparent_white_material: Handle<ColorMaterial>,
@@ -254,6 +261,10 @@ impl FromWorld for ZooidAssets {
             green_material: materials.add(ColorMaterial::from(Color::LIME_GREEN)),
             tranparent_green_material: materials
                 .add(ColorMaterial::from(Color::LIME_GREEN.with_a(0.2))),
+
+            dark_green_material: materials.add(ColorMaterial::from(Color::SEA_GREEN)),
+            transparent_dark_green_material: materials
+                .add(ColorMaterial::from(Color::SEA_GREEN.with_a(0.2))),
             tomato_material: materials.add(ColorMaterial::from(Color::TOMATO)),
             blue_material: materials.add(ColorMaterial::from(Color::TURQUOISE)),
             transparent_blue_material: materials

@@ -1,0 +1,108 @@
+use std::f32::consts::PI;
+
+use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
+
+use crate::{
+    grid::{self, EntityGridSpec},
+    physics::{NewVelocity, Velocity},
+    selector::Selected,
+    waypoint::WaypointFollower,
+    zindex,
+};
+
+use super::{Configs, Object, ZooidAssets};
+
+#[derive(Component, Default)]
+pub struct Food {
+    period_sec: f32,
+}
+impl Food {
+    pub fn spawn(
+        mut commands: Commands,
+        assets: Res<ZooidAssets>,
+        configs: Res<Configs>,
+        grid_spec: Res<EntityGridSpec>,
+        keyboard_input: Res<Input<KeyCode>>,
+    ) {
+        if !keyboard_input.just_pressed(KeyCode::F) {
+            return;
+        }
+        for row in 0..20 {
+            for col in 0..20 {
+                commands
+                    .spawn(Food { period_sec: 1.0 }.bundle(
+                        Vec2 {
+                            x: (0.5 + row as f32),
+                            y: (0.5 + col as f32),
+                        } * grid_spec.width
+                            - Vec2 { x: 10., y: 10. } * grid_spec.width,
+                        &assets,
+                    ))
+                    .with_children(|parent| {
+                        parent.spawn(FoodBackground::default().bundle(&assets));
+                    });
+            }
+        }
+    }
+
+    pub fn bundle(self, position: Vec2, assets: &ZooidAssets) -> impl Bundle {
+        (
+            self,
+            Object::Food,
+            Velocity::default(),
+            NewVelocity::default(),
+            WaypointFollower::default(),
+            MaterialMesh2dBundle::<ColorMaterial> {
+                mesh: assets.mesh.clone().into(),
+                transform: Transform::default()
+                    .with_scale(Vec3::splat(10.0))
+                    .with_translation(position.extend(zindex::FOOD)),
+                material: assets.dark_green_material.clone(),
+                ..default()
+            },
+            Selected::Unselected,
+            Name::new("Zooid"),
+        )
+    }
+
+    pub fn update(time: Res<Time>, mut query: Query<(&Self, &mut NewVelocity)>) {
+        // let dt = time.delta_seconds();
+        for (food, mut new_velocity) in &mut query {
+            let (x, y) = (time.elapsed_seconds() * food.period_sec).sin_cos();
+            new_velocity.0 += 0.1 * Vec2 { x, y }
+        }
+    }
+}
+
+#[derive(Component, Default)]
+pub struct FoodBackground;
+impl FoodBackground {
+    pub fn bundle(self, assets: &ZooidAssets) -> impl Bundle {
+        (
+            self,
+            MaterialMesh2dBundle::<ColorMaterial> {
+                mesh: assets.mesh.clone().into(),
+                transform: Transform::default()
+                    .with_scale(Vec3::splat(1.5))
+                    .with_translation(Vec3 {
+                        x: 0.0,
+                        y: 0.0,
+                        z: zindex::FOOD_BACKGROUND,
+                    }),
+                material: assets.transparent_dark_green_material.clone(),
+                ..default()
+            },
+        )
+    }
+    pub fn update(
+        mut query: Query<(&mut Transform, &Parent), With<Self>>,
+        parent_velocities: Query<&Velocity, With<Children>>,
+    ) {
+        for (mut transform, parent) in &mut query {
+            let parent_velocity = parent_velocities
+                .get(parent.get())
+                .expect("Invalid parent.");
+            transform.translation = -0.1 * parent_velocity.0.extend(0.);
+        }
+    }
+}

@@ -18,6 +18,7 @@ pub use aabb::Aabb2;
 #[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
 pub enum SystemStage {
     Spawn,
+    PreCompute,
     Compute,
     Apply,
     Despawn,

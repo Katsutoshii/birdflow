@@ -7,11 +7,13 @@ use crate::{
     zindex, Aabb2,
 };
 
-#[derive(Component, Default, PartialEq)]
+#[derive(Component, Default, PartialEq, Clone)]
 pub enum Selected {
     #[default]
     Unselected,
-    Selected,
+    Selected {
+        previous_material: Handle<ColorMaterial>,
+    },
 }
 
 /// Plugin for an spacial entity paritioning grid with optional debug functionality.
@@ -61,13 +63,12 @@ impl Selector {
         {
             if mouse_input.just_pressed(MouseButton::Left) {
                 // Reset other selections.
-                for (object, _transform, mut selected, mut material) in &mut objects {
-                    *selected = Selected::Unselected;
-                    *material = match object {
-                        Object::Worker(_) => assets.green_material.clone(),
-                        Object::Head => assets.blue_material.clone(),
-                        _ => assets.tomato_material.clone(),
+                for (_object, _transform, mut selected, mut material) in &mut objects {
+                    if let Selected::Selected { previous_material } = selected.as_ref() {
+                        *material = previous_material.clone();
+                        // TODO check previous selected status
                     }
+                    *selected = Selected::Unselected;
                 }
 
                 selector.aabb.min = position;
@@ -90,7 +91,9 @@ impl Selector {
                     let (_object, transform, mut selected, mut material) =
                         objects.get_mut(entity).unwrap();
                     if aabb.contains(transform.translation.xy()) {
-                        *selected = Selected::Selected;
+                        *selected = Selected::Selected {
+                            previous_material: material.clone(),
+                        };
                         *material = assets.white_material.clone();
                     }
                 }

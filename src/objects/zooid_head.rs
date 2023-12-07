@@ -111,7 +111,9 @@ impl ZooidHead {
                     mesh: assets.mesh.clone(),
                     material: assets.green_material.clone(),
                     background_material: assets.tranparent_green_material.clone(),
-                    translation: transform.translation.xy().extend(0.0) + Vec3::Z * zindex,
+                    translation: transform.translation.xy().extend(0.0)
+                        + Vec3::Y * config.spawn_velocity
+                        + Vec3::Z * zindex,
                     follower: WaypointFollower::default(),
                     velocity: config.spawn_velocity * Vec2::Y,
                 }
