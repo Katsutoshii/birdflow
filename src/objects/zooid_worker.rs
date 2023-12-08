@@ -2,7 +2,7 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
 use crate::{
     grid::GridEntity,
-    objects::chaser::Chaser,
+    objects::objective::Objective,
     physics::{NewVelocity, Velocity},
     selector::Selected,
     zindex, SystemStage,
@@ -34,16 +34,16 @@ impl Default for ZooidWorker {
 
 /// Creates bundle for the Bird with its associated material mesh.
 #[derive(Default, Clone)]
-pub struct ZooidBundler {
-    pub zooid: Object,
+pub struct ZooidWorkerBundler {
+    pub worker: ZooidWorker,
     pub mesh: Handle<Mesh>,
     pub material: Handle<ColorMaterial>,
     pub background_material: Handle<ColorMaterial>,
     pub translation: Vec3,
-    pub chaser: Chaser,
+    pub chaser: Objective,
     pub velocity: Vec2,
 }
-impl ZooidBundler {
+impl ZooidWorkerBundler {
     pub fn spawn(self, commands: &mut Commands) {
         commands
             .spawn(self.clone().bundle())
@@ -57,7 +57,7 @@ impl ZooidBundler {
 
     pub fn bundle(self) -> impl Bundle {
         (
-            self.zooid,
+            Object::Worker(self.worker),
             GridEntity::default(),
             Velocity(self.velocity),
             NewVelocity::default(),

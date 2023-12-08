@@ -1,12 +1,12 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
 use crate::grid::GridEntity;
-use crate::objects::chaser::Chaser;
+use crate::objects::objective::Objective;
 use crate::prelude::*;
 use crate::{grid::EntityGrid, selector::Selected, zindex};
 
 use super::{
-    zooid_worker::{ZooidBundler, ZooidWorker},
+    zooid_worker::{ZooidWorker, ZooidWorkerBundler},
     Configs, Object, ZooidAssets,
 };
 
@@ -89,7 +89,7 @@ impl ZooidHead {
             },
             Velocity::default(),
             NewVelocity::default(),
-            Chaser::default(),
+            Objective::default(),
             Selected::default(),
             Name::new("ZooidHead"),
         )
@@ -113,15 +113,15 @@ impl ZooidHead {
             for i in 1..2 {
                 let zindex = zindex::ZOOIDS_MIN
                     + (i as f32) * 0.00001 * (zindex::ZOOIDS_MAX - zindex::ZOOIDS_MIN);
-                ZooidBundler {
-                    zooid: Object::Worker(ZooidWorker { theta: 0.0 }),
+                ZooidWorkerBundler {
+                    worker: ZooidWorker { theta: 0.0 },
                     mesh: assets.mesh.clone(),
                     material: assets.green_material.clone(),
                     background_material: assets.tranparent_green_material.clone(),
                     translation: transform.translation.xy().extend(0.0)
                         + Vec3::Y * config.spawn_velocity
                         + Vec3::Z * zindex,
-                    chaser: Chaser::default(),
+                    chaser: Objective::default(),
                     velocity: config.spawn_velocity * Vec2::Y,
                 }
                 .spawn(&mut commands);

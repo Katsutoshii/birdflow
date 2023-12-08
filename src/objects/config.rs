@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::objects::chaser::ChaserConfig;
+use crate::objects::objective::ObjectiveConfig;
 
 use super::Object;
 
@@ -13,6 +13,7 @@ pub struct InteractionConfig {
     pub cohesion_acceleration: f32,
     pub alignment_factor: f32,
     pub slow_factor: f32,
+    pub chase: bool,
 }
 impl Default for InteractionConfig {
     fn default() -> Self {
@@ -22,6 +23,7 @@ impl Default for InteractionConfig {
             cohesion_acceleration: 0.0,
             alignment_factor: 0.0,
             slow_factor: 0.0,
+            chase: false,
         }
     }
 }
@@ -63,7 +65,7 @@ pub struct Config {
     pub alignment_factor: f32,
     pub velocity_smoothing: f32,
     pub spawn_velocity: f32,
-    pub waypoint: ChaserConfig,
+    pub waypoint: ObjectiveConfig,
 
     // Interactions
     pub worker: InteractionConfig,
@@ -78,7 +80,7 @@ impl Default for Config {
             alignment_factor: 0.1,
             velocity_smoothing: 0.5,
             spawn_velocity: 2.0,
-            waypoint: ChaserConfig::default(),
+            waypoint: ObjectiveConfig::default(),
             worker: InteractionConfig::default(),
             head: InteractionConfig::default(),
             food: InteractionConfig::default(),

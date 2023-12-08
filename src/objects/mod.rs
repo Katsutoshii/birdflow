@@ -8,8 +8,8 @@ use crate::{
 
 pub use self::config::{Config, Configs, InteractionConfig};
 use self::{
-    chaser::ChaserPlugin,
     food::FoodPlugin,
+    objective::ObjectivePlugin,
     waypoint::WaypointPlugin,
     zooid_head::ZooidHeadPlugin,
     zooid_worker::{ZooidWorker, ZooidWorkerPlugin},
@@ -20,7 +20,7 @@ pub struct ObjectsPlugin;
 impl Plugin for ObjectsPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
-            ChaserPlugin,
+            ObjectivePlugin,
             ZooidHeadPlugin,
             ZooidWorkerPlugin,
             FoodPlugin,
@@ -39,9 +39,9 @@ impl Plugin for ObjectsPlugin {
     }
 }
 
-mod chaser;
 mod config;
 mod food;
+mod objective;
 mod waypoint;
 mod zooid_head;
 mod zooid_worker;

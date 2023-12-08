@@ -3,7 +3,7 @@ use std::f32::consts::PI;
 use crate::prelude::*;
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle, window::PrimaryWindow};
 
-use super::chaser::Chaser;
+use super::objective::Objective;
 
 /// Plugin to add a waypoint system where the player can click to create a waypoint.
 pub struct WaypointPlugin;
@@ -37,9 +37,8 @@ impl Waypoint {
         mut query: Query<(&Self, &mut Transform)>,
         camera_query: Query<(Entity, &Camera, &GlobalTransform), With<MainCamera>>,
         window_query: Query<&Window, With<PrimaryWindow>>,
-        waypoint: Query<Entity, With<Waypoint>>,
         mouse_input: Res<Input<MouseButton>>,
-        mut followers: Query<(&Selected, &mut Chaser)>,
+        mut chasers: Query<(&Selected, &mut Objective)>,
     ) {
         if !mouse_input.pressed(MouseButton::Right) {
             return;
@@ -52,14 +51,9 @@ impl Waypoint {
         {
             let (_waypoint, mut waypoint_transform) = query.single_mut();
             waypoint_transform.translation = position.extend(zindex::WAYPOINT);
-
-            let waypoint_id = waypoint.single();
-
-            for (selected, mut follower) in followers.iter_mut() {
+            for (selected, mut chaser) in chasers.iter_mut() {
                 if selected.is_selected() {
-                    follower.target_entity = Some(waypoint_id);
-                } else {
-                    follower.target_entity = None;
+                    *chaser = Objective::MoveToPosition(position);
                 }
             }
 
