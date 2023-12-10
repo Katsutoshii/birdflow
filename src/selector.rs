@@ -1,8 +1,12 @@
-use bevy::{prelude::*, sprite::MaterialMesh2dBundle, window::PrimaryWindow};
+use bevy::{
+    prelude::*,
+    sprite::{MaterialMesh2dBundle, Mesh2dHandle},
+    window::PrimaryWindow,
+};
 
 use crate::{
     grid::EntityGrid,
-    objects::{Object, ZooidAssets},
+    objects::{Configs, Object, Team},
     prelude::*,
     zindex, Aabb2,
 };
@@ -12,7 +16,7 @@ pub enum Selected {
     #[default]
     Unselected,
     Selected {
-        previous_material: Handle<ColorMaterial>,
+        child_entity: Entity,
     },
 }
 impl Selected {
@@ -42,21 +46,18 @@ impl Selector {
     }
 
     pub fn update(
+        mut commands: Commands,
         mut query: Query<(&mut Self, &mut Transform, &mut Visibility)>,
         camera_query: Query<(Entity, &Camera, &GlobalTransform), With<MainCamera>>,
         window_query: Query<&Window, With<PrimaryWindow>>,
         mouse_input: Res<Input<MouseButton>>,
         mut objects: Query<
-            (
-                &Object,
-                &Transform,
-                &mut Selected,
-                &mut Handle<ColorMaterial>,
-            ),
+            (&Object, &Transform, &Team, &mut Selected, &Mesh2dHandle),
             Without<Self>,
         >,
         grid: Res<EntityGrid>,
-        assets: Res<ZooidAssets>,
+        assets: Res<SelectorAssets>,
+        configs: Res<Configs>,
     ) {
         let (_entity, camera, camera_transform) = camera_query.single();
         let (mut selector, mut transform, mut visibility) = query.single_mut();
@@ -68,10 +69,9 @@ impl Selector {
         {
             if mouse_input.just_pressed(MouseButton::Left) {
                 // Reset other selections.
-                for (_object, _transform, mut selected, mut material) in &mut objects {
-                    if let Selected::Selected { previous_material } = selected.as_ref() {
-                        *material = previous_material.clone();
-                        // TODO check previous selected status
+                for (_object, _transform, _team, mut selected, _mesh) in &mut objects {
+                    if let Selected::Selected { child_entity } = selected.as_ref() {
+                        commands.entity(*child_entity).despawn()
                     }
                     *selected = Selected::Unselected;
                 }
@@ -93,21 +93,39 @@ impl Selector {
                 aabb.enforce_minmax();
                 // Check the grid for entities in this bounding box.
                 for entity in grid.get_in_aabb(&aabb) {
-                    let (_object, transform, mut selected, mut material) =
+                    let (_object, transform, team, mut selected, mesh) =
                         objects.get_mut(entity).unwrap();
                     if aabb.contains(transform.translation.xy()) {
-                        if selected.is_selected() {
+                        if selected.is_selected() || *team != configs.player_team {
                             continue;
                         }
-                        *selected = Selected::Selected {
-                            previous_material: material.clone(),
-                        };
-                        *material = assets.white_material.clone();
+                        info!("Selected unit");
+                        let child_entity = commands
+                            .spawn(Self::highlight_bundle(&assets, mesh.0.clone()))
+                            .id();
+                        commands.entity(entity).add_child(child_entity);
+                        *selected = Selected::Selected { child_entity };
                     }
                 }
             } else if mouse_input.just_released(MouseButton::Left) {
                 *visibility = Visibility::Hidden;
             }
+        }
+    }
+
+    fn highlight_bundle(assets: &SelectorAssets, mesh: Handle<Mesh>) -> impl Bundle {
+        MaterialMesh2dBundle::<ColorMaterial> {
+            mesh: mesh.clone().into(),
+            transform: Transform::default()
+                .with_scale(Vec3::splat(1.))
+                .with_translation(Vec3 {
+                    x: 0.0,
+                    y: 0.0,
+                    z: zindex::HIGHLIGHT,
+                }),
+            material: assets.white_material.clone(),
+            visibility: Visibility::Visible,
+            ..default()
         }
     }
 
@@ -130,6 +148,7 @@ impl Selector {
 pub struct SelectorAssets {
     pub mesh: Handle<Mesh>,
     pub blue_material: Handle<ColorMaterial>,
+    pub white_material: Handle<ColorMaterial>,
 }
 
 impl FromWorld for SelectorAssets {
@@ -150,6 +169,7 @@ impl FromWorld for SelectorAssets {
         Self {
             mesh,
             blue_material: materials.add(ColorMaterial::from(Color::BLUE.with_a(0.04))),
+            white_material: materials.add(ColorMaterial::from(Color::ALICE_BLUE.with_a(0.15))),
         }
     }
 }

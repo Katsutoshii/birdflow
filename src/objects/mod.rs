@@ -29,6 +29,7 @@ impl Plugin for ObjectsPlugin {
         .register_type::<Object>()
         .register_type::<Configs>()
         .register_type::<Config>()
+        .register_type::<Team>()
         .register_type::<InteractionConfig>()
         .init_resource::<ZooidAssets>()
         .configure_sets(FixedUpdate, SystemStage::get_config())
@@ -46,6 +47,7 @@ mod waypoint;
 mod zooid_head;
 mod zooid_worker;
 
+/// Entities that can interact with each other.
 #[derive(Component, Reflect, Clone)]
 #[reflect(Component)]
 pub enum Object {
@@ -58,10 +60,8 @@ impl Default for Object {
         Self::Worker(ZooidWorker::default())
     }
 }
-
-/// State for an individual zooid.
 impl Object {
-    /// Update velocity.
+    /// Update objects velocity and objectives.
     pub fn update_velocity(
         mut objects: Query<(Entity, &Self, &Velocity, &mut NewVelocity, &Transform)>,
         other_objects: Query<(&Self, &Velocity, &Transform)>,
@@ -201,19 +201,50 @@ impl Object {
     }
 }
 
+/// Enum to specify the team of the given object.
+#[derive(Component, Default, Debug, PartialEq, Eq, Reflect, Clone, Copy)]
+#[reflect(Component)]
+#[repr(u8)]
+pub enum Team {
+    #[default]
+    None = 0,
+    Blue = 1,
+    Red = 2,
+}
+
+#[derive(Default, Clone)]
+pub struct TeamMaterials {
+    pub primary: Handle<ColorMaterial>,
+    pub background: Handle<ColorMaterial>,
+}
+impl TeamMaterials {
+    pub fn new(color: Color, assets: &mut Assets<ColorMaterial>) -> Self {
+        Self {
+            primary: assets.add(ColorMaterial::from(color)),
+            background: assets.add(ColorMaterial::from(color.with_a(0.2))),
+        }
+    }
+}
+
 /// Handles to common zooid assets.
 #[derive(Resource)]
 pub struct ZooidAssets {
     pub mesh: Handle<Mesh>,
-    pub blue_material: Handle<ColorMaterial>,
-    pub transparent_blue_material: Handle<ColorMaterial>,
-    pub green_material: Handle<ColorMaterial>,
-    pub tranparent_green_material: Handle<ColorMaterial>,
-    pub dark_green_material: Handle<ColorMaterial>,
-    pub transparent_dark_green_material: Handle<ColorMaterial>,
-    pub tomato_material: Handle<ColorMaterial>,
-    pub white_material: Handle<ColorMaterial>,
-    pub transparent_white_material: Handle<ColorMaterial>,
+    team_materials: Vec<TeamMaterials>,
+    // pub blue_material: Handle<ColorMaterial>,
+    // pub transparent_blue_material: Handle<ColorMaterial>,
+    // pub green_material: Handle<ColorMaterial>,
+    // pub tranparent_green_material: Handle<ColorMaterial>,
+    // pub dark_green_material: Handle<ColorMaterial>,
+    // pub transparent_dark_green_material: Handle<ColorMaterial>,
+    // pub tomato_material: Handle<ColorMaterial>,
+    // pub white_material: Handle<ColorMaterial>,
+    // pub transparent_white_material: Handle<ColorMaterial>,
+}
+impl ZooidAssets {
+    fn get_team_material(&self, team: Team) -> TeamMaterials {
+        self.team_materials.get(team as usize).unwrap().clone()
+    }
 }
 impl FromWorld for ZooidAssets {
     fn from_world(world: &mut World) -> Self {
@@ -224,20 +255,14 @@ impl FromWorld for ZooidAssets {
         let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
         Self {
             mesh,
-            green_material: materials.add(ColorMaterial::from(Color::LIME_GREEN)),
-            tranparent_green_material: materials
-                .add(ColorMaterial::from(Color::LIME_GREEN.with_a(0.2))),
-
-            dark_green_material: materials.add(ColorMaterial::from(Color::SEA_GREEN)),
-            transparent_dark_green_material: materials
-                .add(ColorMaterial::from(Color::SEA_GREEN.with_a(0.2))),
-            tomato_material: materials.add(ColorMaterial::from(Color::TOMATO)),
-            blue_material: materials.add(ColorMaterial::from(Color::TURQUOISE)),
-            transparent_blue_material: materials
-                .add(ColorMaterial::from(Color::TURQUOISE.with_a(0.2))),
-            white_material: materials.add(ColorMaterial::from(Color::ALICE_BLUE)),
-            transparent_white_material: materials
-                .add(ColorMaterial::from(Color::ALICE_BLUE.with_a(0.2))),
+            team_materials: vec![
+                // Team::None
+                TeamMaterials::new(Color::SEA_GREEN, &mut materials),
+                // Team::Blue
+                TeamMaterials::new(Color::TEAL, &mut materials),
+                // Team::Red
+                TeamMaterials::new(Color::TOMATO, &mut materials),
+            ],
         }
     }
 }

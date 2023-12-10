@@ -8,7 +8,7 @@ use crate::{
     zindex, SystemStage,
 };
 
-use super::Object;
+use super::{Object, Team, TeamMaterials};
 
 pub struct ZooidWorkerPlugin;
 impl Plugin for ZooidWorkerPlugin {
@@ -36,11 +36,11 @@ impl Default for ZooidWorker {
 #[derive(Default, Clone)]
 pub struct ZooidWorkerBundler {
     pub worker: ZooidWorker,
+    pub team: Team,
     pub mesh: Handle<Mesh>,
-    pub material: Handle<ColorMaterial>,
-    pub background_material: Handle<ColorMaterial>,
+    pub team_materials: TeamMaterials,
     pub translation: Vec3,
-    pub chaser: Objective,
+    pub objective: Objective,
     pub velocity: Vec2,
 }
 impl ZooidWorkerBundler {
@@ -50,7 +50,7 @@ impl ZooidWorkerBundler {
             .with_children(|parent| {
                 parent.spawn(
                     ZooidWorkerBackground::default()
-                        .bundle(self.mesh.clone(), self.background_material.clone()),
+                        .bundle(self.mesh.clone(), self.team_materials.background.clone()),
                 );
             });
     }
@@ -58,16 +58,17 @@ impl ZooidWorkerBundler {
     pub fn bundle(self) -> impl Bundle {
         (
             Object::Worker(self.worker),
+            self.team,
             GridEntity::default(),
             Velocity(self.velocity),
             NewVelocity::default(),
-            self.chaser,
+            self.objective,
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: self.mesh.into(),
                 transform: Transform::default()
                     .with_scale(Vec3::splat(10.0))
                     .with_translation(self.translation),
-                material: self.material,
+                material: self.team_materials.primary,
                 ..default()
             },
             Selected::default(),

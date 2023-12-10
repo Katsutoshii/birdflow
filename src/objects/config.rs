@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::objects::objective::ObjectiveConfig;
 
-use super::Object;
+use super::{Object, Team};
 
 /// Singleton that spawns birds with specified stats.
 #[derive(Resource, Reflect)]
@@ -32,6 +32,8 @@ impl Default for InteractionConfig {
 #[derive(Resource, Reflect)]
 #[reflect(Resource)]
 pub struct Configs {
+    // Specify which team the player controls.
+    pub player_team: Team,
     // Configs for each Zooid type.
     pub worker: Config,
     pub head: Config,
@@ -40,6 +42,7 @@ pub struct Configs {
 impl Default for Configs {
     fn default() -> Self {
         Self {
+            player_team: Team::default(),
             worker: Config::default(),
             head: Config::default(),
             food: Config::default(),

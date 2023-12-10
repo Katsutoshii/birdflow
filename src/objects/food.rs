@@ -6,7 +6,7 @@ use crate::{
     physics::{NewVelocity, Velocity},
 };
 
-use super::{Object, ZooidAssets};
+use super::{Object, Team, ZooidAssets};
 
 pub struct FoodPlugin;
 impl Plugin for FoodPlugin {
@@ -59,6 +59,7 @@ impl Food {
         (
             self,
             Object::Food,
+            Team::default(),
             GridEntity::default(),
             Velocity::default(),
             NewVelocity::default(),
@@ -67,7 +68,7 @@ impl Food {
                 transform: Transform::default()
                     .with_scale(Vec3::splat(10.0))
                     .with_translation(position.extend(zindex::FOOD)),
-                material: assets.dark_green_material.clone(),
+                material: assets.get_team_material(Team::None).primary,
                 ..default()
             },
             Selected::default(),
@@ -98,7 +99,7 @@ impl FoodBackground {
                         y: 0.0,
                         z: zindex::FOOD_BACKGROUND,
                     }),
-                material: assets.transparent_dark_green_material.clone(),
+                material: assets.get_team_material(Team::None).background,
                 ..default()
             },
         )

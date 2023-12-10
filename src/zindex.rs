@@ -9,4 +9,5 @@ pub const ZOOID_HEAD: f32 = 0.0;
 pub const ZOOIDS_MIN: f32 = 1.0;
 pub const ZOOIDS_MAX: f32 = 10.0;
 
-pub const SELECTOR: f32 = 11.0;
+pub const HIGHLIGHT: f32 = 11.0;
+pub const SELECTOR: f32 = 12.0;

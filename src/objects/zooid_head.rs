@@ -5,6 +5,7 @@ use crate::objects::objective::Objective;
 use crate::prelude::*;
 use crate::{grid::EntityGrid, selector::Selected, zindex};
 
+use super::Team;
 use super::{
     zooid_worker::{ZooidWorker, ZooidWorkerBundler},
     Configs, Object, ZooidAssets,
@@ -13,9 +14,10 @@ use super::{
 pub struct ZooidHeadPlugin;
 impl Plugin for ZooidHeadPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, ZooidHead::spawn).add_systems(
+        app.add_systems(
             FixedUpdate,
             (
+                ZooidHead::spawn.in_set(SystemStage::Spawn),
                 ZooidHead::spawn_zooids.in_set(SystemStage::Spawn),
                 ZooidHead::despawn_zooids.in_set(SystemStage::Despawn),
                 ZooidHeadBackground::update.in_set(SystemStage::Compute),
@@ -27,7 +29,7 @@ impl Plugin for ZooidHeadPlugin {
 #[derive(Component, Default)]
 pub struct ZooidHeadBackground;
 impl ZooidHeadBackground {
-    pub fn bundle(self, assets: &ZooidAssets) -> impl Bundle {
+    pub fn bundle(self, assets: &ZooidAssets, team: Team) -> impl Bundle {
         (
             self,
             MaterialMesh2dBundle::<ColorMaterial> {
@@ -39,7 +41,7 @@ impl ZooidHeadBackground {
                         y: 0.0,
                         z: zindex::ZOOID_HEAD_BACKGROUND,
                     }),
-                material: assets.transparent_blue_material.clone(),
+                material: assets.get_team_material(team).background,
                 ..default()
             },
         )
@@ -62,18 +64,29 @@ impl ZooidHeadBackground {
 #[reflect(Component)]
 pub struct ZooidHead;
 impl ZooidHead {
-    pub fn spawn(mut commands: Commands, assets: Res<ZooidAssets>) {
+    pub fn spawn(
+        mut commands: Commands,
+        assets: Res<ZooidAssets>,
+        configs: Res<Configs>,
+        keyboard_input: Res<Input<KeyCode>>,
+    ) {
+        if !keyboard_input.just_pressed(KeyCode::Return) {
+            return;
+        }
+        let team = configs.player_team;
+        info!("Team: {:?} {:?}", &team, team as usize);
         commands
-            .spawn(ZooidHead::default().bundle(&assets))
+            .spawn(ZooidHead::default().bundle(&assets, team))
             .with_children(|parent| {
-                parent.spawn(ZooidHeadBackground::default().bundle(&assets));
+                parent.spawn(ZooidHeadBackground::default().bundle(&assets, team));
             });
     }
 
-    pub fn bundle(self, assets: &ZooidAssets) -> impl Bundle {
+    pub fn bundle(self, assets: &ZooidAssets, team: Team) -> impl Bundle {
         (
             self,
             Object::Head,
+            team,
             GridEntity::default(),
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: assets.mesh.clone().into(),
@@ -84,7 +97,7 @@ impl ZooidHead {
                         y: 0.0,
                         z: zindex::ZOOID_HEAD,
                     }),
-                material: assets.blue_material.clone(),
+                material: assets.get_team_material(team).primary,
                 ..default()
             },
             Velocity::default(),
@@ -98,7 +111,7 @@ impl ZooidHead {
     /// System to spawn zooids on Z key.
     pub fn spawn_zooids(
         mut commands: Commands,
-        query: Query<(&Self, Entity, &Transform, &Velocity)>,
+        query: Query<(&Self, Entity, &Transform, &Velocity, &Team)>,
         configs: Res<Configs>,
         assets: Res<ZooidAssets>,
         keyboard: Res<Input<KeyCode>>,
@@ -109,19 +122,19 @@ impl ZooidHead {
 
         let config = configs.get(&Object::Worker(ZooidWorker::default()));
 
-        for (_head, _head_id, transform, _velocity) in &query {
+        for (_head, _head_id, transform, _velocity, team) in &query {
             for i in 1..2 {
                 let zindex = zindex::ZOOIDS_MIN
                     + (i as f32) * 0.00001 * (zindex::ZOOIDS_MAX - zindex::ZOOIDS_MIN);
                 ZooidWorkerBundler {
                     worker: ZooidWorker { theta: 0.0 },
+                    team: *team,
                     mesh: assets.mesh.clone(),
-                    material: assets.green_material.clone(),
-                    background_material: assets.tranparent_green_material.clone(),
+                    team_materials: assets.get_team_material(*team),
                     translation: transform.translation.xy().extend(0.0)
                         + Vec3::Y * config.spawn_velocity
                         + Vec3::Z * zindex,
-                    chaser: Objective::default(),
+                    objective: Objective::default(),
                     velocity: config.spawn_velocity * Vec2::Y,
                 }
                 .spawn(&mut commands);

@@ -7,6 +7,7 @@
       visualize: true,
     ),
     "birdflow::objects::config::Configs": (
+      player_team: Blue,
       worker: (
         max_velocity: 7.0,
         neighbor_radius: 300.0,
@@ -26,7 +27,7 @@
         head: (
           separation_radius: 100.0,
           separation_acceleration: 0.7,
-          cohesion_acceleration: 0.6,
+          cohesion_acceleration: 0.2,
           alignment_factor: 0.0,
           slow_factor: 0.1
         ),
