@@ -100,7 +100,6 @@ impl Selector {
                         if selected.is_selected() || *team != configs.player_team {
                             continue;
                         }
-                        info!("Selected unit");
                         let child_entity = commands
                             .spawn(Self::highlight_bundle(&assets, mesh.0.clone()))
                             .id();
@@ -118,7 +117,7 @@ impl Selector {
         MaterialMesh2dBundle::<ColorMaterial> {
             mesh: mesh.clone().into(),
             transform: Transform::default()
-                .with_scale(Vec3::splat(1.))
+                .with_scale(Vec2::splat(1.).extend(1.))
                 .with_translation(Vec3 {
                     x: 0.0,
                     y: 0.0,
@@ -135,7 +134,7 @@ impl Selector {
             self,
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: assets.mesh.clone().into(),
-                transform: Transform::default().with_scale(Vec3::splat(1.0)),
+                transform: Transform::default().with_scale(Vec2::splat(1.).extend(1.)),
                 material: assets.blue_material.clone(),
                 visibility: Visibility::Hidden,
                 ..default()

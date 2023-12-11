@@ -66,7 +66,7 @@ impl ZooidWorkerBundler {
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: self.mesh.into(),
                 transform: Transform::default()
-                    .with_scale(Vec3::splat(10.0))
+                    .with_scale(Vec2::splat(10.0).extend(1.))
                     .with_translation(self.translation),
                 material: self.team_materials.primary,
                 ..default()
@@ -86,7 +86,7 @@ impl ZooidWorkerBackground {
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: mesh.into(),
                 transform: Transform::default()
-                    .with_scale(Vec3::splat(1.5))
+                    .with_scale(Vec2::splat(1.5).extend(1.))
                     .with_translation(Vec3 {
                         x: 0.0,
                         y: 0.0,

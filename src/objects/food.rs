@@ -66,7 +66,7 @@ impl Food {
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: assets.mesh.clone().into(),
                 transform: Transform::default()
-                    .with_scale(Vec3::splat(10.0))
+                    .with_scale(Vec2::splat(10.0).extend(1.))
                     .with_translation(position.extend(zindex::FOOD)),
                 material: assets.get_team_material(Team::None).primary,
                 ..default()
@@ -93,7 +93,7 @@ impl FoodBackground {
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: assets.mesh.clone().into(),
                 transform: Transform::default()
-                    .with_scale(Vec3::splat(1.5))
+                    .with_scale(Vec2::splat(1.5).extend(1.))
                     .with_translation(Vec3 {
                         x: 0.0,
                         y: 0.0,

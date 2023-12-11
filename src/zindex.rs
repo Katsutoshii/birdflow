@@ -10,5 +10,6 @@ pub const ZOOID_HEAD: f32 = 0.0;
 pub const ZOOIDS_MIN: f32 = 1.0;
 pub const ZOOIDS_MAX: f32 = 10.0;
 
-pub const HIGHLIGHT: f32 = 11.0;
-pub const SELECTOR: f32 = 12.0;
+pub const HIGHLIGHT: f32 = 15.0;
+pub const FOG_OF_WAR: f32 = 20.0;
+pub const SELECTOR: f32 = 30.0;

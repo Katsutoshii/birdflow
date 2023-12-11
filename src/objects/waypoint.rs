@@ -69,7 +69,7 @@ impl Waypoint {
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: assets.mesh.clone().into(),
                 transform: Transform::default()
-                    .with_scale(Vec3::splat(self.size))
+                    .with_scale(Vec2::splat(self.size).extend(1.))
                     .with_rotation(Quat::from_axis_angle(Vec3::Z, PI))
                     .with_translation(Vec3 {
                         x: 0.,

@@ -203,7 +203,7 @@ impl Object {
 }
 
 /// Enum to specify the team of the given object.
-#[derive(Component, Default, Debug, PartialEq, Eq, Reflect, Clone, Copy)]
+#[derive(Component, Default, Debug, PartialEq, Eq, Reflect, Clone, Copy, Hash)]
 #[reflect(Component)]
 #[repr(u8)]
 pub enum Team {
@@ -211,6 +211,12 @@ pub enum Team {
     None = 0,
     Blue = 1,
     Red = 2,
+}
+impl Team {
+    /// Number of teams.
+    pub const fn count() -> usize {
+        3
+    }
 }
 
 #[derive(Default, Clone)]

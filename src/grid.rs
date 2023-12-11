@@ -1,3 +1,5 @@
+use std::ops::RangeInclusive;
+
 use bevy::{
     prelude::*,
     render::render_resource::{AsBindGroup, ShaderRef},
@@ -5,7 +7,11 @@ use bevy::{
     utils::{HashMap, HashSet},
 };
 
-use crate::{zindex, Aabb2, SystemStage};
+use crate::{
+    fog::{FogAssets, FogPlane, FogShaderMaterial},
+    objects::{Configs, Team},
+    zindex, Aabb2, SystemStage,
+};
 
 /// Plugin for an spacial entity paritioning grid with optional debug functionality.
 pub struct GridPlugin;
@@ -31,32 +37,38 @@ impl Plugin for GridPlugin {
 #[reflect(Component)]
 pub struct GridEntity;
 impl GridEntity {
+    #[allow(clippy::too_many_arguments)]
     pub fn update(
-        query: Query<(Entity, &Transform), With<Self>>,
+        query: Query<(Entity, &Transform, &Team), With<Self>>,
         mut grid: ResMut<EntityGrid>,
         grid_assets: Res<GridAssets>,
-        mut assets: ResMut<Assets<GridShaderMaterial>>,
+        mut grid_shader_assets: ResMut<Assets<GridShaderMaterial>>,
+        fog_assets: Res<FogAssets>,
+        mut fog_shader_assets: ResMut<Assets<FogShaderMaterial>>,
         spec: Res<EntityGridSpec>,
+        configs: Res<Configs>,
     ) {
         // Initialize the shader if not yet initialized.
-        let material: &mut GridShaderMaterial =
-            assets.get_mut(&grid_assets.grid_shader_material).unwrap();
-        if spec.visualize && material.grid.is_empty() {
-            material
-                .grid
-                .resize(grid.spec.rows as usize * grid.spec.cols as usize, 0);
-        }
-
-        for (entity, transform) in &query {
-            if spec.visualize {
-                grid.update_entity_visualizer(
-                    entity,
-                    transform.translation.xy(),
-                    &mut material.grid,
-                )
+        let grid_material: &mut GridShaderMaterial = grid_shader_assets
+            .get_mut(&grid_assets.shader_material)
+            .unwrap();
+        let fog_material = fog_shader_assets
+            .get_mut(&fog_assets.shader_material)
+            .unwrap();
+        for (entity, transform, team) in &query {
+            let grid_material = if spec.visualize {
+                Some(grid_material.grid.as_mut_slice())
             } else {
-                grid.update_entity(entity, transform.translation.xy());
-            }
+                None
+            };
+            grid.update_entity(
+                entity,
+                transform.translation.xy(),
+                *team,
+                &configs,
+                &mut fog_material.grid,
+                grid_material,
+            )
         }
     }
 }
@@ -91,32 +103,49 @@ impl EntityGridSpec {
         grid.resize();
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn visualize_on_change(
         spec: Res<Self>,
         grid_assets: Res<GridAssets>,
-        query: Query<Entity, With<CellVisualizerShader>>,
+        fog_assets: Res<FogAssets>,
 
-        mut assets: ResMut<Assets<GridShaderMaterial>>,
+        query: Query<Entity, With<CellVisualizer>>,
+        fog_query: Query<Entity, With<FogPlane>>,
+
+        mut grid_shader_assets: ResMut<Assets<GridShaderMaterial>>,
+        mut fog_shader_assets: ResMut<Assets<FogShaderMaterial>>,
         mut commands: Commands,
     ) {
-        // Cleanup old visualizer on change.
         if !spec.is_changed() {
             return;
         }
+
+        // Cleanup entities on change.
         for entity in &query {
             commands.entity(entity).despawn();
         }
-
-        // Initialize the shader
-        let material: &mut GridShaderMaterial =
-            assets.get_mut(&grid_assets.grid_shader_material).unwrap();
-        if spec.visualize && material.grid.is_empty() {
-            material
-                .grid
-                .resize(spec.rows as usize * spec.cols as usize, 0);
+        for entity in &fog_query {
+            commands.entity(entity).despawn();
         }
 
-        commands.spawn(CellVisualizerShader { active: false }.bundle(&spec, &grid_assets));
+        // Initialize the grid visualization shader.
+        if spec.visualize {
+            let material = grid_shader_assets
+                .get_mut(&grid_assets.shader_material)
+                .unwrap();
+            material.resize(&spec);
+        }
+
+        // Initialize the fog shader, which also uses the grid spec.
+        {
+            let material = fog_shader_assets
+                .get_mut(&fog_assets.shader_material)
+                .unwrap();
+            material.resize(&spec);
+        }
+
+        commands.spawn(CellVisualizer { active: true }.bundle(&spec, &grid_assets));
+        commands.spawn(FogPlane::default().bundle(&spec, &fog_assets));
     }
 
     /// Compute the offset vector for this grid spec.
@@ -147,18 +176,28 @@ impl EntityGridSpec {
 #[derive(Resource, Default)]
 pub struct EntityGrid {
     pub spec: EntityGridSpec,
-    pub cells: Vec<HashSet<Entity>>,
+    pub entities: Vec<HashSet<Entity>>,
+    pub team_visibility: Vec<Vec<u32>>,
     pub entity_to_rowcol: HashMap<Entity, (u8, u8)>,
-    pub shader_material: Handle<GridShaderMaterial>,
 }
 impl EntityGrid {
     pub fn resize(&mut self) {
         let num_cells = self.spec.rows as usize * self.spec.cols as usize;
-        self.cells.resize(num_cells, HashSet::default());
+        self.entities.resize(num_cells, HashSet::default());
+        self.team_visibility
+            .resize(num_cells, vec![0; Team::count()])
     }
 
     /// Update an entity's position in the grid.
-    pub fn update_entity(&mut self, entity: Entity, position: Vec2) {
+    pub fn update_entity(
+        &mut self,
+        entity: Entity,
+        position: Vec2,
+        team: Team,
+        configs: &Configs,
+        visibility: &mut [f32],
+        mut grid: Option<&mut [u32]>,
+    ) {
         let (row, col) = self.to_rowcol(position);
 
         // Remove this entity's old position if it was different.
@@ -168,40 +207,89 @@ impl EntityGrid {
                 return;
             }
 
-            if let Some(cell) = self.get_mut(old_row, old_col) {
-                cell.remove(&entity);
+            if let Some(entities) = self.get_mut(old_row, old_col) {
+                entities.remove(&entity);
+                if let Some(grid) = grid.as_deref_mut() {
+                    if entities.is_empty() {
+                        grid[self.index(old_row, old_col)] = 0;
+                    }
+                }
+                self.remove_visibility(old_row, old_col, team, configs, visibility);
             }
         }
 
-        if let Some(cell) = self.get_mut(row, col) {
-            cell.insert(entity);
+        if let Some(entities) = self.get_mut(row, col) {
+            entities.insert(entity);
             self.entity_to_rowcol.insert(entity, (row, col));
+            if let Some(grid) = grid {
+                grid[self.index(row, col)] = 1;
+            }
+            self.add_visibility(row, col, team, configs, visibility);
         }
     }
 
-    /// Update an entity's position in the grid.
-    pub fn update_entity_visualizer(&mut self, entity: Entity, position: Vec2, grid: &mut [u32]) {
-        let (row, col) = self.to_rowcol(position);
+    fn in_radius(row: u8, col: u8, other_row: u8, other_col: u8, radius: u8) -> bool {
+        let row_dist = other_row as i8 - row as i8;
+        let col_dist = other_col as i8 - col as i8;
+        row_dist * row_dist + col_dist * col_dist < radius as i8 * radius as i8
+    }
 
-        // Remove this entity's old position if it was different.
-        if let Some(&(old_row, old_col)) = self.entity_to_rowcol.get(&entity) {
-            // If in same position, do nothing.
-            if (old_row, old_col) == (row, col) {
-                return;
-            }
+    fn cell_range(center: u8, radius: u8) -> RangeInclusive<u8> {
+        let (min, max) = ((center as i8 - radius as i8).max(0) as u8, center + radius);
+        min..=max
+    }
 
-            if let Some(cell) = self.get_mut(old_row, old_col) {
-                cell.remove(&entity);
-                if cell.is_empty() {
-                    grid[self.index(old_row, old_col)] = 0;
+    fn remove_visibility(
+        &mut self,
+        row: u8,
+        col: u8,
+        team: Team,
+        configs: &Configs,
+        visibility: &mut [f32],
+    ) {
+        let radius = configs.visibility_radius;
+        for other_row in Self::cell_range(row, radius) {
+            for other_col in Self::cell_range(col, radius) {
+                if !Self::in_radius(row, col, other_row, other_col, radius) {
+                    continue;
+                }
+
+                let i = self.index(other_row, other_col);
+                if let Some(grid_visibility) = self.team_visibility.get_mut(i) {
+                    if grid_visibility[team as usize] > 0 {
+                        grid_visibility[team as usize] -= 1;
+                        if team == configs.player_team && grid_visibility[team as usize] == 0 {
+                            visibility[i] = 0.5;
+                        }
+                    }
                 }
             }
         }
+    }
 
-        if let Some(cell) = self.get_mut(row, col) {
-            cell.insert(entity);
-            self.entity_to_rowcol.insert(entity, (row, col));
-            grid[self.index(row, col)] = 1;
+    fn add_visibility(
+        &mut self,
+        row: u8,
+        col: u8,
+        team: Team,
+        configs: &Configs,
+        visibility: &mut [f32],
+    ) {
+        let radius = configs.visibility_radius;
+        for other_row in Self::cell_range(row, radius) {
+            for other_col in Self::cell_range(col, radius) {
+                if !Self::in_radius(row, col, other_row, other_col, radius) {
+                    continue;
+                }
+
+                let i = self.index(other_row, other_col);
+                if let Some(grid_visibility) = self.team_visibility.get_mut(i) {
+                    grid_visibility[team as usize] += 1;
+                    if team == configs.player_team {
+                        visibility[i] = 0.
+                    }
+                }
+            }
         }
     }
 
@@ -222,13 +310,13 @@ impl EntityGrid {
     /// Get the set of entities at the current position.
     pub fn get(&self, row: u8, col: u8) -> Option<&HashSet<Entity>> {
         let index = self.index(row, col);
-        self.cells.get(index)
+        self.entities.get(index)
     }
 
     /// Get the mutable set of entities at the current position.
     pub fn get_mut(&mut self, row: u8, col: u8) -> Option<&mut HashSet<Entity>> {
         let index = self.index(row, col);
-        self.cells.get_mut(index)
+        self.entities.get_mut(index)
     }
 
     pub fn get_in_aabb(&self, aabb: &Aabb2) -> Vec<Entity> {
@@ -277,7 +365,7 @@ pub struct GridAssets {
     pub dark_gray_material: Handle<ColorMaterial>,
     pub blue_material: Handle<ColorMaterial>,
     pub dark_blue_material: Handle<ColorMaterial>,
-    pub grid_shader_material: Handle<GridShaderMaterial>,
+    pub shader_material: Handle<GridShaderMaterial>,
 }
 impl FromWorld for GridAssets {
     fn from_world(world: &mut World) -> Self {
@@ -302,22 +390,23 @@ impl FromWorld for GridAssets {
         let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
         Self {
             mesh,
+            shader_material,
             gray_material: materials.add(ColorMaterial::from(Color::GRAY.with_a(0.15))),
             dark_gray_material: materials.add(ColorMaterial::from(Color::DARK_GRAY.with_a(0.3))),
             blue_material: materials.add(ColorMaterial::from(Color::GRAY.with_a(0.1))),
 
             dark_blue_material: materials.add(ColorMaterial::from(Color::DARK_GRAY.with_a(0.1))),
-            grid_shader_material: shader_material,
         }
     }
 }
 
 /// Component to visualize a cell.
 #[derive(Debug, Default, Component, Clone)]
-pub struct CellVisualizerShader {
+#[component(storage = "SparseSet")]
+pub struct CellVisualizer {
     pub active: bool,
 }
-impl CellVisualizerShader {
+impl CellVisualizer {
     pub fn bundle(self, spec: &EntityGridSpec, assets: &GridAssets) -> impl Bundle {
         (
             MaterialMesh2dBundle::<GridShaderMaterial> {
@@ -329,7 +418,7 @@ impl CellVisualizerShader {
                         y: 0.,
                         z: zindex::SHADER_BACKGROUND,
                     }),
-                material: assets.grid_shader_material.clone(),
+                material: assets.shader_material.clone(),
                 ..default()
             },
             Name::new("GridVis"),
@@ -363,9 +452,14 @@ impl Default for GridShaderMaterial {
         }
     }
 }
-/// The Material trait is very configurable, but comes with sensible defaults for all methods.
-/// You only need to implement functions for features that need non-default behavior. See the Material api docs for details!
-/// When using the GLSL shading language for your shader, the specialize method must be overridden.
+impl GridShaderMaterial {
+    fn resize(&mut self, spec: &EntityGridSpec) {
+        self.width = spec.width;
+        self.rows = spec.rows.into();
+        self.cols = spec.cols.into();
+        self.grid.resize(spec.rows as usize * spec.cols as usize, 0);
+    }
+}
 impl Material2d for GridShaderMaterial {
     fn fragment_shader() -> ShaderRef {
         "shaders/grid_background.wgsl".into()
@@ -388,9 +482,9 @@ mod tests {
                 width: 10.0,
                 visualize: false,
             },
-            cells: Vec::default(),
+            entities: Vec::default(),
             entity_to_rowcol: HashMap::default(),
-            shader_material: Handle::default(),
+            team_visibility: Vec::default(),
         };
         grid.resize();
         assert_eq!(grid.spec.offset(), Vec2 { x: 50.0, y: 50.0 });
@@ -399,5 +493,25 @@ mod tests {
 
         assert!(grid.get_mut(5, 5).is_some());
         assert!(grid.get(5, 5).is_some());
+    }
+
+    #[test]
+    fn grid_radius() {
+        {
+            let (row, col) = (1, 1);
+            let (other_row, other_col) = (2, 2);
+            let radius = 2;
+            assert!(EntityGrid::in_radius(
+                row, col, other_row, other_col, radius
+            ));
+        }
+        {
+            let (row, col) = (1, 1);
+            let (other_row, other_col) = (4, 4);
+            let radius = 2;
+            assert!(!EntityGrid::in_radius(
+                row, col, other_row, other_col, radius
+            ));
+        }
     }
 }

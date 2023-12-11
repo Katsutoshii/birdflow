@@ -8,6 +8,7 @@
     ),
     "birdflow::objects::config::Configs": (
       player_team: Blue,
+      visibility_radius: 5,
       worker: (
         max_velocity: 7.0,
         neighbor_radius: 300.0,

@@ -3,6 +3,7 @@ use bevy_editor_pls::prelude::*;
 
 pub mod aabb;
 pub mod camera;
+pub mod fog;
 pub mod grid;
 pub mod objects;
 pub mod physics;
@@ -59,6 +60,7 @@ fn main() {
                 .set(window::custom_plugin()),
             EditorPlugin::default(),
             grid::GridPlugin,
+            fog::FogPlugin,
             objects::ObjectsPlugin,
             scene::LoadableScenePlugin,
             selector::SelectorPlugin,

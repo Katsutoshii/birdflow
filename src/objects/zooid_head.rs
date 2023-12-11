@@ -74,7 +74,6 @@ impl ZooidHead {
             return;
         }
         let team = configs.player_team;
-        info!("Team: {:?} {:?}", &team, team as usize);
         commands
             .spawn(ZooidHead.bundle(&assets, team))
             .with_children(|parent| {
@@ -91,7 +90,7 @@ impl ZooidHead {
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: assets.mesh.clone().into(),
                 transform: Transform::default()
-                    .with_scale(Vec3::splat(20.0))
+                    .with_scale(Vec2::splat(20.0).extend(1.))
                     .with_translation(Vec3 {
                         x: 0.0,
                         y: 0.0,
@@ -152,7 +151,6 @@ impl ZooidHead {
         if !keyboard_input.just_pressed(KeyCode::D) {
             return;
         }
-        info!("Despawn zooids");
         for (entity, object) in &objects {
             if let Object::Worker(_) = object {
                 grid.remove(entity);

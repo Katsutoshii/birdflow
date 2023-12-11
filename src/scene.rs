@@ -29,7 +29,6 @@ const SCENE_FILE_PATH: &str = "test.scn.ron";
 const NEW_SCENE_FILE_PATH: &str = "test-new.scn.ron";
 
 pub fn load_system(mut commands: Commands, asset_server: Res<AssetServer>) {
-    info!("load_system");
     // "Spawning" a scene bundle creates a new entity and spawns new instances
     // of the given scene's entities as children of that entity.
     commands.spawn((
@@ -50,7 +49,7 @@ pub fn save_system(
     if !keyboard_input.just_pressed(KeyCode::S) {
         return;
     }
-    let scene = DynamicSceneBuilder::from_world(&world)
+    let scene = DynamicSceneBuilder::from_world(world)
         .extract_entities(query.iter())
         .allow_resource::<objects::Config>()
         .allow_resource::<grid::EntityGrid>()
