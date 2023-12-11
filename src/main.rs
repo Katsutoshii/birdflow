@@ -72,14 +72,16 @@ fn main() {
 fn startup(mut commands: Commands) {
     commands.spawn((
         TextBundle::from_section(
-            vec![
-                "Controls:",
-                "  Move camera: move mouse to border",
-                "  Move waypoint: right click",
-                "  Spawn zooids: 'z'",
-                "  Despawn zooids: 'd'",
-                "  Save scene: 's'",
-                "  Open editor: 'e'",
+            [
+                "  Controls:",
+                "    Create your spawner: enter",
+                "    Move camera: move mouse to border",
+                "    Move waypoint: right click",
+                "    Spawn zooids: 'z'",
+                "    Despawn zooids: 'd'",
+                "    Save scene: 's'",
+                "    Open editor: 'e'",
+                "    -",
             ]
             .join("\n"),
             TextStyle {

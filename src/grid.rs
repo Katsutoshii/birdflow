@@ -1,6 +1,7 @@
 use bevy::{
     prelude::*,
-    sprite::MaterialMesh2dBundle,
+    render::render_resource::{AsBindGroup, ShaderRef},
+    sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle},
     utils::{HashMap, HashSet},
 };
 
@@ -11,6 +12,7 @@ pub struct GridPlugin;
 impl Plugin for GridPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<EntityGridSpec>()
+            .add_plugins(Material2dPlugin::<GridShaderMaterial>::default())
             .init_resource::<GridAssets>()
             .insert_resource(EntityGrid::default())
             .add_systems(
@@ -19,7 +21,6 @@ impl Plugin for GridPlugin {
                     GridEntity::update.in_set(SystemStage::PostApply),
                     EntityGridSpec::visualize_on_change,
                     EntityGridSpec::resize_on_change,
-                    CellVisualizer::update,
                 ),
             );
     }
@@ -30,9 +31,32 @@ impl Plugin for GridPlugin {
 #[reflect(Component)]
 pub struct GridEntity;
 impl GridEntity {
-    pub fn update(query: Query<(Entity, &Transform), With<Self>>, mut grid: ResMut<EntityGrid>) {
+    pub fn update(
+        query: Query<(Entity, &Transform), With<Self>>,
+        mut grid: ResMut<EntityGrid>,
+        grid_assets: Res<GridAssets>,
+        mut assets: ResMut<Assets<GridShaderMaterial>>,
+        spec: Res<EntityGridSpec>,
+    ) {
+        // Initialize the shader if not yet initialized.
+        let material: &mut GridShaderMaterial =
+            assets.get_mut(&grid_assets.grid_shader_material).unwrap();
+        if spec.visualize && material.grid.is_empty() {
+            material
+                .grid
+                .resize(grid.spec.rows as usize * grid.spec.cols as usize, 0);
+        }
+
         for (entity, transform) in &query {
-            grid.update(entity, transform.translation.truncate());
+            if spec.visualize {
+                grid.update_entity_visualizer(
+                    entity,
+                    transform.translation.xy(),
+                    &mut material.grid,
+                )
+            } else {
+                grid.update_entity(entity, transform.translation.xy());
+            }
         }
     }
 }
@@ -67,14 +91,15 @@ impl EntityGridSpec {
         grid.resize();
     }
 
-    /// When the spec changes, remove all visualizers and respawn them with the updated spec.
     pub fn visualize_on_change(
-        spec: ResMut<Self>,
-        assets: Res<GridAssets>,
-        query: Query<Entity, With<CellVisualizer>>,
+        spec: Res<Self>,
+        grid_assets: Res<GridAssets>,
+        query: Query<Entity, With<CellVisualizerShader>>,
+
+        mut assets: ResMut<Assets<GridShaderMaterial>>,
         mut commands: Commands,
     ) {
-        // Cleanup old cells on change.
+        // Cleanup old visualizer on change.
         if !spec.is_changed() {
             return;
         }
@@ -82,22 +107,16 @@ impl EntityGridSpec {
             commands.entity(entity).despawn();
         }
 
-        // Spawn new cells
-        if !spec.visualize {
-            return;
+        // Initialize the shader
+        let material: &mut GridShaderMaterial =
+            assets.get_mut(&grid_assets.grid_shader_material).unwrap();
+        if spec.visualize && material.grid.is_empty() {
+            material
+                .grid
+                .resize(spec.rows as usize * spec.cols as usize, 0);
         }
-        for row in 0..spec.rows {
-            for col in 0..spec.cols {
-                commands.spawn(
-                    CellVisualizer {
-                        row,
-                        col,
-                        active: false,
-                    }
-                    .bundle(&spec, &assets),
-                );
-            }
-        }
+
+        commands.spawn(CellVisualizerShader { active: false }.bundle(&spec, &grid_assets));
     }
 
     /// Compute the offset vector for this grid spec.
@@ -115,6 +134,13 @@ impl EntityGridSpec {
             max: self.offset(),
         }
     }
+
+    pub fn scale(&self) -> Vec2 {
+        Vec2 {
+            x: self.width * self.cols as f32,
+            y: self.width * self.rows as f32,
+        }
+    }
 }
 
 /// A grid of cells that keep track of what entities are contained within them.
@@ -123,6 +149,7 @@ pub struct EntityGrid {
     pub spec: EntityGridSpec,
     pub cells: Vec<HashSet<Entity>>,
     pub entity_to_rowcol: HashMap<Entity, (u8, u8)>,
+    pub shader_material: Handle<GridShaderMaterial>,
 }
 impl EntityGrid {
     pub fn resize(&mut self) {
@@ -131,7 +158,7 @@ impl EntityGrid {
     }
 
     /// Update an entity's position in the grid.
-    pub fn update(&mut self, entity: Entity, position: Vec2) {
+    pub fn update_entity(&mut self, entity: Entity, position: Vec2) {
         let (row, col) = self.to_rowcol(position);
 
         // Remove this entity's old position if it was different.
@@ -149,6 +176,32 @@ impl EntityGrid {
         if let Some(cell) = self.get_mut(row, col) {
             cell.insert(entity);
             self.entity_to_rowcol.insert(entity, (row, col));
+        }
+    }
+
+    /// Update an entity's position in the grid.
+    pub fn update_entity_visualizer(&mut self, entity: Entity, position: Vec2, grid: &mut [u32]) {
+        let (row, col) = self.to_rowcol(position);
+
+        // Remove this entity's old position if it was different.
+        if let Some(&(old_row, old_col)) = self.entity_to_rowcol.get(&entity) {
+            // If in same position, do nothing.
+            if (old_row, old_col) == (row, col) {
+                return;
+            }
+
+            if let Some(cell) = self.get_mut(old_row, old_col) {
+                cell.remove(&entity);
+                if cell.is_empty() {
+                    grid[self.index(old_row, old_col)] = 0;
+                }
+            }
+        }
+
+        if let Some(cell) = self.get_mut(row, col) {
+            cell.insert(entity);
+            self.entity_to_rowcol.insert(entity, (row, col));
+            grid[self.index(row, col)] = 1;
         }
     }
 
@@ -224,6 +277,7 @@ pub struct GridAssets {
     pub dark_gray_material: Handle<ColorMaterial>,
     pub blue_material: Handle<ColorMaterial>,
     pub dark_blue_material: Handle<ColorMaterial>,
+    pub grid_shader_material: Handle<GridShaderMaterial>,
 }
 impl FromWorld for GridAssets {
     fn from_world(world: &mut World) -> Self {
@@ -239,83 +293,82 @@ impl FromWorld for GridAssets {
                 max_z: 0.0,
             }))
         };
+        let shader_material = {
+            let mut materials = world
+                .get_resource_mut::<Assets<GridShaderMaterial>>()
+                .unwrap();
+            materials.add(GridShaderMaterial::default())
+        };
         let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
         Self {
             mesh,
             gray_material: materials.add(ColorMaterial::from(Color::GRAY.with_a(0.15))),
             dark_gray_material: materials.add(ColorMaterial::from(Color::DARK_GRAY.with_a(0.3))),
             blue_material: materials.add(ColorMaterial::from(Color::GRAY.with_a(0.1))),
+
             dark_blue_material: materials.add(ColorMaterial::from(Color::DARK_GRAY.with_a(0.1))),
+            grid_shader_material: shader_material,
         }
     }
 }
 
 /// Component to visualize a cell.
 #[derive(Debug, Default, Component, Clone)]
-pub struct CellVisualizer {
-    pub row: u8,
-    pub col: u8,
+pub struct CellVisualizerShader {
     pub active: bool,
 }
-impl CellVisualizer {
+impl CellVisualizerShader {
     pub fn bundle(self, spec: &EntityGridSpec, assets: &GridAssets) -> impl Bundle {
         (
-            MaterialMesh2dBundle::<ColorMaterial> {
+            MaterialMesh2dBundle::<GridShaderMaterial> {
                 mesh: assets.mesh.clone().into(),
                 transform: Transform::default()
-                    .with_scale(Vec3::splat(spec.width))
-                    .with_translation(
-                        Vec3 {
-                            x: (0.5 + self.col as f32) * spec.width,
-                            y: (0.5 + self.row as f32) * spec.width,
-                            z: zindex::BACKGROUND,
-                        } - spec.offset().extend(0.),
-                    ),
-                material: self.get_color_material(assets),
+                    .with_scale(spec.scale().extend(1.))
+                    .with_translation(Vec3 {
+                        x: 0.,
+                        y: 0.,
+                        z: zindex::SHADER_BACKGROUND,
+                    }),
+                material: assets.grid_shader_material.clone(),
                 ..default()
             },
-            Name::new("Cell"),
+            Name::new("GridVis"),
             self,
         )
     }
+}
 
-    fn get_color_material(&self, assets: &GridAssets) -> Handle<ColorMaterial> {
-        if self.active {
-            if (self.row + self.col) % 2 == 0 {
-                assets.blue_material.clone()
-            } else {
-                assets.dark_blue_material.clone()
-            }
-        } else {
-            if (self.row + self.col) % 2 == 0 {
-                assets.gray_material.clone()
-            } else {
-                assets.dark_gray_material.clone()
-            }
+// This is the struct that will be passed to your shader
+#[derive(Asset, TypePath, AsBindGroup, Clone)]
+pub struct GridShaderMaterial {
+    #[uniform(0)]
+    color: Color,
+    #[uniform(1)]
+    width: f32,
+    #[uniform(2)]
+    rows: u32,
+    #[uniform(3)]
+    cols: u32,
+    #[storage(4, read_only)]
+    grid: Vec<u32>,
+}
+impl Default for GridShaderMaterial {
+    fn default() -> Self {
+        Self {
+            color: Color::WHITE,
+            width: 100.,
+            rows: 50,
+            cols: 100,
+            grid: Vec::default(),
         }
     }
-
-    pub fn update(
-        grid: Res<EntityGrid>,
-        assets: Res<GridAssets>,
-        mut query: Query<(&mut Self, &mut Handle<ColorMaterial>)>,
-        input: Res<Input<KeyCode>>,
-    ) {
-        if input.just_pressed(KeyCode::G) {
-            dbg!(&grid.cells);
-        }
-        if !grid.is_changed() {
-            return;
-        }
-        for (mut cell, mut color) in &mut query {
-            if let Some(entities) = grid.get(cell.row, cell.col) {
-                let active = !entities.is_empty();
-                if cell.active != active {
-                    cell.active = active;
-                    *color = cell.get_color_material(&assets);
-                }
-            }
-        }
+}
+/// The Material trait is very configurable, but comes with sensible defaults for all methods.
+/// You only need to implement functions for features that need non-default behavior. See the Material api docs for details!
+/// When using the GLSL shading language for your shader, the specialize method must be overridden.
+impl Material2d for GridShaderMaterial {
+    fn fragment_shader() -> ShaderRef {
+        "shaders/grid_background.wgsl".into()
     }
 }
 
@@ -337,13 +390,14 @@ mod tests {
             },
             cells: Vec::default(),
             entity_to_rowcol: HashMap::default(),
+            shader_material: Handle::default(),
         };
         grid.resize();
         assert_eq!(grid.spec.offset(), Vec2 { x: 50.0, y: 50.0 });
         let rowcol = grid.to_rowcol(Vec2 { x: 0., y: 0. });
         assert_eq!(rowcol, (5, 5));
 
-        assert!(matches!(grid.get_mut(5, 5), Some(_)));
-        assert!(matches!(grid.get(5, 5), Some(_)));
+        assert!(grid.get_mut(5, 5).is_some());
+        assert!(grid.get(5, 5).is_some());
     }
 }

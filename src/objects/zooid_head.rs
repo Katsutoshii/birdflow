@@ -76,9 +76,9 @@ impl ZooidHead {
         let team = configs.player_team;
         info!("Team: {:?} {:?}", &team, team as usize);
         commands
-            .spawn(ZooidHead::default().bundle(&assets, team))
+            .spawn(ZooidHead.bundle(&assets, team))
             .with_children(|parent| {
-                parent.spawn(ZooidHeadBackground::default().bundle(&assets, team));
+                parent.spawn(ZooidHeadBackground.bundle(&assets, team));
             });
     }
 
@@ -87,7 +87,7 @@ impl ZooidHead {
             self,
             Object::Head,
             team,
-            GridEntity::default(),
+            GridEntity,
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: assets.mesh.clone().into(),
                 transform: Transform::default()

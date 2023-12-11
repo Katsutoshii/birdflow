@@ -29,7 +29,7 @@ impl Default for InteractionConfig {
 }
 
 /// Singleton that spawns birds with specified stats.
-#[derive(Resource, Reflect)]
+#[derive(Resource, Reflect, Default)]
 #[reflect(Resource)]
 pub struct Configs {
     // Specify which team the player controls.
@@ -38,16 +38,6 @@ pub struct Configs {
     pub worker: Config,
     pub head: Config,
     pub food: Config,
-}
-impl Default for Configs {
-    fn default() -> Self {
-        Self {
-            player_team: Team::default(),
-            worker: Config::default(),
-            head: Config::default(),
-            food: Config::default(),
-        }
-    }
 }
 impl Configs {
     pub fn get(&self, zooid: &Object) -> &Config {

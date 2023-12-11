@@ -21,7 +21,7 @@ pub enum Selected {
 }
 impl Selected {
     pub fn is_selected(&self) -> bool {
-        return self != &Self::Unselected;
+        self != &Self::Unselected
     }
 }
 
@@ -45,6 +45,7 @@ impl Selector {
         commands.spawn(Self::default().bundle(&assets));
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn update(
         mut commands: Commands,
         mut query: Query<(&mut Self, &mut Transform, &mut Visibility)>,

@@ -49,7 +49,7 @@ impl Food {
                         &assets,
                     ))
                     .with_children(|parent| {
-                        parent.spawn(FoodBackground::default().bundle(&assets));
+                        parent.spawn(FoodBackground.bundle(&assets));
                     });
             }
         }
@@ -60,7 +60,7 @@ impl Food {
             self,
             Object::Food,
             Team::default(),
-            GridEntity::default(),
+            GridEntity,
             Velocity::default(),
             NewVelocity::default(),
             MaterialMesh2dBundle::<ColorMaterial> {

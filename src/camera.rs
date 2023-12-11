@@ -7,14 +7,16 @@ use crate::{window, Aabb2};
 pub struct CameraPlugin;
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, MainCamera::startup).add_systems(
-            FixedUpdate,
-            (
-                CameraController::update_bounds,
-                CameraController::update,
-                CameraController::update_drag,
-            ),
-        );
+        app.insert_resource(ClearColor(Color::BLACK))
+            .add_systems(Startup, MainCamera::startup)
+            .add_systems(
+                FixedUpdate,
+                (
+                    CameraController::update_bounds,
+                    CameraController::update,
+                    CameraController::update_drag,
+                ),
+            );
     }
 }
 

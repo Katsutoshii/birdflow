@@ -49,7 +49,7 @@ impl ZooidWorkerBundler {
             .spawn(self.clone().bundle())
             .with_children(|parent| {
                 parent.spawn(
-                    ZooidWorkerBackground::default()
+                    ZooidWorkerBackground
                         .bundle(self.mesh.clone(), self.team_materials.background.clone()),
                 );
             });
@@ -59,7 +59,7 @@ impl ZooidWorkerBundler {
         (
             Object::Worker(self.worker),
             self.team,
-            GridEntity::default(),
+            GridEntity,
             Velocity(self.velocity),
             NewVelocity::default(),
             self.objective,
@@ -92,7 +92,7 @@ impl ZooidWorkerBackground {
                         y: 0.0,
                         z: zindex::ZOOID_HEAD_BACKGROUND,
                     }),
-                material: material,
+                material,
                 ..default()
             },
         )

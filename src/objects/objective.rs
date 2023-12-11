@@ -84,17 +84,15 @@ impl Objective {
         velocity: Vec2,
         config: &ObjectiveConfig,
     ) -> Vec2 {
-        match self {
-            &Objective::MoveToPosition(target_position) => self.acceleration_to_position(
+        match *self {
+            Objective::MoveToPosition(target_position) => self.acceleration_to_position(
                 velocity,
                 transform.translation.xy(),
                 target_position,
                 config,
             ),
-            &Objective::FollowEntity(entity) => {
-                let target_transform = transforms
-                    .get(entity)
-                    .expect(&format!("Invalid target ID: {:?}", entity));
+            Objective::FollowEntity(entity) => {
+                let target_transform = transforms.get(entity).unwrap();
                 self.acceleration_to_position(
                     velocity,
                     transform.translation.xy(),
@@ -102,7 +100,7 @@ impl Objective {
                     config,
                 )
             }
-            &Objective::None => Vec2::ZERO,
+            Objective::None => Vec2::ZERO,
         }
     }
 }

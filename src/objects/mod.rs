@@ -73,7 +73,7 @@ impl Object {
             .for_each(|(entity, zooid, velocity, mut new_velocity, transform)| {
                 let config = configs.get(zooid);
                 let acceleration =
-                    zooid.acceleration(entity, velocity, transform, &other_objects, &grid, &config);
+                    zooid.acceleration(entity, velocity, transform, &other_objects, &grid, config);
                 // Update new velocity.
                 new_velocity.0 += acceleration;
                 new_velocity.0 = new_velocity.0.clamp_length_max(config.max_velocity);
@@ -116,6 +116,7 @@ impl Object {
         acceleration
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn other_acceleration(
         &self,
         transform: &Transform,
@@ -141,7 +142,7 @@ impl Object {
             position_delta,
             distance_squared,
             velocity.0,
-            &interaction,
+            interaction,
         );
 
         // Alignment
@@ -150,7 +151,7 @@ impl Object {
             velocity.0,
             other_velocity.0,
             num_others,
-            &interaction,
+            interaction,
         );
         acceleration
     }
