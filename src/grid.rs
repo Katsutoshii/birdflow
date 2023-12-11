@@ -39,7 +39,7 @@ pub struct GridEntity;
 impl GridEntity {
     #[allow(clippy::too_many_arguments)]
     pub fn update(
-        query: Query<(Entity, &Transform, &Team), With<Self>>,
+        mut query: Query<(Entity, &Transform, &Team, &mut Visibility), With<Self>>,
         mut grid: ResMut<EntityGrid>,
         grid_assets: Res<GridAssets>,
         mut grid_shader_assets: ResMut<Assets<GridShaderMaterial>>,
@@ -55,7 +55,7 @@ impl GridEntity {
         let fog_material = fog_shader_assets
             .get_mut(&fog_assets.shader_material)
             .unwrap();
-        for (entity, transform, team) in &query {
+        for (entity, transform, team, mut visibility) in &mut query {
             let grid_material = if spec.visualize {
                 Some(grid_material.grid.as_mut_slice())
             } else {
@@ -68,7 +68,8 @@ impl GridEntity {
                 &configs,
                 &mut fog_material.grid,
                 grid_material,
-            )
+            );
+            *visibility = grid.get_visibility(transform.translation.xy(), configs.player_team)
         }
     }
 }
@@ -311,6 +312,16 @@ impl EntityGrid {
     pub fn get(&self, row: u8, col: u8) -> Option<&HashSet<Entity>> {
         let index = self.index(row, col);
         self.entities.get(index)
+    }
+
+    pub fn get_visibility(&self, position: Vec2, team: Team) -> Visibility {
+        let (row, col) = self.to_rowcol(position);
+        let i = self.index(row, col);
+        if self.team_visibility[i][team as usize] > 0 {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        }
     }
 
     /// Get the mutable set of entities at the current position.
