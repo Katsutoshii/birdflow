@@ -4,7 +4,7 @@
       rows: 50,
       cols: 100,
       width: 100.0,
-      visualize: true,
+      visualize: false,
     ),
     "birdflow::objects::config::Configs": (
       player_team: Blue,
@@ -13,7 +13,7 @@
         max_velocity: 7.0,
         neighbor_radius: 300.0,
         velocity_smoothing: 0.5,
-        spawn_velocity: 20.0,
+        spawn_velocity: 10.0,
         waypoint: (
           max_acceleration: 2.5,
           repell_radius: 10.0,

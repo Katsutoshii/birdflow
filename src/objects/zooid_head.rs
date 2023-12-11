@@ -121,20 +121,21 @@ impl ZooidHead {
 
         let config = configs.get(&Object::Worker(ZooidWorker::default()));
 
-        for (_head, _head_id, transform, _velocity, team) in &query {
+        for (_head, _head_id, transform, velocity, team) in &query {
             for i in 1..2 {
                 let zindex = zindex::ZOOIDS_MIN
                     + (i as f32) * 0.00001 * (zindex::ZOOIDS_MAX - zindex::ZOOIDS_MIN);
+                let velocity: Vec2 = Vec2::Y * config.spawn_velocity + velocity.0;
                 ZooidWorkerBundler {
                     worker: ZooidWorker { theta: 0.0 },
                     team: *team,
                     mesh: assets.mesh.clone(),
                     team_materials: assets.get_team_material(*team),
                     translation: transform.translation.xy().extend(0.0)
-                        + Vec3::Y * config.spawn_velocity
+                        + velocity.extend(0.)
                         + Vec3::Z * zindex,
                     objective: Objective::default(),
-                    velocity: config.spawn_velocity * Vec2::Y,
+                    velocity,
                 }
                 .spawn(&mut commands);
             }
