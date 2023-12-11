@@ -1,11 +1,13 @@
-use crate::{grid::EntityGridSpec, objects::Team, prelude::*};
+use crate::{grid::EntityGridSpec, prelude::*};
 use bevy::{
     prelude::*,
     render::render_resource::{AsBindGroup, ShaderRef},
     sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle},
 };
 
-/// Plugin for an spacial entity paritioning grid with optional debug functionality.
+/// Plugin for fog of war.
+/// For performance reasons, maintenance of the shader buffer
+/// is done in `src/grid.rs:GridEntity`.
 pub struct FogPlugin;
 impl Plugin for FogPlugin {
     fn build(&self, app: &mut App) {
@@ -14,7 +16,7 @@ impl Plugin for FogPlugin {
     }
 }
 
-/// Handles to common grid assets.
+/// Handles to common fog assets.
 #[derive(Resource)]
 pub struct FogAssets {
     pub mesh: Handle<Mesh>,
@@ -47,12 +49,10 @@ impl FromWorld for FogAssets {
     }
 }
 
-/// Component to visualize a cell.
+/// Fog plane between the world and the camera.
 #[derive(Debug, Default, Component, Clone)]
 #[component(storage = "SparseSet")]
-pub struct FogPlane {
-    pub team: Team,
-}
+pub struct FogPlane;
 impl FogPlane {
     pub fn bundle(self, spec: &EntityGridSpec, assets: &FogAssets) -> impl Bundle {
         (

@@ -35,6 +35,7 @@ pub struct Configs {
     // Specify which team the player controls.
     pub player_team: Team,
     pub visibility_radius: u8,
+    pub fog_radius: u8,
     // Configs for each Zooid type.
     pub worker: Config,
     pub head: Config,

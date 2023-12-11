@@ -32,7 +32,8 @@ impl Plugin for GridPlugin {
     }
 }
 
-// Component to track an entity in the grid.
+/// Component to track an entity in the grid.
+/// This also tracks visibility.
 #[derive(Component, Reflect, Default)]
 #[reflect(Component)]
 pub struct GridEntity;
@@ -146,7 +147,7 @@ impl EntityGridSpec {
         }
 
         commands.spawn(CellVisualizer { active: true }.bundle(&spec, &grid_assets));
-        commands.spawn(FogPlane::default().bundle(&spec, &fog_assets));
+        commands.spawn(FogPlane.bundle(&spec, &fog_assets));
     }
 
     /// Compute the offset vector for this grid spec.
@@ -286,7 +287,9 @@ impl EntityGrid {
                 let i = self.index(other_row, other_col);
                 if let Some(grid_visibility) = self.team_visibility.get_mut(i) {
                     grid_visibility[team as usize] += 1;
-                    if team == configs.player_team {
+                    if team == configs.player_team
+                        && Self::in_radius(row, col, other_row, other_col, configs.fog_radius)
+                    {
                         visibility[i] = 0.
                     }
                 }
@@ -314,6 +317,7 @@ impl EntityGrid {
         self.entities.get(index)
     }
 
+    /// Return the visibility status at the cell corresponding to position for the given team.
     pub fn get_visibility(&self, position: Vec2, team: Team) -> Visibility {
         let (row, col) = self.to_rowcol(position);
         let i = self.index(row, col);
@@ -330,6 +334,7 @@ impl EntityGrid {
         self.entities.get_mut(index)
     }
 
+    /// Get all entities in a given bounding box.
     pub fn get_in_aabb(&self, aabb: &Aabb2) -> Vec<Entity> {
         let mut result = HashSet::default();
 
@@ -438,7 +443,7 @@ impl CellVisualizer {
     }
 }
 
-// This is the struct that will be passed to your shader
+/// Parameters passed to grid background shader.
 #[derive(Asset, TypePath, AsBindGroup, Clone)]
 pub struct GridShaderMaterial {
     #[uniform(0)]
