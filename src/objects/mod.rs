@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::hashbrown::HashSet};
 
 use crate::{
     grid::EntityGrid,
@@ -95,8 +95,18 @@ impl Object {
         let mut acceleration = Vec2::ZERO;
 
         // Forces from other entities
-        let others = grid.get_in_radius(transform.translation.truncate(), config.neighbor_radius);
-        for other_entity in &others {
+        let other_entities = {
+            let mut other_entities: HashSet<Entity> = HashSet::default();
+            let positions = grid
+                .entities
+                .get_in_radius(transform.translation.truncate(), config.neighbor_radius);
+            for (row, col) in positions {
+                other_entities.extend(grid.entities.get(row, col).unwrap());
+            }
+            other_entities
+        };
+
+        for other_entity in &other_entities {
             if entity == *other_entity {
                 continue;
             }
@@ -110,7 +120,7 @@ impl Object {
                 other_transform,
                 other_velocity,
                 config,
-                others.len(),
+                other_entities.len(),
             );
         }
         acceleration

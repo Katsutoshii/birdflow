@@ -38,6 +38,89 @@ impl Plugin for GridPlugin {
     }
 }
 
+/// 2D Grid
+#[derive(Clone, Default)]
+pub struct Grid2<T: Sized + Default + Clone> {
+    pub spec: GridSpec,
+    cells: Vec<T>,
+}
+impl<T: Sized + Default + Clone> Grid2<T> {
+    pub fn resize_with(&mut self, spec: GridSpec) {
+        self.spec = spec;
+        self.resize();
+    }
+    /// Resize the grid.
+    pub fn resize(&mut self) {
+        let num_cells = self.spec.rows as usize * self.spec.cols as usize;
+        self.cells.resize(num_cells, T::default());
+    }
+
+    /// Get all entities in a given bounding box.
+    pub fn get_in_aabb(&self, aabb: &Aabb2) -> Vec<(u16, u16)> {
+        let mut results = Vec::default();
+
+        let (min_row, min_col) = self.spec.to_rowcol(aabb.min);
+        let (max_row, max_col) = self.spec.to_rowcol(aabb.max);
+        for row in min_row..=max_row {
+            for col in min_col..=max_col {
+                results.push((row, col))
+            }
+        }
+        results
+    }
+
+    /// Get in radius.
+    pub fn get_in_radius(&self, position: Vec2, radius: f32) -> Vec<(u16, u16)> {
+        // info!("get_in_radius: {}", radius);
+        self.get_in_radius_discrete(self.spec.to_rowcol(position), self.spec.discretize(radius))
+    }
+
+    pub fn get_in_radius_discrete(&self, position: (u16, u16), radius: u16) -> Vec<(u16, u16)> {
+        // info!("get_in_radius_discrete: {}", radius);
+        let (row, col) = position;
+
+        let mut results = Vec::default();
+        for other_row in Self::cell_range(row, radius) {
+            for other_col in Self::cell_range(col, radius) {
+                if !Self::in_radius(row, col, other_row, other_col, radius) {
+                    continue;
+                }
+                // info!("In radius: {:?}", (other_row, other_col));
+                results.push((other_row, other_col))
+            }
+        }
+        results
+    }
+
+    /// Returns true if a cell is within the given radius to another cell.
+    pub fn in_radius(row: u16, col: u16, other_row: u16, other_col: u16, radius: u16) -> bool {
+        let row_dist = other_row as i16 - row as i16;
+        let col_dist = other_col as i16 - col as i16;
+        row_dist * row_dist + col_dist * col_dist < radius as i16 * radius as i16
+    }
+
+    /// Returns a range starting at `center - radius` ending at `center + radius`.
+    fn cell_range(center: u16, radius: u16) -> RangeInclusive<u16> {
+        let (min, max) = (
+            (center as i16 - radius as i16).max(0) as u16,
+            center + radius,
+        );
+        min..=max
+    }
+
+    /// Get the set of entities at the current position.
+    pub fn get(&self, row: u16, col: u16) -> Option<&T> {
+        let index = self.spec.index(row, col);
+        self.cells.get(index)
+    }
+
+    /// Get the mutable set of entities at the current position.
+    pub fn get_mut(&mut self, row: u16, col: u16) -> Option<&mut T> {
+        let index = self.spec.index(row, col);
+        self.cells.get_mut(index)
+    }
+}
+
 /// Component to track an entity in the grid.
 /// This also tracks visibility.
 #[derive(Component, Reflect, Default)]
@@ -81,20 +164,33 @@ impl GridEntity {
     }
 }
 
+/// Stores visibility per team.
+#[derive(Clone, Default)]
+pub struct TeamVisibility {
+    teams: [u32; Team::count()],
+}
+impl TeamVisibility {
+    pub fn get(&self, team: Team) -> u32 {
+        self.teams[team as usize]
+    }
+
+    pub fn get_mut(&mut self, team: Team) -> &mut u32 {
+        &mut self.teams[team as usize]
+    }
+}
+
 /// A grid of cells that keep track of what entities are contained within them.
 #[derive(Resource, Default)]
 pub struct EntityGrid {
     pub spec: GridSpec,
-    pub entities: Vec<HashSet<Entity>>,
-    pub team_visibility: Vec<Vec<u32>>,
+    pub entities: Grid2<HashSet<Entity>>,
+    pub team_visibility: Grid2<TeamVisibility>,
     pub entity_to_rowcol: HashMap<Entity, (u16, u16)>,
 }
 impl EntityGrid {
     pub fn resize(&mut self) {
-        let num_cells = self.spec.rows as usize * self.spec.cols as usize;
-        self.entities.resize(num_cells, HashSet::default());
-        self.team_visibility
-            .resize(num_cells, vec![0; Team::count()])
+        self.entities.resize_with(self.spec.clone());
+        self.team_visibility.resize_with(self.spec.clone());
     }
 
     /// Update an entity's position in the grid.
@@ -107,7 +203,7 @@ impl EntityGrid {
         visibility: &mut [f32],
         mut grid: Option<&mut [u32]>,
     ) {
-        let (row, col) = self.to_rowcol(position);
+        let (row, col) = self.spec.to_rowcol(position);
 
         // Remove this entity's old position if it was different.
         if let Some(&(old_row, old_col)) = self.entity_to_rowcol.get(&entity) {
@@ -116,39 +212,25 @@ impl EntityGrid {
                 return;
             }
 
-            if let Some(entities) = self.get_mut(old_row, old_col) {
+            if let Some(entities) = self.entities.get_mut(old_row, old_col) {
                 entities.remove(&entity);
                 if let Some(grid) = grid.as_deref_mut() {
                     if entities.is_empty() {
-                        grid[self.index(old_row, old_col)] = 0;
+                        grid[self.spec.index(old_row, old_col)] = 0;
                     }
                 }
                 self.remove_visibility(old_row, old_col, team, configs, visibility);
             }
         }
 
-        if let Some(entities) = self.get_mut(row, col) {
+        if let Some(entities) = self.entities.get_mut(row, col) {
             entities.insert(entity);
             self.entity_to_rowcol.insert(entity, (row, col));
             if let Some(grid) = grid {
-                grid[self.index(row, col)] = 1;
+                grid[self.spec.index(row, col)] = 1;
             }
             self.add_visibility(row, col, team, configs, visibility);
         }
-    }
-
-    fn in_radius(row: u16, col: u16, other_row: u16, other_col: u16, radius: u16) -> bool {
-        let row_dist = other_row as i16 - row as i16;
-        let col_dist = other_col as i16 - col as i16;
-        row_dist * row_dist + col_dist * col_dist < radius as i16 * radius as i16
-    }
-
-    fn cell_range(center: u16, radius: u16) -> RangeInclusive<u16> {
-        let (min, max) = (
-            (center as i16 - radius as i16).max(0) as u16,
-            center + radius,
-        );
-        min..=max
     }
 
     fn remove_visibility(
@@ -159,20 +241,15 @@ impl EntityGrid {
         configs: &Configs,
         visibility: &mut [f32],
     ) {
-        let radius = configs.visibility_radius;
-        for other_row in Self::cell_range(row, radius) {
-            for other_col in Self::cell_range(col, radius) {
-                if !Self::in_radius(row, col, other_row, other_col, radius) {
-                    continue;
-                }
-
-                let i = self.index(other_row, other_col);
-                if let Some(grid_visibility) = self.team_visibility.get_mut(i) {
-                    if grid_visibility[team as usize] > 0 {
-                        grid_visibility[team as usize] -= 1;
-                        if team == configs.player_team && grid_visibility[team as usize] == 0 {
-                            visibility[i] = 0.5;
-                        }
+        for (other_row, other_col) in self
+            .team_visibility
+            .get_in_radius_discrete((row, col), configs.visibility_radius)
+        {
+            if let Some(grid_visibility) = self.team_visibility.get_mut(other_row, other_col) {
+                if grid_visibility.get(team) > 0 {
+                    *grid_visibility.get_mut(team) -= 1;
+                    if team == configs.player_team && grid_visibility.get(team) == 0 {
+                        visibility[self.spec.index(other_row, other_col)] = 0.5;
                     }
                 }
             }
@@ -187,31 +264,25 @@ impl EntityGrid {
         configs: &Configs,
         visibility: &mut [f32],
     ) {
-        let radius = configs.visibility_radius;
-        for other_row in Self::cell_range(row, radius) {
-            for other_col in Self::cell_range(col, radius) {
-                if !Self::in_radius(row, col, other_row, other_col, radius) {
-                    continue;
-                }
-
-                let i = self.index(other_row, other_col);
-                if let Some(grid_visibility) = self.team_visibility.get_mut(i) {
-                    grid_visibility[team as usize] += 1;
-                    if team == configs.player_team
-                        && Self::in_radius(row, col, other_row, other_col, configs.fog_radius)
-                    {
-                        visibility[i] = 0.
-                    }
+        for (other_row, other_col) in self
+            .team_visibility
+            .get_in_radius_discrete((row, col), configs.visibility_radius)
+        {
+            if let Some(grid_visibility) = self.team_visibility.get_mut(other_row, other_col) {
+                grid_visibility.teams[team as usize] += 1;
+                if team == configs.player_team
+                    && Grid2::<()>::in_radius(row, col, other_row, other_col, configs.fog_radius)
+                {
+                    visibility[self.spec.index(other_row, other_col)] = 0.
                 }
             }
         }
     }
 
     /// Remove an entity from the grid entirely.
-    #[allow(dead_code)]
     pub fn remove(&mut self, entity: Entity) {
         if let Some(&(row, col)) = self.entity_to_rowcol.get(&entity) {
-            if let Some(cell) = self.get_mut(row, col) {
+            if let Some(cell) = self.entities.get_mut(row, col) {
                 cell.remove(&entity);
             } else {
                 error!("No cell at {:?}.", (row, col))
@@ -221,65 +292,27 @@ impl EntityGrid {
         }
     }
 
-    /// Get the set of entities at the current position.
-    pub fn get(&self, row: u16, col: u16) -> Option<&HashSet<Entity>> {
-        let index = self.index(row, col);
-        self.entities.get(index)
-    }
-
     /// Return the visibility status at the cell corresponding to position for the given team.
     pub fn get_visibility(&self, position: Vec2, team: Team) -> Visibility {
-        let (row, col) = self.to_rowcol(position);
-        let i = self.index(row, col);
-        if self.team_visibility[i][team as usize] > 0 {
-            Visibility::Visible
-        } else {
-            Visibility::Hidden
+        let (row, col) = self.spec.to_rowcol(position);
+        if let Some(visibility) = self.team_visibility.get(row, col) {
+            if visibility.get(team) > 0 {
+                return Visibility::Visible;
+            }
         }
-    }
-
-    /// Get the mutable set of entities at the current position.
-    pub fn get_mut(&mut self, row: u16, col: u16) -> Option<&mut HashSet<Entity>> {
-        let index = self.index(row, col);
-        self.entities.get_mut(index)
+        Visibility::Hidden
     }
 
     /// Get all entities in a given bounding box.
     pub fn get_in_aabb(&self, aabb: &Aabb2) -> Vec<Entity> {
         let mut result = HashSet::default();
 
-        let (min_row, min_col) = self.to_rowcol(aabb.min);
-        let (max_row, max_col) = self.to_rowcol(aabb.max);
-        for row in min_row..=max_row {
-            for col in min_col..=max_col {
-                if let Some(set) = self.get(row, col) {
-                    result.extend(set.iter());
-                }
+        for (row, col) in self.entities.get_in_aabb(aabb) {
+            if let Some(set) = self.entities.get(row, col) {
+                result.extend(set.iter());
             }
         }
         result.into_iter().collect()
-    }
-
-    /// Get all entities in radius.
-    pub fn get_in_radius(&self, position: Vec2, radius: f32) -> Vec<Entity> {
-        self.get_in_aabb(&Aabb2 {
-            min: position + (Vec2::NEG_ONE * radius),
-            max: position + (Vec2::ONE * radius),
-        })
-    }
-
-    /// Returns (row, col) from a position in world space.
-    fn to_rowcol(&self, mut position: Vec2) -> (u16, u16) {
-        position += self.spec.offset();
-        (
-            (position.y / self.spec.width) as u16,
-            (position.x / self.spec.width) as u16,
-        )
-    }
-
-    // Covert row, col to a single index.
-    fn index(&self, row: u16, col: u16) -> usize {
-        row as usize * self.spec.cols as usize + col as usize
     }
 }
 
@@ -394,7 +427,7 @@ impl Material2d for GridShaderMaterial {
 
 #[cfg(test)]
 mod tests {
-    use crate::grid::GridSpec;
+    use crate::grid::{Grid2, GridSpec};
 
     use super::EntityGrid;
     use bevy::{prelude::*, utils::HashMap};
@@ -408,17 +441,17 @@ mod tests {
                 width: 10.0,
                 visualize: false,
             },
-            entities: Vec::default(),
+            entities: Grid2::default(),
             entity_to_rowcol: HashMap::default(),
-            team_visibility: Vec::default(),
+            team_visibility: Grid2::default(),
         };
         grid.resize();
         assert_eq!(grid.spec.offset(), Vec2 { x: 50.0, y: 50.0 });
-        let rowcol = grid.to_rowcol(Vec2 { x: 0., y: 0. });
+        let rowcol = grid.spec.to_rowcol(Vec2 { x: 0., y: 0. });
         assert_eq!(rowcol, (5, 5));
 
-        assert!(grid.get_mut(5, 5).is_some());
-        assert!(grid.get(5, 5).is_some());
+        assert!(grid.entities.get_mut(5, 5).is_some());
+        assert!(grid.entities.get(5, 5).is_some());
     }
 
     #[test]
@@ -427,7 +460,7 @@ mod tests {
             let (row, col) = (1, 1);
             let (other_row, other_col) = (2, 2);
             let radius = 2;
-            assert!(EntityGrid::in_radius(
+            assert!(Grid2::<()>::in_radius(
                 row, col, other_row, other_col, radius
             ));
         }
@@ -435,7 +468,7 @@ mod tests {
             let (row, col) = (1, 1);
             let (other_row, other_col) = (4, 4);
             let radius = 2;
-            assert!(!EntityGrid::in_radius(
+            assert!(!Grid2::<()>::in_radius(
                 row, col, other_row, other_col, radius
             ));
         }

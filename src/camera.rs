@@ -65,11 +65,9 @@ impl CameraController {
         }
         let (mut controller, camera, camera_transform) = controller_query.single_mut();
         if let Some(world2d_size) = Self::get_world2d_size(camera, camera_transform) {
-            dbg!(&world2d_size);
             controller.world2d_bounds = grid_spec.world2d_bounds();
             controller.world2d_bounds.min += world2d_size * 0.5;
             controller.world2d_bounds.max -= world2d_size * 0.5;
-            dbg!(&controller.world2d_bounds);
         }
     }
 
@@ -81,7 +79,6 @@ impl CameraController {
                 y: window::DIMENSIONS.y,
             },
         )?;
-        dbg!(&camera_min);
         let camera_max = camera.viewport_to_world_2d(
             camera_transform,
             Vec2 {
@@ -89,7 +86,6 @@ impl CameraController {
                 y: 0.,
             },
         )?;
-        dbg!(&camera_max);
         Some(camera_max - camera_min)
     }
 

@@ -26,6 +26,20 @@ impl Default for GridSpec {
     }
 }
 impl GridSpec {
+    pub fn discretize(&self, value: f32) -> u16 {
+        (value / self.width) as u16
+    }
+    // Covert row, col to a single index.
+    pub fn index(&self, row: u16, col: u16) -> usize {
+        row as usize * self.cols as usize + col as usize
+    }
+
+    /// Returns (row, col) from a position in world space.
+    pub fn to_rowcol(&self, mut position: Vec2) -> (u16, u16) {
+        position += self.offset();
+        (self.discretize(position.y), self.discretize(position.x))
+    }
+
     /// When the spec changes, update the grid spec and resize.
     pub fn resize_on_change(spec: Res<GridSpec>, mut grid: ResMut<EntityGrid>) {
         if !spec.is_changed() {
