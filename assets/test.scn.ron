@@ -1,9 +1,9 @@
 (
   resources: {
-    "birdflow::grid::EntityGridSpec": (
-      rows: 50,
-      cols: 100,
-      width: 100.0,
+    "birdflow::grid::GridSpec": (
+      rows: 200,
+      cols: 200,
+      width: 64.0,
       visualize: false,
     ),
     "birdflow::objects::config::Configs": (
@@ -66,11 +66,18 @@
       ),
       food: (
         max_velocity: 1.0,
-        neighbor_radius: 100.0,
+        neighbor_radius: 128.0,
         velocity_smoothing: 0.5,
         worker: (
           separation_radius: 100.0,
           separation_acceleration: 0.05
+        ),
+        
+        food: (
+          separation_radius: 20.0,
+          separation_acceleration: 1.2,
+          cohesion_acceleration: 0.00,
+          alignment_factor: 1000.0,
         )
       )
     ),

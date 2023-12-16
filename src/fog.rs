@@ -1,4 +1,4 @@
-use crate::{grid::EntityGridSpec, prelude::*};
+use crate::{grid::GridSpec, prelude::*};
 use bevy::{
     prelude::*,
     render::render_resource::{AsBindGroup, ShaderRef},
@@ -54,7 +54,7 @@ impl FromWorld for FogAssets {
 #[component(storage = "SparseSet")]
 pub struct FogPlane;
 impl FogPlane {
-    pub fn bundle(self, spec: &EntityGridSpec, assets: &FogAssets) -> impl Bundle {
+    pub fn bundle(self, spec: &GridSpec, assets: &FogAssets) -> impl Bundle {
         (
             MaterialMesh2dBundle::<FogShaderMaterial> {
                 mesh: assets.mesh.clone().into(),
@@ -100,7 +100,7 @@ impl Default for FogShaderMaterial {
     }
 }
 impl FogShaderMaterial {
-    pub fn resize(&mut self, spec: &EntityGridSpec) {
+    pub fn resize(&mut self, spec: &GridSpec) {
         self.width = spec.width;
         self.rows = spec.rows.into();
         self.cols = spec.cols.into();

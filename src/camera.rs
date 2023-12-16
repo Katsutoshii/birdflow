@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use crate::grid::EntityGridSpec;
+use crate::grid::GridSpec;
 use crate::{window, Aabb2};
 
 pub struct CameraPlugin;
@@ -57,7 +57,7 @@ impl Default for CameraController {
 
 impl CameraController {
     fn update_bounds(
-        grid_spec: Res<EntityGridSpec>,
+        grid_spec: Res<GridSpec>,
         mut controller_query: Query<(&mut Self, &Camera, &GlobalTransform), With<MainCamera>>,
     ) {
         if !grid_spec.is_changed() {

@@ -23,6 +23,7 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
 
     let gx = gxy.x / width;
     let gx_floor = floor(gx);
+
     let gx_frac = gx - gx_floor;
     let col = u32(gx_floor);
 

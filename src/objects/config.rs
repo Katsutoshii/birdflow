@@ -34,8 +34,8 @@ impl Default for InteractionConfig {
 pub struct Configs {
     // Specify which team the player controls.
     pub player_team: Team,
-    pub visibility_radius: u8,
-    pub fog_radius: u8,
+    pub visibility_radius: u16,
+    pub fog_radius: u16,
     // Configs for each Zooid type.
     pub worker: Config,
     pub head: Config,

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::SystemStage;
+use crate::{grid::GridSpec, SystemStage};
 
 /// Plugin to add a waypoint system where the player can click to create a waypoint.
 pub struct PhysicsPlugin;
@@ -20,9 +20,15 @@ pub struct Velocity(pub Vec2);
 pub struct NewVelocity(pub Vec2);
 
 /// Apply velocity changes.
-pub fn update(mut query: Query<(&mut Velocity, &NewVelocity, &mut Transform)>) {
+pub fn update(
+    mut query: Query<(&mut Velocity, &NewVelocity, &mut Transform)>,
+    grid_spec: Res<GridSpec>,
+) {
     for (mut velocity, new_velocity, mut transform) in &mut query {
         velocity.0 = new_velocity.0;
         transform.translation += velocity.0.extend(0.);
+        grid_spec
+            .world2d_bounds()
+            .clamp3(&mut transform.translation)
     }
 }

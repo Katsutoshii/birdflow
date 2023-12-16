@@ -2,7 +2,7 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
 use crate::prelude::*;
 use crate::{
-    grid::{EntityGridSpec, GridEntity},
+    grid::{GridEntity, GridSpec},
     physics::{NewVelocity, Velocity},
 };
 
@@ -30,7 +30,7 @@ impl Food {
     pub fn spawn(
         mut commands: Commands,
         assets: Res<ZooidAssets>,
-        grid_spec: Res<EntityGridSpec>,
+        grid_spec: Res<GridSpec>,
         keyboard_input: Res<Input<KeyCode>>,
     ) {
         if !keyboard_input.just_pressed(KeyCode::F) {
@@ -79,7 +79,7 @@ impl Food {
     pub fn update(time: Res<Time>, mut query: Query<(&Self, &mut NewVelocity)>) {
         for (food, mut new_velocity) in &mut query {
             let (x, y) = (time.elapsed_seconds() * food.period_sec).sin_cos();
-            new_velocity.0 += 0.1 * Vec2 { x, y }
+            new_velocity.0 += 0.01 * Vec2 { x, y }
         }
     }
 }

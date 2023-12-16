@@ -17,7 +17,7 @@ use crate::{
 pub struct GridPlugin;
 impl Plugin for GridPlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<EntityGridSpec>()
+        app.register_type::<GridSpec>()
             .add_plugins(Material2dPlugin::<GridShaderMaterial>::default())
             .init_resource::<GridAssets>()
             .insert_resource(EntityGrid::default())
@@ -25,8 +25,8 @@ impl Plugin for GridPlugin {
                 FixedUpdate,
                 (
                     GridEntity::update.in_set(SystemStage::PostApply),
-                    EntityGridSpec::visualize_on_change,
-                    EntityGridSpec::resize_on_change,
+                    GridSpec::visualize_on_change,
+                    GridSpec::resize_on_change,
                 ),
             );
     }
@@ -46,7 +46,7 @@ impl GridEntity {
         mut grid_shader_assets: ResMut<Assets<GridShaderMaterial>>,
         fog_assets: Res<FogAssets>,
         mut fog_shader_assets: ResMut<Assets<FogShaderMaterial>>,
-        spec: Res<EntityGridSpec>,
+        spec: Res<GridSpec>,
         configs: Res<Configs>,
     ) {
         // Initialize the shader if not yet initialized.
@@ -78,13 +78,13 @@ impl GridEntity {
 /// Specification describing how large the grid is.
 #[derive(Resource, Reflect, Clone)]
 #[reflect(Resource)]
-pub struct EntityGridSpec {
-    pub rows: u8,
-    pub cols: u8,
+pub struct GridSpec {
+    pub rows: u16,
+    pub cols: u16,
     pub width: f32,
     pub visualize: bool,
 }
-impl Default for EntityGridSpec {
+impl Default for GridSpec {
     fn default() -> Self {
         Self {
             rows: 10,
@@ -94,9 +94,9 @@ impl Default for EntityGridSpec {
         }
     }
 }
-impl EntityGridSpec {
+impl GridSpec {
     /// When the spec changes, update the grid spec and resize.
-    pub fn resize_on_change(spec: Res<EntityGridSpec>, mut grid: ResMut<EntityGrid>) {
+    pub fn resize_on_change(spec: Res<GridSpec>, mut grid: ResMut<EntityGrid>) {
         if !spec.is_changed() {
             return;
         }
@@ -131,7 +131,7 @@ impl EntityGridSpec {
         }
 
         // Initialize the grid visualization shader.
-        if spec.visualize {
+        {
             let material = grid_shader_assets
                 .get_mut(&grid_assets.shader_material)
                 .unwrap();
@@ -177,10 +177,10 @@ impl EntityGridSpec {
 /// A grid of cells that keep track of what entities are contained within them.
 #[derive(Resource, Default)]
 pub struct EntityGrid {
-    pub spec: EntityGridSpec,
+    pub spec: GridSpec,
     pub entities: Vec<HashSet<Entity>>,
     pub team_visibility: Vec<Vec<u32>>,
-    pub entity_to_rowcol: HashMap<Entity, (u8, u8)>,
+    pub entity_to_rowcol: HashMap<Entity, (u16, u16)>,
 }
 impl EntityGrid {
     pub fn resize(&mut self) {
@@ -230,21 +230,24 @@ impl EntityGrid {
         }
     }
 
-    fn in_radius(row: u8, col: u8, other_row: u8, other_col: u8, radius: u8) -> bool {
-        let row_dist = other_row as i8 - row as i8;
-        let col_dist = other_col as i8 - col as i8;
-        row_dist * row_dist + col_dist * col_dist < radius as i8 * radius as i8
+    fn in_radius(row: u16, col: u16, other_row: u16, other_col: u16, radius: u16) -> bool {
+        let row_dist = other_row as i16 - row as i16;
+        let col_dist = other_col as i16 - col as i16;
+        row_dist * row_dist + col_dist * col_dist < radius as i16 * radius as i16
     }
 
-    fn cell_range(center: u8, radius: u8) -> RangeInclusive<u8> {
-        let (min, max) = ((center as i8 - radius as i8).max(0) as u8, center + radius);
+    fn cell_range(center: u16, radius: u16) -> RangeInclusive<u16> {
+        let (min, max) = (
+            (center as i16 - radius as i16).max(0) as u16,
+            center + radius,
+        );
         min..=max
     }
 
     fn remove_visibility(
         &mut self,
-        row: u8,
-        col: u8,
+        row: u16,
+        col: u16,
         team: Team,
         configs: &Configs,
         visibility: &mut [f32],
@@ -271,8 +274,8 @@ impl EntityGrid {
 
     fn add_visibility(
         &mut self,
-        row: u8,
-        col: u8,
+        row: u16,
+        col: u16,
         team: Team,
         configs: &Configs,
         visibility: &mut [f32],
@@ -312,7 +315,7 @@ impl EntityGrid {
     }
 
     /// Get the set of entities at the current position.
-    pub fn get(&self, row: u8, col: u8) -> Option<&HashSet<Entity>> {
+    pub fn get(&self, row: u16, col: u16) -> Option<&HashSet<Entity>> {
         let index = self.index(row, col);
         self.entities.get(index)
     }
@@ -329,7 +332,7 @@ impl EntityGrid {
     }
 
     /// Get the mutable set of entities at the current position.
-    pub fn get_mut(&mut self, row: u8, col: u8) -> Option<&mut HashSet<Entity>> {
+    pub fn get_mut(&mut self, row: u16, col: u16) -> Option<&mut HashSet<Entity>> {
         let index = self.index(row, col);
         self.entities.get_mut(index)
     }
@@ -359,16 +362,16 @@ impl EntityGrid {
     }
 
     /// Returns (row, col) from a position in world space.
-    fn to_rowcol(&self, mut position: Vec2) -> (u8, u8) {
+    fn to_rowcol(&self, mut position: Vec2) -> (u16, u16) {
         position += self.spec.offset();
         (
-            (position.y / self.spec.width) as u8,
-            (position.x / self.spec.width) as u8,
+            (position.y / self.spec.width) as u16,
+            (position.x / self.spec.width) as u16,
         )
     }
 
     // Covert row, col to a single index.
-    fn index(&self, row: u8, col: u8) -> usize {
+    fn index(&self, row: u16, col: u16) -> usize {
         row as usize * self.spec.cols as usize + col as usize
     }
 }
@@ -423,7 +426,7 @@ pub struct CellVisualizer {
     pub active: bool,
 }
 impl CellVisualizer {
-    pub fn bundle(self, spec: &EntityGridSpec, assets: &GridAssets) -> impl Bundle {
+    pub fn bundle(self, spec: &GridSpec, assets: &GridAssets) -> impl Bundle {
         (
             MaterialMesh2dBundle::<GridShaderMaterial> {
                 mesh: assets.mesh.clone().into(),
@@ -469,7 +472,7 @@ impl Default for GridShaderMaterial {
     }
 }
 impl GridShaderMaterial {
-    fn resize(&mut self, spec: &EntityGridSpec) {
+    fn resize(&mut self, spec: &GridSpec) {
         self.width = spec.width;
         self.rows = spec.rows.into();
         self.cols = spec.cols.into();
@@ -484,7 +487,7 @@ impl Material2d for GridShaderMaterial {
 
 #[cfg(test)]
 mod tests {
-    use crate::grid::EntityGridSpec;
+    use crate::grid::GridSpec;
 
     use super::EntityGrid;
     use bevy::{prelude::*, utils::HashMap};
@@ -492,7 +495,7 @@ mod tests {
     #[test]
     fn test_update() {
         let mut grid = EntityGrid {
-            spec: EntityGridSpec {
+            spec: GridSpec {
                 rows: 10,
                 cols: 10,
                 width: 10.0,
