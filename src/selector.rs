@@ -93,7 +93,7 @@ impl Selector {
                 let mut aabb = selector.aabb.clone();
                 aabb.enforce_minmax();
                 // Check the grid for entities in this bounding box.
-                for entity in grid.get_in_aabb(&aabb) {
+                for entity in grid.get_entities_in_aabb(&aabb) {
                     let (_object, transform, team, mut selected, mesh) =
                         objects.get_mut(entity).unwrap();
                     if aabb.contains(transform.translation.xy()) {

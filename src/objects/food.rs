@@ -1,5 +1,6 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
+use crate::physics::PhysicsBundle;
 use crate::prelude::*;
 use crate::{
     grid::{GridEntity, GridSpec},
@@ -60,9 +61,8 @@ impl Food {
             self,
             Object::Food,
             Team::default(),
-            GridEntity,
-            Velocity::default(),
-            NewVelocity::default(),
+            GridEntity::default(),
+            PhysicsBundle::default(),
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: assets.mesh.clone().into(),
                 transform: Transform::default()

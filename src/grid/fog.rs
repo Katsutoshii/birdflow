@@ -1,18 +1,173 @@
-use crate::{grid::GridSpec, prelude::*};
+use crate::{
+    objects::{Configs, Team},
+    prelude::*,
+};
 use bevy::{
     prelude::*,
     render::render_resource::{AsBindGroup, ShaderRef},
     sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle},
 };
+use std::ops::{Deref, DerefMut};
+
+use super::{EntityGridEvent, Grid2, GridEntity, GridSpec};
 
 /// Plugin for fog of war.
-/// For performance reasons, maintenance of the shader buffer
-/// is done in `src/grid.rs:GridEntity`.
 pub struct FogPlugin;
 impl Plugin for FogPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(Material2dPlugin::<FogShaderMaterial>::default())
-            .init_resource::<FogAssets>();
+            .insert_resource(VisibilityGrid::default())
+            .init_resource::<FogAssets>()
+            .add_systems(
+                FixedUpdate,
+                (
+                    VisibilityGrid::update.after(grid::GridEntity::update),
+                    VisibilityGrid::resize_on_change,
+                    VisibilityGrid::update_visibility.after(VisibilityGrid::update),
+                ),
+            );
+    }
+}
+
+/// Stores visibility per team.
+#[derive(Clone, Default)]
+pub struct TeamVisibility {
+    teams: [u32; Team::count()],
+}
+impl TeamVisibility {
+    pub fn get(&self, team: Team) -> u32 {
+        self.teams[team as usize]
+    }
+
+    pub fn get_mut(&mut self, team: Team) -> &mut u32 {
+        &mut self.teams[team as usize]
+    }
+}
+
+/// Handles to common fog assets.
+#[derive(Resource, Default)]
+struct VisibilityGrid(pub Grid2<TeamVisibility>);
+impl Deref for VisibilityGrid {
+    type Target = Grid2<TeamVisibility>;
+    fn deref(&self) -> &Grid2<TeamVisibility> {
+        &self.0
+    }
+}
+impl DerefMut for VisibilityGrid {
+    fn deref_mut(&mut self) -> &mut Grid2<TeamVisibility> {
+        &mut self.0
+    }
+}
+impl VisibilityGrid {
+    pub fn resize_on_change(
+        mut grid: ResMut<Self>,
+        spec: Res<GridSpec>,
+        assets: Res<FogAssets>,
+        query: Query<Entity, With<FogPlane>>,
+        mut shader_assets: ResMut<Assets<FogShaderMaterial>>,
+        mut commands: Commands,
+    ) {
+        if !spec.is_changed() {
+            return;
+        }
+        for entity in &query {
+            commands.entity(entity).despawn();
+        }
+
+        grid.0.resize_with(spec.clone());
+
+        let material = shader_assets.get_mut(&assets.shader_material).unwrap();
+        material.resize(&spec);
+
+        commands.spawn(FogPlane.bundle(&spec, &assets));
+    }
+
+    pub fn update_visibility(
+        mut query: Query<(&GridEntity, &mut Visibility)>,
+        grid: ResMut<Self>,
+        configs: Res<Configs>,
+    ) {
+        for (grid_entity, mut visibility) in &mut query {
+            if let Some(cell) = grid_entity.cell {
+                *visibility = grid.get_visibility(cell, configs.player_team)
+            }
+        }
+    }
+
+    pub fn update(
+        mut grid: ResMut<Self>,
+        configs: Res<Configs>,
+        assets: Res<FogAssets>,
+        teams: Query<&Team>,
+        mut shader_assets: ResMut<Assets<FogShaderMaterial>>,
+        mut grid_events: EventReader<EntityGridEvent>,
+    ) {
+        let material: &mut FogShaderMaterial =
+            shader_assets.get_mut(&assets.shader_material).unwrap();
+        for &EntityGridEvent {
+            entity,
+            prev_cell,
+            prev_cell_empty: _,
+            cell,
+        } in grid_events.read()
+        {
+            let team = *teams.get(entity).unwrap();
+            if let Some(prev_cell) = prev_cell {
+                grid.remove_visibility(prev_cell, team, &configs, &mut material.grid)
+            }
+            grid.add_visibility(cell, team, &configs, &mut material.grid);
+        }
+    }
+
+    fn remove_visibility(
+        &mut self,
+        cell: (u16, u16),
+        team: Team,
+        configs: &Configs,
+        visibility: &mut [f32],
+    ) {
+        let radius = configs.visibility_radius;
+        for (other_row, other_col) in self.0.get_in_radius_discrete(cell, radius) {
+            if let Some(grid_visibility) = self.0.get_mut(other_row, other_col) {
+                if grid_visibility.get(team) > 0 {
+                    *grid_visibility.get_mut(team) -= 1;
+                    if team == configs.player_team && grid_visibility.get(team) == 0 {
+                        visibility[self.0.spec.index(other_row, other_col)] = 0.5;
+                    }
+                }
+            }
+        }
+    }
+
+    /// Return the visibility status at the cell corresponding to position for the given team.
+    pub fn get_visibility(&self, cell: (u16, u16), team: Team) -> Visibility {
+        let (row, col) = cell;
+        if let Some(visibility) = self.0.get(row, col) {
+            if visibility.get(team) > 0 {
+                return Visibility::Visible;
+            }
+        }
+        Visibility::Hidden
+    }
+
+    fn add_visibility(
+        &mut self,
+        cell: (u16, u16),
+        team: Team,
+        configs: &Configs,
+        visibility: &mut [f32],
+    ) {
+        let radius = configs.visibility_radius;
+        for (other_row, other_col) in self.0.get_in_radius_discrete(cell, radius) {
+            if let Some(grid_visibility) = self.0.get_mut(other_row, other_col) {
+                *grid_visibility.get_mut(team) += 1;
+                if team == configs.player_team
+                    && Grid2::<()>::in_radius(cell, (other_row, other_col), configs.fog_radius)
+                {
+                    visibility[self.0.spec.index(other_row, other_col)] = 0.
+                }
+            }
+        }
     }
 }
 

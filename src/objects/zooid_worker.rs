@@ -3,7 +3,7 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use crate::{
     grid::GridEntity,
     objects::objective::Objective,
-    physics::{NewVelocity, Velocity},
+    physics::{PhysicsBundle, Velocity},
     selector::Selected,
     zindex, SystemStage,
 };
@@ -59,9 +59,8 @@ impl ZooidWorkerBundler {
         (
             Object::Worker(self.worker),
             self.team,
-            GridEntity,
-            Velocity(self.velocity),
-            NewVelocity::default(),
+            GridEntity::default(),
+            PhysicsBundle::default(),
             self.objective,
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: self.mesh.into(),

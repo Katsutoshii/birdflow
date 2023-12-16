@@ -2,6 +2,7 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
 use crate::grid::GridEntity;
 use crate::objects::objective::Objective;
+use crate::physics::PhysicsBundle;
 use crate::prelude::*;
 use crate::{grid::EntityGrid, selector::Selected, zindex};
 
@@ -86,7 +87,7 @@ impl ZooidHead {
             self,
             Object::Head,
             team,
-            GridEntity,
+            GridEntity::default(),
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: assets.mesh.clone().into(),
                 transform: Transform::default()
@@ -99,8 +100,7 @@ impl ZooidHead {
                 material: assets.get_team_material(team).primary,
                 ..default()
             },
-            Velocity::default(),
-            NewVelocity::default(),
+            PhysicsBundle::default(),
             Objective::default(),
             Selected::default(),
             Name::new("ZooidHead"),
@@ -144,7 +144,7 @@ impl ZooidHead {
 
     /// System to despawn all zooids.
     pub fn despawn_zooids(
-        objects: Query<(Entity, &Object)>,
+        objects: Query<(Entity, &GridEntity, &Object)>,
         mut commands: Commands,
         mut grid: ResMut<EntityGrid>,
         keyboard_input: Res<Input<KeyCode>>,
@@ -152,9 +152,9 @@ impl ZooidHead {
         if !keyboard_input.just_pressed(KeyCode::D) {
             return;
         }
-        for (entity, object) in &objects {
+        for (entity, grid_entity, object) in &objects {
+            grid.remove(entity, grid_entity);
             if let Object::Worker(_) = object {
-                grid.remove(entity);
                 commands.entity(entity).despawn_recursive();
             }
         }

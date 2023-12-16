@@ -32,3 +32,9 @@ pub fn update(
             .clamp3(&mut transform.translation)
     }
 }
+
+#[derive(Bundle, Clone, Default)]
+pub struct PhysicsBundle {
+    pub velocity: Velocity,
+    pub new_velocity: NewVelocity,
+}
