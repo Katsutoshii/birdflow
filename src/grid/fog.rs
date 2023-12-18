@@ -7,7 +7,6 @@ use bevy::{
     render::render_resource::{AsBindGroup, ShaderRef},
     sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle},
 };
-use std::ops::{Deref, DerefMut};
 
 use super::{EntityGridEvent, Grid2, GridEntity, GridSpec};
 
@@ -45,19 +44,8 @@ impl TeamVisibility {
 }
 
 /// Handles to common fog assets.
-#[derive(Resource, Default)]
+#[derive(Resource, Default, Deref, DerefMut)]
 struct VisibilityGrid(pub Grid2<TeamVisibility>);
-impl Deref for VisibilityGrid {
-    type Target = Grid2<TeamVisibility>;
-    fn deref(&self) -> &Grid2<TeamVisibility> {
-        &self.0
-    }
-}
-impl DerefMut for VisibilityGrid {
-    fn deref_mut(&mut self) -> &mut Grid2<TeamVisibility> {
-        &mut self.0
-    }
-}
 impl VisibilityGrid {
     pub fn resize_on_change(
         mut grid: ResMut<Self>,

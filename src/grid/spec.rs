@@ -35,6 +35,15 @@ impl GridSpec {
         (self.discretize(position.y), self.discretize(position.x))
     }
 
+    /// Returns the world position of the cell coordinate.
+    pub fn to_world_position(&self, cell: (u16, u16)) -> Vec2 {
+        let (row, col) = cell;
+        Vec2 {
+            x: (col as f32 + 0.5) * self.width,
+            y: (row as f32 + 0.5) * self.width,
+        } - self.offset()
+    }
+
     /// Compute the offset vector for this grid spec.
     pub fn offset(&self) -> Vec2 {
         Vec2 {

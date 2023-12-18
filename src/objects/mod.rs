@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
-    grid::EntityGrid,
+    grid::{EntityGrid, Obstacle, ObstaclesGrid},
     physics::{NewVelocity, Velocity},
     SystemStage,
 };
@@ -65,6 +65,7 @@ impl Object {
     pub fn update_velocity(
         mut objects: Query<(Entity, &Self, &Velocity, &mut NewVelocity, &Transform)>,
         other_objects: Query<(&Self, &Velocity, &Transform)>,
+        obstacles: Res<ObstaclesGrid>,
         grid: Res<EntityGrid>,
         configs: Res<Configs>,
     ) {
@@ -72,8 +73,16 @@ impl Object {
             .par_iter_mut()
             .for_each(|(entity, zooid, velocity, mut new_velocity, transform)| {
                 let config = configs.get(zooid);
-                let acceleration =
-                    zooid.acceleration(entity, velocity, transform, &other_objects, &grid, config);
+                let acceleration = zooid.acceleration(
+                    entity,
+                    velocity,
+                    transform,
+                    &other_objects,
+                    &grid,
+                    &obstacles,
+                    config,
+                );
+
                 // Update new velocity.
                 new_velocity.0 += acceleration;
                 new_velocity.0 = new_velocity.0.clamp_length_max(config.max_velocity);
@@ -82,6 +91,7 @@ impl Object {
             })
     }
 
+    #[allow(clippy::too_many_arguments)]
     /// Compute acceleration for this timestemp.
     pub fn acceleration(
         &self,
@@ -90,12 +100,14 @@ impl Object {
         transform: &Transform,
         entities: &Query<(&Object, &Velocity, &Transform)>,
         grid: &EntityGrid,
+        obstacles: &ObstaclesGrid,
         config: &Config,
     ) -> Vec2 {
         let mut acceleration = Vec2::ZERO;
 
         // Forces from other entities
-        let other_entities = grid.get_entities_in_radius(transform.translation.truncate(), config);
+        let position = transform.translation.truncate();
+        let other_entities = grid.get_entities_in_radius(position, config);
         for other_entity in &other_entities {
             if entity == *other_entity {
                 continue;
@@ -112,6 +124,21 @@ impl Object {
                 config,
                 other_entities.len(),
             );
+        }
+
+        // let mut obstacle_acceleration = Vec2::ZERO;
+        // let mut total_obstacles = 0.;
+        for (row, col) in obstacles.get_in_radius(position, grid.spec.width * 3.) {
+            if obstacles[(row, col)] == Obstacle::Full {
+                // dbg!(&obj_pos);
+                let delta = position - obstacles.spec.to_world_position((row, col));
+                let dist = (0.001 * delta.length()).min(0.1);
+                acceleration += config.obstacle_repel * delta.normalize_or_zero() / dist;
+                // total_obstacles += 1.;
+            }
+            // if total_obstacles > 0. {
+            //     acceleration += obstacle_acceleration / total_obstacles;
+            // }
         }
         acceleration
     }

@@ -2,6 +2,7 @@
 
 pub const BACKGROUND: f32 = -10.0;
 pub const SHADER_BACKGROUND: f32 = -9.0;
+pub const OBSTACLES: f32 = -7.0;
 pub const WAYPOINT: f32 = -5.0;
 pub const FOOD_BACKGROUND: f32 = -2.1;
 pub const FOOD: f32 = -2.0;

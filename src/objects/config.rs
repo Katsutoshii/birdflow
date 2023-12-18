@@ -60,6 +60,7 @@ pub struct Config {
     pub alignment_factor: f32,
     pub velocity_smoothing: f32,
     pub spawn_velocity: f32,
+    pub obstacle_repel: f32,
     pub waypoint: ObjectiveConfig,
 
     // Interactions
@@ -75,6 +76,7 @@ impl Default for Config {
             alignment_factor: 0.1,
             velocity_smoothing: 0.5,
             spawn_velocity: 2.0,
+            obstacle_repel: 1.0,
             waypoint: ObjectiveConfig::default(),
             worker: InteractionConfig::default(),
             head: InteractionConfig::default(),

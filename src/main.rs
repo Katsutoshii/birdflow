@@ -70,29 +70,26 @@ fn main() {
 }
 
 fn startup(mut commands: Commands) {
-    commands.spawn((
-        TextBundle::from_section(
-            [
-                "  Controls:",
-                "    Create your spawner: enter",
-                "    Move camera: move mouse to border",
-                "    Move waypoint: right click",
-                "    Spawn zooids: 'z'",
-                "    Despawn zooids: 'd'",
-                "    Save scene: 's'",
-                "    Open editor: 'e'",
-                "    -",
-            ]
-            .join("\n"),
-            TextStyle {
-                font_size: 18.0,
-                ..default()
-            },
-        )
-        .with_style(Style {
-            align_self: AlignSelf::FlexEnd,
+    commands.spawn((TextBundle::from_section(
+        [
+            "  Controls:",
+            "    Create your spawner: enter",
+            "    Move camera: move mouse to border",
+            "    Move waypoint: right click",
+            "    Spawn zooids: 'z'",
+            "    Despawn zooids: 'd'",
+            "    Save scene: 's'",
+            "    Open editor: 'e'",
+            "    -",
+        ]
+        .join("\n"),
+        TextStyle {
+            font_size: 18.0,
             ..default()
-        }),
-        scene::SaveEntity,
-    ));
+        },
+    )
+    .with_style(Style {
+        align_self: AlignSelf::FlexEnd,
+        ..default()
+    }),));
 }

@@ -1,6 +1,5 @@
 #import bevy_sprite::mesh2d_vertex_output::VertexOutput
 #import bevy_sprite::mesh2d_view_bindings::globals;
-// we can import items from shader modules in the assets folder with a quoted path
 #import "shaders/perlin_noise_2d.wgsl"::{perlin_noise_2d}
 
 @group(1) @binding(0) var<uniform> color: vec4<f32>;
@@ -23,7 +22,6 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
 
     let gx = gxy.x / width;
     let gx_floor = floor(gx);
-
     let gx_frac = gx - gx_floor;
     let col = u32(gx_floor);
 

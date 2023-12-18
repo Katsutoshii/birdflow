@@ -1,4 +1,4 @@
-use std::ops::RangeInclusive;
+use std::ops::{Index, IndexMut, RangeInclusive};
 
 use bevy::prelude::*;
 
@@ -10,6 +10,8 @@ mod visualizer;
 pub use visualizer::{GridShaderMaterial, GridVisualizer};
 mod entity;
 pub use entity::{EntityGrid, EntityGridEvent, GridEntity};
+mod obstacles;
+pub use obstacles::{Obstacle, ObstaclesGrid, ObstaclesPlugin};
 
 use crate::{Aabb2, SystemStage};
 
@@ -22,6 +24,7 @@ impl Plugin for GridPlugin {
         app.register_type::<GridSpec>()
             .add_event::<EntityGridEvent>()
             .add_plugins(GridVisualizerPlugin)
+            .add_plugins(ObstaclesPlugin)
             .add_plugins(FogPlugin)
             .insert_resource(EntityGrid::default())
             .add_systems(
@@ -39,6 +42,19 @@ impl Plugin for GridPlugin {
 pub struct Grid2<T: Sized + Default + Clone> {
     pub spec: GridSpec,
     cells: Vec<T>,
+}
+impl<T: Sized + Default + Clone> Index<(u16, u16)> for Grid2<T> {
+    type Output = T;
+    fn index(&self, i: (u16, u16)) -> &Self::Output {
+        let (row, col) = i;
+        &self.cells[self.spec.index(row, col)]
+    }
+}
+impl<T: Sized + Default + Clone> IndexMut<(u16, u16)> for Grid2<T> {
+    fn index_mut(&mut self, i: (u16, u16)) -> &mut T {
+        let (row, col) = i;
+        &mut self.cells[self.spec.index(row, col)]
+    }
 }
 impl<T: Sized + Default + Clone> Grid2<T> {
     /// Resize the grid to match the given spec.
