@@ -4,7 +4,7 @@ use crate::physics::PhysicsBundle;
 use crate::prelude::*;
 use crate::{
     grid::{GridEntity, GridSpec},
-    physics::{NewVelocity, Velocity},
+    physics::{Acceleration, Velocity},
 };
 
 use super::{Object, Team, ZooidAssets};
@@ -76,7 +76,7 @@ impl Food {
         )
     }
 
-    pub fn update(time: Res<Time>, mut query: Query<(&Self, &mut NewVelocity)>) {
+    pub fn update(time: Res<Time>, mut query: Query<(&Self, &mut Acceleration)>) {
         for (food, mut new_velocity) in &mut query {
             let (x, y) = (time.elapsed_seconds() * food.period_sec).sin_cos();
             new_velocity.0 += 0.01 * Vec2 { x, y }

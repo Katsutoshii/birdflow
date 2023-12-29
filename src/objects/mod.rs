@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     grid::{EntityGrid, Obstacle, ObstaclesGrid},
-    physics::{NewVelocity, Velocity},
+    physics::{Acceleration, Velocity},
     SystemStage,
 };
 
@@ -63,7 +63,7 @@ impl Default for Object {
 impl Object {
     /// Update objects velocity and objectives.
     pub fn update_velocity(
-        mut objects: Query<(Entity, &Self, &Velocity, &mut NewVelocity, &Transform)>,
+        mut objects: Query<(Entity, &Self, &Velocity, &mut Acceleration, &Transform)>,
         other_objects: Query<(&Self, &Velocity, &Transform)>,
         obstacles: Res<ObstaclesGrid>,
         grid: Res<EntityGrid>,
@@ -71,9 +71,9 @@ impl Object {
     ) {
         objects
             .par_iter_mut()
-            .for_each(|(entity, zooid, velocity, mut new_velocity, transform)| {
+            .for_each(|(entity, zooid, velocity, mut acceleration, transform)| {
                 let config = configs.get(zooid);
-                let acceleration = zooid.acceleration(
+                acceleration.0 += zooid.acceleration(
                     entity,
                     velocity,
                     transform,
@@ -82,12 +82,6 @@ impl Object {
                     &obstacles,
                     config,
                 );
-
-                // Update new velocity.
-                new_velocity.0 += acceleration;
-                new_velocity.0 = new_velocity.0.clamp_length_max(config.max_velocity);
-                new_velocity.0 = (1. - config.velocity_smoothing) * new_velocity.0
-                    + config.velocity_smoothing * velocity.0;
             })
     }
 

@@ -43,13 +43,13 @@ pub enum Objective {
 }
 impl Objective {
     pub fn update(
-        mut query: Query<(&Self, &Object, &Transform, &Velocity, &mut NewVelocity)>,
+        mut query: Query<(&Self, &Object, &Transform, &Velocity, &mut Acceleration)>,
         transforms: Query<&Transform>,
         configs: Res<Configs>,
     ) {
-        for (follower, object, transform, velocity, mut new_velocity) in &mut query {
+        for (follower, object, transform, velocity, mut acceleration) in &mut query {
             let config = configs.get(object);
-            new_velocity.0 +=
+            acceleration.0 +=
                 follower.acceleration(&transforms, transform, velocity.0, &config.waypoint);
         }
     }

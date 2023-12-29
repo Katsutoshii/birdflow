@@ -16,7 +16,7 @@ pub mod prelude {
         aabb::Aabb2,
         camera::MainCamera,
         grid,
-        physics::{NewVelocity, Velocity},
+        physics::{Acceleration, Velocity},
         selector::Selected,
         zindex, SystemStage,
     };

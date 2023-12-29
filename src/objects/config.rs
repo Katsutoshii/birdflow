@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::objects::objective::ObjectiveConfig;
+use crate::{objects::objective::ObjectiveConfig, physics::PhysicsMaterialType};
 
 use super::{Object, Team};
 
@@ -55,10 +55,9 @@ impl Configs {
 #[derive(Resource, Reflect)]
 #[reflect(Resource)]
 pub struct Config {
-    pub max_velocity: f32,
+    physics_material: PhysicsMaterialType,
     pub neighbor_radius: f32,
     pub alignment_factor: f32,
-    pub velocity_smoothing: f32,
     pub spawn_velocity: f32,
     pub obstacle_repel: f32,
     pub waypoint: ObjectiveConfig,
@@ -71,10 +70,9 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            max_velocity: 10.0,
+            physics_material: PhysicsMaterialType::Default,
             neighbor_radius: 10.0,
             alignment_factor: 0.1,
-            velocity_smoothing: 0.5,
             spawn_velocity: 2.0,
             obstacle_repel: 1.0,
             waypoint: ObjectiveConfig::default(),
