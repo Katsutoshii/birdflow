@@ -1,6 +1,6 @@
-use bevy::{prelude::*, utils::HashMap};
-
 use crate::{grid::GridSpec, SystemStage};
+use bevy::{prelude::*, utils::HashMap};
+use derive_more::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
 
 /// Plugin to add a waypoint system where the player can click to create a waypoint.
 pub struct PhysicsPlugin;
@@ -15,12 +15,40 @@ impl Plugin for PhysicsPlugin {
 }
 
 /// Tracks velocity per entity.
-#[derive(Component, Debug, Default, Clone, Deref, DerefMut)]
+#[derive(
+    Component,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    Deref,
+    DerefMut,
+    Add,
+    AddAssign,
+    Sub,
+    SubAssign,
+    Mul,
+    MulAssign,
+)]
 pub struct Velocity(pub Vec2);
 
 /// Tracks new velocity per entity, which can be used for double-buffering
 /// velocity updates.
-#[derive(Component, Debug, Default, Clone, Deref, DerefMut)]
+#[derive(
+    Component,
+    Debug,
+    Default,
+    Clone,
+    Copy,
+    Deref,
+    DerefMut,
+    Add,
+    AddAssign,
+    Sub,
+    SubAssign,
+    Mul,
+    MulAssign,
+)]
 pub struct Acceleration(pub Vec2);
 
 /// Apply velocity changes.
@@ -36,7 +64,7 @@ pub fn update(
 ) {
     for (mut transform, mut velocity, mut acceleration, material_type) in &mut query {
         let material = materials.get(material_type).unwrap();
-        let prev_velocity = velocity.clone();
+        let prev_velocity = *velocity;
 
         velocity.0 += acceleration.0;
         velocity.0 = velocity.clamp_length_max(material.max_velocity);

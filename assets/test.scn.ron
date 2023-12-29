@@ -26,7 +26,7 @@
         ),
         SlowZooid: PhysicsMaterial(
           max_velocity: 5.0,
-          velocity_smoothing: 0.7,
+          velocity_smoothing: 0.5,
         ),
         Food: PhysicsMaterial(
           max_velocity: 1.0,
@@ -42,7 +42,6 @@
         physics_material: Zooid,
         neighbor_radius: 300.0,
         spawn_velocity: 10.0,
-        obstacle_repel: 0.10,
         waypoint: (
           max_acceleration: 2.5,
           repell_radius: 10.0,
@@ -73,7 +72,6 @@
         physics_material: SlowZooid,
         neighbor_radius: 100.0,
         spawn_velocity: 20.0,
-        obstacle_repel: 0.11,
         waypoint: (
           max_acceleration: 3.5,
           repell_radius: 20.0,
@@ -95,7 +93,6 @@
       food: (
         physics_material: Food,
         neighbor_radius: 128.0,
-        obstacle_repel: 0.12,
         worker: (
           separation_radius: 100.0,
           separation_acceleration: 0.05

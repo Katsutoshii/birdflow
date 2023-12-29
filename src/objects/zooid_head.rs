@@ -2,7 +2,7 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
 use crate::grid::GridEntity;
 use crate::objects::objective::Objective;
-use crate::physics::PhysicsBundle;
+use crate::physics::{PhysicsBundle, PhysicsMaterialType};
 use crate::prelude::*;
 use crate::{grid::EntityGrid, selector::Selected, zindex};
 
@@ -100,7 +100,10 @@ impl ZooidHead {
                 material: assets.get_team_material(team).primary,
                 ..default()
             },
-            PhysicsBundle::default(),
+            PhysicsBundle {
+                material: PhysicsMaterialType::SlowZooid,
+                ..default()
+            },
             Objective::default(),
             Selected::default(),
             Name::new("ZooidHead"),

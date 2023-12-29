@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
-    grid::{EntityGrid, Obstacle, ObstaclesGrid},
+    grid::{EntityGrid, ObstaclesGrid},
     physics::{Acceleration, Velocity},
     SystemStage,
 };
@@ -69,11 +69,10 @@ impl Object {
         grid: Res<EntityGrid>,
         configs: Res<Configs>,
     ) {
-        objects
-            .par_iter_mut()
-            .for_each(|(entity, zooid, velocity, mut acceleration, transform)| {
+        objects.par_iter_mut().for_each(
+            |(entity, zooid, &velocity, mut acceleration, transform)| {
                 let config = configs.get(zooid);
-                acceleration.0 += zooid.acceleration(
+                *acceleration += zooid.acceleration(
                     entity,
                     velocity,
                     transform,
@@ -82,7 +81,8 @@ impl Object {
                     &obstacles,
                     config,
                 );
-            })
+            },
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -90,14 +90,14 @@ impl Object {
     pub fn acceleration(
         &self,
         entity: Entity,
-        velocity: &Velocity,
+        velocity: Velocity,
         transform: &Transform,
         entities: &Query<(&Object, &Velocity, &Transform)>,
         grid: &EntityGrid,
         obstacles: &ObstaclesGrid,
         config: &Config,
-    ) -> Vec2 {
-        let mut acceleration = Vec2::ZERO;
+    ) -> Acceleration {
+        let mut acceleration = Acceleration(Vec2::ZERO);
 
         // Forces from other entities
         let position = transform.translation.truncate();
@@ -107,7 +107,7 @@ impl Object {
                 continue;
             }
 
-            let (other, other_velocity, other_transform) =
+            let (other, &other_velocity, other_transform) =
                 entities.get(*other_entity).expect("Invalid grid entity.");
             acceleration += self.other_acceleration(
                 transform,
@@ -120,20 +120,8 @@ impl Object {
             );
         }
 
-        // let mut obstacle_acceleration = Vec2::ZERO;
-        // let mut total_obstacles = 0.;
-        for (row, col) in obstacles.get_in_radius(position, grid.spec.width * 3.) {
-            if obstacles[(row, col)] == Obstacle::Full {
-                // dbg!(&obj_pos);
-                let delta = position - obstacles.spec.to_world_position((row, col));
-                let dist = (0.001 * delta.length()).min(0.1);
-                acceleration += config.obstacle_repel * delta.normalize_or_zero() / dist;
-                // total_obstacles += 1.;
-            }
-            // if total_obstacles > 0. {
-            //     acceleration += obstacle_acceleration / total_obstacles;
-            // }
-        }
+        acceleration += obstacles.obstacles_acceleration(position, velocity, acceleration);
+
         acceleration
     }
 
@@ -141,14 +129,14 @@ impl Object {
     pub fn other_acceleration(
         &self,
         transform: &Transform,
-        velocity: &Velocity,
+        velocity: Velocity,
         other: &Self,
         other_transform: &Transform,
-        other_velocity: &Velocity,
+        other_velocity: Velocity,
         config: &Config,
         num_others: usize,
-    ) -> Vec2 {
-        let mut acceleration = Vec2::ZERO;
+    ) -> Acceleration {
+        let mut acceleration = Acceleration(Vec2::ZERO);
         let interaction = config.get_interaction(other);
 
         let position_delta =
@@ -159,18 +147,14 @@ impl Object {
         }
 
         // Separation
-        acceleration += Self::separation_acceleration(
-            position_delta,
-            distance_squared,
-            velocity.0,
-            interaction,
-        );
+        acceleration +=
+            Self::separation_acceleration(position_delta, distance_squared, velocity, interaction);
 
         // Alignment
         acceleration += Self::alignment_acceleration(
             distance_squared,
-            velocity.0,
-            other_velocity.0,
+            velocity,
+            other_velocity,
             num_others,
             interaction,
         );
@@ -184,9 +168,9 @@ impl Object {
     fn separation_acceleration(
         position_delta: Vec2,
         distance_squared: f32,
-        velocity: Vec2,
+        velocity: Velocity,
         interaction: &InteractionConfig,
-    ) -> Vec2 {
+    ) -> Acceleration {
         let radius = interaction.separation_radius;
         let radius_squared = radius * radius;
 
@@ -194,17 +178,19 @@ impl Object {
             * if distance_squared < radius_squared {
                 Vec2::ZERO
             } else {
-                -1.0 * velocity
+                -1.0 * velocity.0
             };
 
         let magnitude =
             interaction.separation_acceleration * (-distance_squared / (radius_squared) + 1.);
-        position_delta.normalize_or_zero()
-            * magnitude.clamp(
-                -interaction.cohesion_acceleration,
-                interaction.separation_acceleration,
-            )
-            + slow_force
+        Acceleration(
+            position_delta.normalize_or_zero()
+                * magnitude.clamp(
+                    -interaction.cohesion_acceleration,
+                    interaction.separation_acceleration,
+                )
+                + slow_force,
+        )
     }
 
     /// ALignment acceleration.
@@ -213,13 +199,15 @@ impl Object {
     /// from being unable to turn.
     fn alignment_acceleration(
         distance_squared: f32,
-        velocity: Vec2,
-        other_velocity: Vec2,
+        velocity: Velocity,
+        other_velocity: Velocity,
         other_count: usize,
         config: &InteractionConfig,
-    ) -> Vec2 {
-        (other_velocity - velocity) * config.alignment_factor
-            / (distance_squared.max(0.1) * other_count as f32)
+    ) -> Acceleration {
+        Acceleration(
+            (other_velocity.0 - velocity.0) * config.alignment_factor
+                / (distance_squared.max(0.1) * other_count as f32),
+        )
     }
 }
 

@@ -88,6 +88,48 @@ impl ObstaclesGrid {
             grid[(row, col)] = face;
         }
     }
+
+    fn obstacle_acceleration(
+        &self,
+        position: Vec2,
+        cell: (u16, u16),
+        velocity: Velocity,
+    ) -> Acceleration {
+        if self[cell] == Obstacle::Empty {
+            return Acceleration(Vec2::ZERO);
+        }
+        let obstacle_position = self.spec.to_world_position(cell);
+        let d = obstacle_position - position;
+        let v_dot_d = velocity.dot(d);
+        let d_dot_d = d.dot(d);
+
+        // If moving towards the obstacle:
+        if v_dot_d > 0.1 {
+            let magnitude = (self.spec.width - position.distance(obstacle_position)).max(0.);
+            let projection = d * (d_dot_d / v_dot_d);
+            Acceleration(-magnitude * projection)
+        } else {
+            Acceleration(Vec2::ZERO)
+        }
+    }
+    /// Compute acceleration due to neighboring obstacles.
+    /// For each neighboring obstacle, if the object is moving towards the obstacle
+    /// we apply a force away from the obstacle.
+    pub fn obstacles_acceleration(
+        &self,
+        position: Vec2,
+        velocity: Velocity,
+        acceleration: Acceleration,
+    ) -> Acceleration {
+        // Apply one step of integration to anticipate movement from this step.
+        let next_velocity = Velocity(velocity.0 + acceleration.0);
+        let mut acceleration = Acceleration(Vec2::ZERO);
+
+        for (row, col) in self.get_in_radius(position, self.spec.width * 2.) {
+            acceleration += self.obstacle_acceleration(position, (row, col), next_velocity)
+        }
+        Acceleration(acceleration.clamp_length(0., 2. * next_velocity.length()))
+    }
 }
 
 /// Parameters passed to grid background shader.

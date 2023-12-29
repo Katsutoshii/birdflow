@@ -51,7 +51,7 @@ impl Configs {
     }
 }
 
-/// Singleton that spawns birds with specified stats.
+/// Specifies stats per object type.
 #[derive(Resource, Reflect)]
 #[reflect(Resource)]
 pub struct Config {
@@ -59,7 +59,6 @@ pub struct Config {
     pub neighbor_radius: f32,
     pub alignment_factor: f32,
     pub spawn_velocity: f32,
-    pub obstacle_repel: f32,
     pub waypoint: ObjectiveConfig,
 
     // Interactions
@@ -74,7 +73,6 @@ impl Default for Config {
             neighbor_radius: 10.0,
             alignment_factor: 0.1,
             spawn_velocity: 2.0,
-            obstacle_repel: 1.0,
             waypoint: ObjectiveConfig::default(),
             worker: InteractionConfig::default(),
             head: InteractionConfig::default(),
