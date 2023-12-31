@@ -6,7 +6,7 @@ use bevy::{
     utils::{HashMap, HashSet},
 };
 
-use super::{GridSpec, Obstacle, ObstaclesGrid, RowCol};
+use super::{GridSpec, Obstacle, ObstaclesGrid, RowCol, RowColDistance};
 
 /// Plugin for flow-based navigation.
 pub struct NavigationPlugin;
@@ -70,6 +70,46 @@ impl NavigationFlowGrid {
         grid.resize_with(grid_spec.clone());
     }
 
+    /// Compute the weighted acceleration for flow from a single cell.
+    pub fn flow_acceleration(
+        &self,
+        position: Vec2,
+        rowcol: RowCol,
+        entity: Entity,
+    ) -> Acceleration {
+        if let Some(&acceleration) = self[rowcol].get(&entity) {
+            // Weight each neighboring acceleration by width - distance.
+            let weight = {
+                let cell_center = self.spec.to_world_position(rowcol);
+                2. * self.spec.width - cell_center.distance(position)
+            };
+            return acceleration * weight;
+        }
+        Acceleration(Vec2::ZERO)
+    }
+
+    /// Compute acceleration using the weighted sum of the 8 neighboring cells and the current cell.
+    pub fn flow_acceleration9(&self, position: Vec2, entity: Entity) -> Acceleration {
+        let mut total_acceleration = Acceleration(Vec2::ZERO);
+        let rowcol = self.spec.to_rowcol(position);
+
+        total_acceleration += self.flow_acceleration(position, rowcol, entity);
+
+        // Prevent jitter at goal cell.
+        if total_acceleration == Acceleration(Vec2::ZERO) {
+            return total_acceleration;
+        }
+
+        // Add accelerations from neighboring cells.
+        for (neighbor_rowcol, _) in self.neighbors8(rowcol) {
+            if self.spec.is_boundary(neighbor_rowcol) {
+                continue;
+            }
+            total_acceleration += self.flow_acceleration(position, neighbor_rowcol, entity);
+        }
+        Acceleration(total_acceleration.normalize_or_zero())
+    }
+
     /// Add a waypoint.
     /// Create flows from all points to the waypoint.
     pub fn add_waypoint(
@@ -84,7 +124,24 @@ impl NavigationFlowGrid {
             return;
         }
         let costs = self.a_star(traveler_rowcols, waypoint_rowcol, obstacles);
-        for (rowcol, cost) in costs {
+        // Compute flow direction.
+        for (&rowcol, &cost) in &costs {
+            let mut min_neighbor_rowcol = rowcol;
+            let mut min_neighbor_cost = cost;
+
+            for (neighbor_rowcol, _) in self.neighbors8(rowcol) {
+                if let Some(&neighbor_cost) = costs.get(&neighbor_rowcol) {
+                    if neighbor_cost < min_neighbor_cost {
+                        min_neighbor_rowcol = neighbor_rowcol;
+                        min_neighbor_cost = neighbor_cost;
+                    }
+                }
+            }
+            self[rowcol].insert(
+                entity,
+                Acceleration(rowcol.signed_delta8(min_neighbor_rowcol)),
+            );
+
             event_writer.send(NavigationCostEvent {
                 entity,
                 rowcol,

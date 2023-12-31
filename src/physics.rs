@@ -1,6 +1,7 @@
 use crate::{grid::GridSpec, SystemStage};
 use bevy::{prelude::*, utils::HashMap};
-use derive_more::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
+use derive_more::{Add, AddAssign, Sub, SubAssign};
+use std::ops::Mul;
 
 /// Plugin to add a waypoint system where the player can click to create a waypoint.
 pub struct PhysicsPlugin;
@@ -27,10 +28,15 @@ impl Plugin for PhysicsPlugin {
     AddAssign,
     Sub,
     SubAssign,
-    Mul,
-    MulAssign,
+    PartialEq,
 )]
 pub struct Velocity(pub Vec2);
+impl Mul<f32> for Velocity {
+    type Output = Velocity;
+    fn mul(self, rhs: f32) -> Self::Output {
+        Self(self.0.mul(rhs))
+    }
+}
 
 /// Tracks new velocity per entity, which can be used for double-buffering
 /// velocity updates.
@@ -46,10 +52,15 @@ pub struct Velocity(pub Vec2);
     AddAssign,
     Sub,
     SubAssign,
-    Mul,
-    MulAssign,
+    PartialEq,
 )]
 pub struct Acceleration(pub Vec2);
+impl Mul<f32> for Acceleration {
+    type Output = Acceleration;
+    fn mul(self, rhs: f32) -> Self::Output {
+        Self(self.0.mul(rhs))
+    }
+}
 
 /// Apply velocity changes.
 pub fn update(

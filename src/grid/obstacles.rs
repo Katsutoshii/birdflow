@@ -127,7 +127,7 @@ impl ObstaclesGrid {
         for (row, col) in self.get_in_radius(position, self.spec.width * 2.) {
             acceleration += self.obstacle_acceleration(position, (row, col), next_velocity)
         }
-        Acceleration(acceleration.clamp_length(0., 2. * next_velocity.length()))
+        Acceleration(acceleration.clamp_length(0., 1.5 * next_velocity.length()))
     }
 }
 

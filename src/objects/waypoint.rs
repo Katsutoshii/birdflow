@@ -5,7 +5,7 @@ use crate::{
     inputs::{InputAction, InputActionEvent},
     prelude::*,
 };
-use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
+use bevy::{prelude::*, sprite::MaterialMesh2dBundle, utils::hashbrown::HashSet};
 
 use super::objective::Objective;
 
@@ -14,8 +14,12 @@ pub struct WaypointPlugin;
 impl Plugin for WaypointPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<WaypointAssets>()
-            .add_systems(PreStartup, Waypoint::startup)
-            .add_systems(FixedUpdate, Waypoint::update.in_set(SystemStage::Compute));
+            // .add_systems(PreStartup, Waypoint::startup)
+            .add_systems(FixedUpdate, Waypoint::update.in_set(SystemStage::Compute))
+            .add_systems(
+                FixedUpdate,
+                Waypoint::cleanup.in_set(SystemStage::PostApply),
+            );
     }
 }
 
@@ -33,32 +37,60 @@ impl Default for Waypoint {
     }
 }
 impl Waypoint {
-    pub fn startup(mut commands: Commands, assets: Res<WaypointAssets>) {
-        commands.spawn(Waypoint::default().bundle(&assets));
+    pub fn cleanup(
+        objectives: Query<&Objective, Without<Waypoint>>,
+        waypoints: Query<Entity, With<Waypoint>>,
+        mut commands: Commands,
+        mut input_actions: EventReader<InputActionEvent>,
+    ) {
+        if let Some(&InputActionEvent {
+            action,
+            position: _,
+        }) = input_actions.read().next()
+        {
+            if action != InputAction::Move {
+                return;
+            }
+
+            let mut followed_entities = HashSet::new();
+            for objective in objectives.iter() {
+                if let Objective::FollowEntity(entity) = objective {
+                    followed_entities.insert(entity);
+                }
+            }
+            for waypoint_entity in waypoints.iter() {
+                if !followed_entities.contains(&waypoint_entity) {
+                    commands.entity(waypoint_entity).despawn();
+                }
+            }
+        }
     }
 
-    // #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments)]
     pub fn update(
-        mut waypoint: Query<(Entity, &mut Transform), With<Self>>,
+        // mut waypoint: Query<(Entity, &mut Transform), With<Self>>,
         mut input_actions: EventReader<InputActionEvent>,
         mut selection: Query<(&Selected, &mut Objective, &Transform), Without<Self>>,
         mut nav_grid: ResMut<NavigationFlowGrid>,
         obstacles: Res<ObstaclesGrid>,
         mut event_writer: EventWriter<NavigationCostEvent>,
+        mut commands: Commands,
+        assets: Res<WaypointAssets>,
     ) {
         if let Some(&InputActionEvent { action, position }) = input_actions.read().next() {
             if action != InputAction::Move {
                 return;
             }
 
-            let (entity, mut waypoint_transform) = waypoint.single_mut();
-
-            waypoint_transform.translation = position.extend(zindex::WAYPOINT);
+            // Spawn a new waypoint.
+            let waypoint_bundle =
+                Waypoint::default().bundle(&assets, position.extend(zindex::WAYPOINT));
+            let waypoint_entity = commands.spawn(waypoint_bundle).id();
 
             let mut positions = Vec::new();
             for (selected, mut objective, transform) in selection.iter_mut() {
                 if selected.is_selected() {
-                    *objective = Objective::MoveToPosition(position);
+                    *objective = Objective::FollowEntity(waypoint_entity);
                 }
 
                 let rowcol = nav_grid.spec.to_rowcol(transform.translation.xy());
@@ -66,7 +98,7 @@ impl Waypoint {
             }
             let target = nav_grid.spec.to_rowcol(position);
             nav_grid.add_waypoint(
-                entity,
+                waypoint_entity,
                 target,
                 &positions,
                 obstacles.as_ref(),
@@ -75,18 +107,14 @@ impl Waypoint {
         }
     }
 
-    pub fn bundle(self, assets: &WaypointAssets) -> impl Bundle {
+    pub fn bundle(self, assets: &WaypointAssets, translation: Vec3) -> impl Bundle {
         (
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: assets.mesh.clone().into(),
                 transform: Transform::default()
                     .with_scale(Vec2::splat(self.size).extend(1.))
                     .with_rotation(Quat::from_axis_angle(Vec3::Z, PI))
-                    .with_translation(Vec3 {
-                        x: 0.,
-                        y: 0.,
-                        z: zindex::WAYPOINT,
-                    }),
+                    .with_translation(translation),
                 material: assets.blue_material.clone(),
                 ..default()
             },

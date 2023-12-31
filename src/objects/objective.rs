@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use crate::{grid::NavigationFlowGrid, prelude::*};
 use bevy::prelude::*;
 
 use super::{Configs, Object};
@@ -28,6 +28,28 @@ impl Default for ObjectiveConfig {
         }
     }
 }
+impl ObjectiveConfig {
+    /// Apply a slowing force.
+    pub fn slow_force(
+        &self,
+        velocity: Velocity,
+        position: Vec2,
+        target_position: Vec2,
+    ) -> Acceleration {
+        let position_delta = target_position - position;
+        let dist_squared = position_delta.length_squared();
+        let radius = self.repell_radius;
+        let radius_squared = radius * radius;
+        Acceleration(
+            self.slow_factor
+                * if dist_squared < radius_squared {
+                    Vec2::ZERO
+                } else {
+                    -1.0 * velocity.0
+                },
+        )
+    }
+}
 
 /// Represents the objective of the owning entity.
 #[derive(Component, Default, Debug, Clone)]
@@ -36,9 +58,9 @@ pub enum Objective {
     #[default]
     None,
     /// Entity wants to follow the transform of another entity.
-    #[allow(dead_code)]
     FollowEntity(Entity),
     /// Entity wants to move to a given position.
+    #[allow(dead_code)]
     MoveToPosition(Vec2),
 }
 impl Objective {
@@ -46,21 +68,27 @@ impl Objective {
         mut query: Query<(&Self, &Object, &Transform, &Velocity, &mut Acceleration)>,
         transforms: Query<&Transform>,
         configs: Res<Configs>,
+        navigation_grid: Res<NavigationFlowGrid>,
     ) {
         for (follower, object, transform, velocity, mut acceleration) in &mut query {
             let config = configs.get(object);
-            acceleration.0 +=
-                follower.acceleration(&transforms, transform, velocity.0, &config.waypoint);
+            *acceleration += follower.acceleration(
+                &transforms,
+                transform,
+                *velocity,
+                &config.waypoint,
+                &navigation_grid,
+            );
         }
     }
 
     fn acceleration_to_position(
         &self,
-        velocity: Vec2,
+        velocity: Velocity,
         position: Vec2,
         target_position: Vec2,
         config: &ObjectiveConfig,
-    ) -> Vec2 {
+    ) -> Acceleration {
         let position_delta = target_position - position;
         let radius = config.repell_radius;
         let max_magnitude = config.max_acceleration;
@@ -71,19 +99,23 @@ impl Objective {
             * if dist_squared < radius_squared {
                 Vec2::ZERO
             } else {
-                -1.0 * velocity
+                -1.0 * velocity.0
             };
-        position_delta.normalize_or_zero() * magnitude.clamp(-max_magnitude, max_magnitude)
-            + slow_force
+        Acceleration(
+            position_delta.normalize_or_zero() * magnitude.clamp(-max_magnitude, max_magnitude)
+                + slow_force,
+        )
     }
 
+    // Compute acceleration for this objective.
     pub fn acceleration(
         &self,
         transforms: &Query<&Transform>,
         transform: &Transform,
-        velocity: Vec2,
+        velocity: Velocity,
         config: &ObjectiveConfig,
-    ) -> Vec2 {
+        navigation_grid: &NavigationFlowGrid,
+    ) -> Acceleration {
         match *self {
             Objective::MoveToPosition(target_position) => self.acceleration_to_position(
                 velocity,
@@ -93,14 +125,14 @@ impl Objective {
             ),
             Objective::FollowEntity(entity) => {
                 let target_transform = transforms.get(entity).unwrap();
-                self.acceleration_to_position(
-                    velocity,
-                    transform.translation.xy(),
-                    target_transform.translation.xy(),
-                    config,
-                )
+                navigation_grid.flow_acceleration9(transform.translation.xy(), entity)
+                    + config.slow_force(
+                        velocity,
+                        transform.translation.xy(),
+                        target_transform.translation.xy(),
+                    )
             }
-            Objective::None => Vec2::ZERO,
+            Objective::None => Acceleration(Vec2::ZERO),
         }
     }
 }
