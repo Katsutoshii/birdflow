@@ -1,13 +1,13 @@
 use bevy::{
     prelude::*,
     sprite::{MaterialMesh2dBundle, Mesh2dHandle},
-    window::PrimaryWindow,
 };
 
 use crate::{
     grid::EntityGrid,
+    inputs::{InputAction, InputActionEvent},
+    meshes::UNIT_SQUARE,
     objects::{Configs, Object, Team},
-    prelude::*,
     zindex, Aabb2,
 };
 
@@ -49,9 +49,6 @@ impl Selector {
     pub fn update(
         mut commands: Commands,
         mut query: Query<(&mut Self, &mut Transform, &mut Visibility)>,
-        camera_query: Query<(Entity, &Camera, &GlobalTransform), With<MainCamera>>,
-        window_query: Query<&Window, With<PrimaryWindow>>,
-        mouse_input: Res<Input<MouseButton>>,
         mut objects: Query<
             (&Object, &Transform, &Team, &mut Selected, &Mesh2dHandle),
             Without<Self>,
@@ -59,56 +56,56 @@ impl Selector {
         grid: Res<EntityGrid>,
         assets: Res<SelectorAssets>,
         configs: Res<Configs>,
+        mut input_actions: EventReader<InputActionEvent>,
     ) {
-        let (_entity, camera, camera_transform) = camera_query.single();
-        let (mut selector, mut transform, mut visibility) = query.single_mut();
-
-        if let Some(position) = window_query
-            .single()
-            .cursor_position()
-            .and_then(|cursor| camera.viewport_to_world_2d(camera_transform, cursor))
-        {
-            if mouse_input.just_pressed(MouseButton::Left) {
-                // Reset other selections.
-                for (_object, _transform, _team, mut selected, _mesh) in &mut objects {
-                    if let Selected::Selected { child_entity } = selected.as_ref() {
-                        commands.entity(*child_entity).despawn()
-                    }
-                    *selected = Selected::Unselected;
-                }
-
-                selector.aabb.min = position;
-                selector.aabb.max = position;
-
-                *visibility = Visibility::Visible;
-                transform.scale = Vec3::ZERO;
-                transform.translation = position.extend(zindex::SELECTOR);
-            } else if mouse_input.pressed(MouseButton::Left) {
-                selector.aabb.max = position;
-                // Resize the square to match the bounding box.
-                transform.translation = selector.aabb.center().extend(zindex::SELECTOR);
-                transform.scale = selector.aabb.size().extend(0.0);
-
-                // Correct the bounding box before we check entity collision, since it might be backwards.
-                let mut aabb = selector.aabb.clone();
-                aabb.enforce_minmax();
-                // Check the grid for entities in this bounding box.
-                for entity in grid.get_entities_in_aabb(&aabb) {
-                    let (_object, transform, team, mut selected, mesh) =
-                        objects.get_mut(entity).unwrap();
-                    if aabb.contains(transform.translation.xy()) {
-                        if selected.is_selected() || *team != configs.player_team {
-                            continue;
+        if let Some(&InputActionEvent { action, position }) = input_actions.read().next() {
+            let (mut selector, mut transform, mut visibility) = query.single_mut();
+            match action {
+                InputAction::StartSelect => {
+                    // Reset other selections.
+                    for (_object, _transform, _team, mut selected, _mesh) in &mut objects {
+                        if let Selected::Selected { child_entity } = selected.as_ref() {
+                            commands.entity(*child_entity).despawn()
                         }
-                        let child_entity = commands
-                            .spawn(Self::highlight_bundle(&assets, mesh.0.clone()))
-                            .id();
-                        commands.entity(entity).add_child(child_entity);
-                        *selected = Selected::Selected { child_entity };
+                        *selected = Selected::Unselected;
+                    }
+
+                    selector.aabb.min = position;
+                    selector.aabb.max = position;
+
+                    *visibility = Visibility::Visible;
+                    transform.scale = Vec3::ZERO;
+                    transform.translation = position.extend(zindex::SELECTOR);
+                }
+                InputAction::Select => {
+                    selector.aabb.max = position;
+                    // Resize the square to match the bounding box.
+                    transform.translation = selector.aabb.center().extend(zindex::SELECTOR);
+                    transform.scale = selector.aabb.size().extend(0.0);
+
+                    // Correct the bounding box before we check entity collision, since it might be backwards.
+                    let mut aabb = selector.aabb.clone();
+                    aabb.enforce_minmax();
+                    // Check the grid for entities in this bounding box.
+                    for entity in grid.get_entities_in_aabb(&aabb) {
+                        let (_object, transform, team, mut selected, mesh) =
+                            objects.get_mut(entity).unwrap();
+                        if aabb.contains(transform.translation.xy()) {
+                            if selected.is_selected() || *team != configs.player_team {
+                                continue;
+                            }
+                            let child_entity = commands
+                                .spawn(Self::highlight_bundle(&assets, mesh.0.clone()))
+                                .id();
+                            commands.entity(entity).add_child(child_entity);
+                            *selected = Selected::Selected { child_entity };
+                        }
                     }
                 }
-            } else if mouse_input.just_released(MouseButton::Left) {
-                *visibility = Visibility::Hidden;
+                InputAction::EndSelect => {
+                    *visibility = Visibility::Hidden;
+                }
+                _ => {}
             }
         }
     }
@@ -155,15 +152,7 @@ impl FromWorld for SelectorAssets {
     fn from_world(world: &mut World) -> Self {
         let mesh = {
             let mut meshes = world.get_resource_mut::<Assets<Mesh>>().unwrap();
-            // Unit square
-            meshes.add(Mesh::from(shape::Box {
-                min_x: -0.5,
-                max_x: 0.5,
-                min_y: -0.5,
-                max_y: 0.5,
-                min_z: 0.0,
-                max_z: 0.0,
-            }))
+            meshes.add(Mesh::from(UNIT_SQUARE))
         };
         let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
         Self {

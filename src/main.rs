@@ -4,6 +4,8 @@ use bevy_editor_pls::prelude::*;
 pub mod aabb;
 pub mod camera;
 pub mod grid;
+pub mod inputs;
+pub mod meshes;
 pub mod objects;
 pub mod physics;
 pub mod scene;
@@ -57,6 +59,7 @@ fn main() {
                     ..default()
                 })
                 .set(window::custom_plugin()),
+            inputs::InputActionPlugin,
             EditorPlugin::default(),
             grid::GridPlugin,
             objects::ObjectsPlugin,

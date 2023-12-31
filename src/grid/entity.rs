@@ -2,7 +2,7 @@ use bevy::{prelude::*, utils::HashSet};
 
 use crate::{objects::Config, prelude::Aabb2};
 
-use super::{Grid2, GridSpec};
+use super::{Grid2, GridSpec, RowCol};
 use std::ops::{Deref, DerefMut};
 
 /// Component to track an entity in the grid.
@@ -10,7 +10,7 @@ use std::ops::{Deref, DerefMut};
 #[derive(Component, Reflect, Default)]
 #[reflect(Component)]
 pub struct GridEntity {
-    pub cell: Option<(u16, u16)>,
+    pub cell: Option<RowCol>,
 }
 impl GridEntity {
     #[allow(clippy::too_many_arguments)]
@@ -30,13 +30,13 @@ impl GridEntity {
     }
 }
 
-/// Communicates updates to the grid to other symptoms.
+/// Communicates updates to the grid to other systems.
 #[derive(Event)]
 pub struct EntityGridEvent {
     pub entity: Entity,
-    pub prev_cell: Option<(u16, u16)>,
+    pub prev_cell: Option<RowCol>,
     pub prev_cell_empty: bool,
-    pub cell: (u16, u16),
+    pub cell: RowCol,
 }
 impl Default for EntityGridEvent {
     fn default() -> Self {
@@ -76,13 +76,13 @@ impl EntityGrid {
     pub fn update_entity(
         &mut self,
         entity: Entity,
-        cell: Option<(u16, u16)>,
+        cell: Option<RowCol>,
         position: Vec2,
     ) -> Option<EntityGridEvent> {
         let (row, col) = self.spec.to_rowcol(position);
 
         // Remove this entity's old position if it was different.
-        let mut prev_cell: Option<(u16, u16)> = None;
+        let mut prev_cell: Option<RowCol> = None;
         let mut prev_cell_empty: bool = false;
         if let Some((prev_row, prev_col)) = cell {
             // If in same position, do nothing.

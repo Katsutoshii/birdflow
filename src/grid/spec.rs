@@ -1,8 +1,10 @@
 use crate::prelude::*;
 use bevy::prelude::*;
 
+use super::RowCol;
+
 /// Specification describing how large the grid is.
-#[derive(Resource, Reflect, Clone)]
+#[derive(Resource, Reflect, Clone, Debug)]
 #[reflect(Resource)]
 pub struct GridSpec {
     pub rows: u16,
@@ -30,14 +32,14 @@ impl GridSpec {
     }
 
     /// Returns (row, col) from a position in world space.
-    pub fn to_rowcol(&self, mut position: Vec2) -> (u16, u16) {
+    pub fn to_rowcol(&self, mut position: Vec2) -> RowCol {
         position += self.offset();
         (self.discretize(position.y), self.discretize(position.x))
     }
 
     /// Returns the world position of the cell coordinate.
-    pub fn to_world_position(&self, cell: (u16, u16)) -> Vec2 {
-        let (row, col) = cell;
+    pub fn to_world_position(&self, rowcol: RowCol) -> Vec2 {
+        let (row, col) = rowcol;
         Vec2 {
             x: (col as f32 + 0.5) * self.width,
             y: (row as f32 + 0.5) * self.width,

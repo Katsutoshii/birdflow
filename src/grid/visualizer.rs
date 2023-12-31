@@ -4,7 +4,7 @@ use bevy::{
     sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle},
 };
 
-use crate::zindex;
+use crate::{meshes::UNIT_SQUARE, zindex};
 
 use super::{EntityGridEvent, GridEntity, GridSpec};
 
@@ -152,25 +152,13 @@ impl Material2d for GridShaderMaterial {
 #[derive(Resource)]
 pub struct GridAssets {
     pub mesh: Handle<Mesh>,
-    pub gray_material: Handle<ColorMaterial>,
-    pub dark_gray_material: Handle<ColorMaterial>,
-    pub blue_material: Handle<ColorMaterial>,
-    pub dark_blue_material: Handle<ColorMaterial>,
     pub shader_material: Handle<GridShaderMaterial>,
 }
 impl FromWorld for GridAssets {
     fn from_world(world: &mut World) -> Self {
         let mesh = {
             let mut meshes = world.get_resource_mut::<Assets<Mesh>>().unwrap();
-            // Unit square
-            meshes.add(Mesh::from(shape::Box {
-                min_x: -0.5,
-                max_x: 0.5,
-                min_y: -0.5,
-                max_y: 0.5,
-                min_z: 0.0,
-                max_z: 0.0,
-            }))
+            meshes.add(Mesh::from(UNIT_SQUARE))
         };
         let shader_material = {
             let mut materials = world
@@ -178,15 +166,9 @@ impl FromWorld for GridAssets {
                 .unwrap();
             materials.add(GridShaderMaterial::default())
         };
-        let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
         Self {
             mesh,
             shader_material,
-            gray_material: materials.add(ColorMaterial::from(Color::GRAY.with_a(0.15))),
-            dark_gray_material: materials.add(ColorMaterial::from(Color::DARK_GRAY.with_a(0.3))),
-            blue_material: materials.add(ColorMaterial::from(Color::GRAY.with_a(0.1))),
-
-            dark_blue_material: materials.add(ColorMaterial::from(Color::DARK_GRAY.with_a(0.1))),
         }
     }
 }

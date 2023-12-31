@@ -1,11 +1,11 @@
-use crate::prelude::*;
+use crate::{meshes::UNIT_SQUARE, prelude::*};
 use bevy::{
     prelude::*,
     render::render_resource::{AsBindGroup, ShaderRef},
     sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle},
 };
 
-use super::{Grid2, GridSpec};
+use super::{Grid2, GridSpec, RowCol};
 
 /// Plugin for obstacles.
 /// Obstacles are implemented as a hacky force field in the center of each cell they are present in.
@@ -16,9 +16,9 @@ impl Plugin for ObstaclesPlugin {
         app.add_plugins(Material2dPlugin::<ObstaclesShaderMaterial>::default())
             .register_type::<ObstaclesSpec>()
             .register_type::<Obstacle>()
-            .register_type::<Vec<((u16, u16), Obstacle)>>()
-            .register_type::<((u16, u16), Obstacle)>()
-            .register_type::<(u16, u16)>()
+            .register_type::<Vec<(RowCol, Obstacle)>>()
+            .register_type::<(RowCol, Obstacle)>()
+            .register_type::<RowCol>()
             .insert_resource(ObstaclesGrid::default())
             .init_resource::<ObstaclesAssets>()
             .add_systems(
@@ -48,7 +48,7 @@ pub enum Obstacle {
 /// Grid of obstacle data.
 #[derive(Resource, Default, Deref, DerefMut, Reflect)]
 #[reflect(Resource)]
-pub struct ObstaclesSpec(pub Vec<((u16, u16), Obstacle)>);
+pub struct ObstaclesSpec(pub Vec<(RowCol, Obstacle)>);
 
 /// Grid of obstacle data.
 #[derive(Resource, Default, Deref, DerefMut)]
@@ -69,7 +69,7 @@ impl ObstaclesGrid {
             commands.entity(entity).despawn();
         }
 
-        grid.0.resize_with(grid_spec.clone());
+        grid.resize_with(grid_spec.clone());
 
         let material = shader_assets.get_mut(&assets.shader_material).unwrap();
         material.resize(&grid_spec);
@@ -84,7 +84,6 @@ impl ObstaclesGrid {
         // Reset all to 0.
         grid.cells.fill(Obstacle::Empty);
         for &((row, col), face) in spec.iter() {
-            dbg!(grid.spec.to_world_position((row, col)));
             grid[(row, col)] = face;
         }
     }
@@ -92,7 +91,7 @@ impl ObstaclesGrid {
     fn obstacle_acceleration(
         &self,
         position: Vec2,
-        cell: (u16, u16),
+        cell: RowCol,
         velocity: Velocity,
     ) -> Acceleration {
         if self[cell] == Obstacle::Empty {
@@ -203,15 +202,7 @@ impl FromWorld for ObstaclesAssets {
     fn from_world(world: &mut World) -> Self {
         let mesh = {
             let mut meshes = world.get_resource_mut::<Assets<Mesh>>().unwrap();
-            // Unit square
-            meshes.add(Mesh::from(shape::Box {
-                min_x: -0.5,
-                max_x: 0.5,
-                min_y: -0.5,
-                max_y: 0.5,
-                min_z: 0.0,
-                max_z: 0.0,
-            }))
+            meshes.add(Mesh::from(UNIT_SQUARE))
         };
         let shader_material = {
             let mut materials = world

@@ -1,4 +1,5 @@
 use crate::{
+    meshes::UNIT_SQUARE,
     objects::{Configs, Team},
     prelude::*,
 };
@@ -8,7 +9,7 @@ use bevy::{
     sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle},
 };
 
-use super::{EntityGridEvent, Grid2, GridEntity, GridSpec};
+use super::{EntityGridEvent, Grid2, GridEntity, GridSpec, RowCol};
 
 /// Plugin for fog of war.
 pub struct FogPlugin;
@@ -109,13 +110,13 @@ impl VisibilityGrid {
 
     fn remove_visibility(
         &mut self,
-        cell: (u16, u16),
+        rowcol: RowCol,
         team: Team,
         configs: &Configs,
         visibility: &mut [f32],
     ) {
         let radius = configs.visibility_radius;
-        for (other_row, other_col) in self.0.get_in_radius_discrete(cell, radius) {
+        for (other_row, other_col) in self.0.get_in_radius_discrete(rowcol, radius) {
             if let Some(grid_visibility) = self.0.get_mut(other_row, other_col) {
                 if grid_visibility.get(team) > 0 {
                     *grid_visibility.get_mut(team) -= 1;
@@ -128,7 +129,7 @@ impl VisibilityGrid {
     }
 
     /// Return the visibility status at the cell corresponding to position for the given team.
-    pub fn get_visibility(&self, cell: (u16, u16), team: Team) -> Visibility {
+    pub fn get_visibility(&self, cell: RowCol, team: Team) -> Visibility {
         let (row, col) = cell;
         if let Some(visibility) = self.0.get(row, col) {
             if visibility.get(team) > 0 {
@@ -140,7 +141,7 @@ impl VisibilityGrid {
 
     fn add_visibility(
         &mut self,
-        cell: (u16, u16),
+        cell: RowCol,
         team: Team,
         configs: &Configs,
         visibility: &mut [f32],
@@ -169,15 +170,7 @@ impl FromWorld for FogAssets {
     fn from_world(world: &mut World) -> Self {
         let mesh = {
             let mut meshes = world.get_resource_mut::<Assets<Mesh>>().unwrap();
-            // Unit square
-            meshes.add(Mesh::from(shape::Box {
-                min_x: -0.5,
-                max_x: 0.5,
-                min_y: -0.5,
-                max_y: 0.5,
-                min_z: 0.0,
-                max_z: 0.0,
-            }))
+            meshes.add(Mesh::from(UNIT_SQUARE))
         };
         let shader_material = {
             let mut materials = world

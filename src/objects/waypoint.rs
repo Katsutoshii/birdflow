@@ -1,7 +1,11 @@
-use std::f32::consts::PI;
+use std::{f32::consts::PI, time::Duration};
 
-use crate::prelude::*;
-use bevy::{prelude::*, sprite::MaterialMesh2dBundle, window::PrimaryWindow};
+use crate::{
+    grid::{NavigationCostEvent, NavigationFlowGrid, ObstaclesGrid},
+    inputs::{InputAction, InputActionEvent},
+    prelude::*,
+};
+use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
 use super::objective::Objective;
 
@@ -19,12 +23,14 @@ impl Plugin for WaypointPlugin {
 pub struct Waypoint {
     pub active: bool,
     pub size: f32,
+    pub last_set: Timer,
 }
 impl Default for Waypoint {
     fn default() -> Self {
         Self {
             active: false,
             size: 10.0,
+            last_set: Timer::new(Duration::from_millis(100), TimerMode::Repeating),
         }
     }
 }
@@ -33,34 +39,54 @@ impl Waypoint {
         commands.spawn(Waypoint::default().bundle(&assets));
     }
 
+    // #[allow(clippy::too_many_arguments)]
     pub fn update(
-        mut query: Query<(&Self, &mut Transform)>,
-        camera_query: Query<(Entity, &Camera, &GlobalTransform), With<MainCamera>>,
-        window_query: Query<&Window, With<PrimaryWindow>>,
-        mouse_input: Res<Input<MouseButton>>,
-        mut chasers: Query<(&Selected, &mut Objective)>,
+        mut query: Query<(Entity, &mut Self, &mut Transform)>,
+        mut input_actions: EventReader<InputActionEvent>,
+        mut selection: Query<(&Selected, &mut Objective, &Transform), Without<Self>>,
+        mut nav_grid: ResMut<NavigationFlowGrid>,
+        obstacles: Res<ObstaclesGrid>,
+        mut event_writer: EventWriter<NavigationCostEvent>,
+        time: Res<Time>,
     ) {
-        if !mouse_input.pressed(MouseButton::Right) {
-            return;
-        }
-        let (_camera_entity, camera, camera_transform) = camera_query.single();
-        if let Some(position) = window_query
-            .single()
-            .cursor_position()
-            .and_then(|cursor| camera.viewport_to_world_2d(camera_transform, cursor))
-        {
-            let (_waypoint, mut waypoint_transform) = query.single_mut();
-            waypoint_transform.translation = position.extend(zindex::WAYPOINT);
-            for (selected, mut chaser) in chasers.iter_mut() {
-                if selected.is_selected() {
-                    *chaser = Objective::MoveToPosition(position);
+        if let Some(&InputActionEvent { action, position }) = input_actions.read().next() {
+            let (entity, mut waypoint, mut waypoint_transform) = query.single_mut();
+            match action {
+                InputAction::StartMove => {}
+                InputAction::Move => {
+                    waypoint.last_set.tick(time.delta());
+                    if !waypoint.last_set.finished() {
+                        return;
+                    }
                 }
-            }
+                InputAction::EndMove => {
+                    waypoint.last_set.reset();
+                    return;
+                }
+                _ => {
+                    return;
+                }
+            };
 
-            // Debug positions
-            if mouse_input.just_pressed(MouseButton::Right) {
-                info!("Clicked on position: {}", position);
+            waypoint_transform.translation = position.extend(zindex::WAYPOINT);
+
+            let mut positions = Vec::new();
+            for (selected, mut objective, transform) in selection.iter_mut() {
+                if selected.is_selected() {
+                    *objective = Objective::MoveToPosition(position);
+                }
+
+                let rowcol = nav_grid.spec.to_rowcol(transform.translation.xy());
+                positions.push(rowcol);
             }
+            let target = nav_grid.spec.to_rowcol(position);
+            nav_grid.add_waypoint(
+                entity,
+                target,
+                &positions,
+                obstacles.as_ref(),
+                &mut event_writer,
+            );
         }
     }
 
