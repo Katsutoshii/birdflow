@@ -1,6 +1,10 @@
 /// Simple sparse grid flow for path finding.
 ///
-use crate::{meshes::UNIT_SQUARE, prelude::*};
+use crate::{
+    inputs::{InputAction, InputActionEvent},
+    meshes::UNIT_SQUARE,
+    prelude::*,
+};
 use bevy::{
     prelude::*,
     render::render_resource::{AsBindGroup, ShaderRef},
@@ -63,9 +67,19 @@ impl NavigationShaderMaterial {
         mut events: EventReader<NavigationCostEvent>,
         assets: Res<NavigationAssets>,
         mut shader_assets: ResMut<Assets<NavigationShaderMaterial>>,
+        mut input_actions: EventReader<InputActionEvent>,
     ) {
         let material: &mut NavigationShaderMaterial =
             shader_assets.get_mut(&assets.shader_material).unwrap();
+        for &InputActionEvent {
+            action,
+            position: _,
+        } in input_actions.read()
+        {
+            if action == InputAction::Move {
+                material.grid = vec![0.; material.grid.len()];
+            }
+        }
         for &NavigationCostEvent {
             entity: _,
             rowcol,
@@ -73,7 +87,7 @@ impl NavigationShaderMaterial {
         } in events.read()
         {
             let (row, col) = rowcol;
-            material.grid[grid_spec.index(row, col)] = cost;
+            material.grid[grid_spec.index(row, col)] = cost * 0.005;
         }
     }
 }

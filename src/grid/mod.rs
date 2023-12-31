@@ -161,12 +161,17 @@ impl<T: Sized + Default + Clone> Grid2<T> {
         self.cells.get_mut(index)
     }
 
-    pub fn neighbors4(&self, row: u16, col: u16) -> [RowCol; 4] {
+    pub fn neighbors8(&self, rowcol: RowCol) -> [(RowCol, f32); 8] {
+        let (row, col) = rowcol;
         [
-            (row + 1, col + 1),
-            (row + 1, col - 1),
-            (row - 1, col + 1),
-            (row - 1, col - 1),
+            ((row + 1, col - 1), 2f32.sqrt()), // Up left
+            ((row + 1, col), 1.),              // Up
+            ((row + 1, col + 1), 2f32.sqrt()), // Up right
+            ((row, col + 1), 1.),              // Right
+            ((row - 1, col + 1), 2f32.sqrt()), // Down right
+            ((row - 1, col), 1.),              // Down
+            ((row - 1, col - 1), 2f32.sqrt()), // Down left
+            ((row, col - 1), 1.),              // Left
         ]
     }
 }

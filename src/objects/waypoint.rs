@@ -1,4 +1,4 @@
-use std::{f32::consts::PI, time::Duration};
+use std::f32::consts::PI;
 
 use crate::{
     grid::{NavigationCostEvent, NavigationFlowGrid, ObstaclesGrid},
@@ -23,14 +23,12 @@ impl Plugin for WaypointPlugin {
 pub struct Waypoint {
     pub active: bool,
     pub size: f32,
-    pub last_set: Timer,
 }
 impl Default for Waypoint {
     fn default() -> Self {
         Self {
             active: false,
             size: 10.0,
-            last_set: Timer::new(Duration::from_millis(100), TimerMode::Repeating),
         }
     }
 }
@@ -41,32 +39,19 @@ impl Waypoint {
 
     // #[allow(clippy::too_many_arguments)]
     pub fn update(
-        mut query: Query<(Entity, &mut Self, &mut Transform)>,
+        mut waypoint: Query<(Entity, &mut Transform), With<Self>>,
         mut input_actions: EventReader<InputActionEvent>,
         mut selection: Query<(&Selected, &mut Objective, &Transform), Without<Self>>,
         mut nav_grid: ResMut<NavigationFlowGrid>,
         obstacles: Res<ObstaclesGrid>,
         mut event_writer: EventWriter<NavigationCostEvent>,
-        time: Res<Time>,
     ) {
         if let Some(&InputActionEvent { action, position }) = input_actions.read().next() {
-            let (entity, mut waypoint, mut waypoint_transform) = query.single_mut();
-            match action {
-                InputAction::StartMove => {}
-                InputAction::Move => {
-                    waypoint.last_set.tick(time.delta());
-                    if !waypoint.last_set.finished() {
-                        return;
-                    }
-                }
-                InputAction::EndMove => {
-                    waypoint.last_set.reset();
-                    return;
-                }
-                _ => {
-                    return;
-                }
-            };
+            if action != InputAction::Move {
+                return;
+            }
+
+            let (entity, mut waypoint_transform) = waypoint.single_mut();
 
             waypoint_transform.translation = position.extend(zindex::WAYPOINT);
 

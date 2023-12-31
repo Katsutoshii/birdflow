@@ -68,4 +68,15 @@ impl GridSpec {
             y: self.width * self.rows as f32,
         }
     }
+
+    pub fn is_boundary(&self, rowcol: RowCol) -> bool {
+        let (row, col) = rowcol;
+        if row == 0 || row == self.rows - 1 {
+            return true;
+        }
+        if col == 0 || col == self.cols - 1 {
+            return true;
+        }
+        false
+    }
 }

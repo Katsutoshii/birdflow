@@ -1,9 +1,12 @@
 use std::{cmp::Ordering, collections::BinaryHeap};
 
 use crate::{grid::Grid2, prelude::*};
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{
+    prelude::*,
+    utils::{HashMap, HashSet},
+};
 
-use super::{GridSpec, ObstaclesGrid, RowCol};
+use super::{GridSpec, Obstacle, ObstaclesGrid, RowCol};
 
 /// Plugin for flow-based navigation.
 pub struct NavigationPlugin;
@@ -28,16 +31,25 @@ pub struct NavigationCostEvent {
 
 /// State for running A* search to fill out flow cost grid.
 /// See https://doc.rust-lang.org/std/collections/binary_heap/index.html#examples
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct AStarState {
     rowcol: RowCol,
-    cost: usize,
+    cost: f32,
+    heuristic: f32,
 }
+impl AStarState {
+    // Priority scoring function f.
+    fn f(&self) -> f32 {
+        self.cost + self.heuristic
+    }
+}
+impl Eq for AStarState {}
 impl Ord for AStarState {
     fn cmp(&self, other: &Self) -> Ordering {
         other
-            .cost
-            .cmp(&self.cost)
+            .f()
+            .partial_cmp(&self.f())
+            .expect("NaN cost found in A*.")
             .then_with(|| self.rowcol.cmp(&other.rowcol))
     }
 }
@@ -68,7 +80,10 @@ impl NavigationFlowGrid {
         obstacles: &ObstaclesGrid,
         event_writer: &mut EventWriter<NavigationCostEvent>,
     ) {
-        let costs = Self::a_star(traveler_rowcols, waypoint_rowcol, obstacles);
+        if traveler_rowcols.is_empty() {
+            return;
+        }
+        let costs = self.a_star(traveler_rowcols, waypoint_rowcol, obstacles);
         for (rowcol, cost) in costs {
             event_writer.send(NavigationCostEvent {
                 entity,
@@ -81,15 +96,76 @@ impl NavigationFlowGrid {
     /// Run A* search from destination to reach all sources.
     /// Alternate targeting
     pub fn a_star(
-        _sources: &[RowCol],
+        &self,
+        sources: &[RowCol],
         destination: RowCol,
-        _obstacles: &ObstaclesGrid,
+        obstacles: &ObstaclesGrid,
     ) -> HashMap<RowCol, f32> {
         // Initial setup.
         let mut costs: HashMap<RowCol, f32> = HashMap::new();
-        let mut _heap: BinaryHeap<AStarState> = BinaryHeap::new();
-        // TODO: actually run A* etc
-        costs.insert(destination, 0.01);
+        let mut heap: BinaryHeap<AStarState> = BinaryHeap::new();
+        let mut goals: HashSet<RowCol> = sources.iter().copied().collect();
+
+        // TODO: debug using heuristic.
+        // let mut source_index = 0;
+        // let mut use_heuristic = 0;
+        // let heuristic_count = 3;
+
+        // We're at `start`, with a zero cost
+        heap.push(AStarState {
+            cost: 0.,
+            rowcol: destination,
+            heuristic: 0.,
+        });
+
+        // Examine the frontier with lower cost nodes first (min-heap)
+        while let Some(AStarState {
+            cost,
+            rowcol,
+            heuristic: _,
+        }) = heap.pop()
+        {
+            // Skip already finalized cells.
+            if costs.contains_key(&rowcol) {
+                continue;
+            }
+
+            // Costs inserted here are guaranteed to be the best costs seen so far.
+            costs.insert(rowcol, cost);
+
+            // If all goals have been reached, stop.
+            if goals.remove(&rowcol) && goals.is_empty() {
+                break;
+            }
+
+            // For each node we can reach, see if we can find a way with
+            // a lower cost going through this node
+            for (neighbor_rowcol, neighbor_cost) in self.neighbors8(rowcol) {
+                // Skip out of bounds positions.
+                if self.spec.is_boundary(neighbor_rowcol) {
+                    continue;
+                }
+
+                if obstacles[neighbor_rowcol] != Obstacle::Empty {
+                    continue;
+                }
+
+                heap.push(AStarState {
+                    cost: cost + neighbor_cost,
+                    rowcol: neighbor_rowcol,
+                    heuristic: 0., // heuristic: if use_heuristic > 0 {
+                                   //     neighbor_rowcol.distance8(sources[source_index])
+                                   // } else {
+                                   //     0.
+                                   // },
+                });
+            }
+
+            // if use_heuristic > 0 {
+            //     source_index = (source_index + 1) % sources.len();
+            // }
+            // use_heuristic = (use_heuristic + 1) % heuristic_count;
+        }
         costs
     }
 }
