@@ -81,13 +81,13 @@ pub fn update(
         velocity.0 = velocity.clamp_length_max(material.max_velocity);
         velocity.0 = velocity.lerp(prev_velocity.0, material.velocity_smoothing);
 
-        acceleration.0 = Vec2::ZERO;
-
         transform.translation += velocity.0.extend(0.);
 
         grid_spec
             .world2d_bounds()
             .clamp3(&mut transform.translation);
+
+        acceleration.0 = Vec2::ZERO;
     }
 }
 

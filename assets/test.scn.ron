@@ -45,7 +45,7 @@
         waypoint: (
           max_acceleration: 3.5,
           repell_radius: 20.0,
-          slow_factor: 0.05
+          slow_factor: 0.0
         ),
         worker: (
           separation_radius: 100.0,
@@ -75,7 +75,7 @@
         waypoint: (
           max_acceleration: 3.5,
           repell_radius: 20.0,
-          slow_factor: 0.2
+          slow_factor: 0.0
         ),
         worker: (
           separation_radius: 40.0,

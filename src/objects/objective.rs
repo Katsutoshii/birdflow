@@ -43,9 +43,9 @@ impl ObjectiveConfig {
         Acceleration(
             self.slow_factor
                 * if dist_squared < radius_squared {
-                    Vec2::ZERO
-                } else {
                     -1.0 * velocity.0
+                } else {
+                    Vec2::ZERO
                 },
         )
     }
@@ -95,16 +95,9 @@ impl Objective {
         let dist_squared = position_delta.length_squared();
         let radius_squared = radius * radius;
         let magnitude = max_magnitude * (dist_squared / (radius_squared) - 1.);
-        let slow_force = config.slow_factor
-            * if dist_squared < radius_squared {
-                Vec2::ZERO
-            } else {
-                -1.0 * velocity.0
-            };
         Acceleration(
-            position_delta.normalize_or_zero() * magnitude.clamp(-max_magnitude, max_magnitude)
-                + slow_force,
-        )
+            position_delta.normalize_or_zero() * magnitude.clamp(-max_magnitude, max_magnitude),
+        ) + config.slow_force(velocity, position, target_position)
     }
 
     // Compute acceleration for this objective.
@@ -125,12 +118,14 @@ impl Objective {
             ),
             Objective::FollowEntity(entity) => {
                 let target_transform = transforms.get(entity).unwrap();
-                navigation_grid.flow_acceleration9(transform.translation.xy(), entity)
-                    + config.slow_force(
-                        velocity,
-                        transform.translation.xy(),
-                        target_transform.translation.xy(),
-                    )
+
+                let target_cell = navigation_grid
+                    .spec
+                    .to_rowcol(target_transform.translation.xy());
+                let target_cell_position = navigation_grid.spec.to_world_position(target_cell);
+
+                navigation_grid.flow_acceleration5(transform.translation.xy(), entity)
+                    + config.slow_force(velocity, transform.translation.xy(), target_cell_position)
             }
             Objective::None => Acceleration(Vec2::ZERO),
         }

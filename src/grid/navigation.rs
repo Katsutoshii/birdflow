@@ -81,24 +81,26 @@ impl NavigationFlowGrid {
             // Weight each neighboring acceleration by width - distance.
             let weight = {
                 let cell_center = self.spec.to_world_position(rowcol);
-                2. * self.spec.width - cell_center.distance(position)
+                (self.spec.width * self.spec.width - cell_center.distance_squared(position)).max(0.)
+                // let delta = (cell_center - position).abs();
+                // (self.spec.width - delta.x).max(0.) + (self.spec.width - delta.y).max(0.)
             };
             return acceleration * weight;
         }
         Acceleration(Vec2::ZERO)
     }
 
-    /// Compute acceleration using the weighted sum of the 8 neighboring cells and the current cell.
-    pub fn flow_acceleration9(&self, position: Vec2, entity: Entity) -> Acceleration {
+    /// Compute acceleration using the weighted sum of the 4 neighboring cells and the current cell.
+    pub fn flow_acceleration5(&self, position: Vec2, entity: Entity) -> Acceleration {
         let mut total_acceleration = Acceleration(Vec2::ZERO);
         let rowcol = self.spec.to_rowcol(position);
 
         total_acceleration += self.flow_acceleration(position, rowcol, entity);
 
-        // Prevent jitter at goal cell.
-        if total_acceleration == Acceleration(Vec2::ZERO) {
-            return total_acceleration;
-        }
+        // // Prevent jitter at goal cell.
+        // if total_acceleration == Acceleration(Vec2::ZERO) {
+        //     return total_acceleration;
+        // }
 
         // Add accelerations from neighboring cells.
         for (neighbor_rowcol, _) in self.neighbors8(rowcol) {

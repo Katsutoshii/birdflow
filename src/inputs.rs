@@ -58,6 +58,7 @@ pub enum InputAction {
     StartSelect,
     Select,
     EndSelect,
+    StartMove,
     Move,
 }
 impl InputAction {
@@ -88,7 +89,7 @@ impl InputAction {
             // Movement
             if mouse_input.just_pressed(MouseButton::Right) {
                 event_writer.send(InputActionEvent {
-                    action: InputAction::Move,
+                    action: InputAction::StartMove,
                     position,
                 })
             } else if mouse_input.pressed(MouseButton::Right) {

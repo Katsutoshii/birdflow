@@ -94,7 +94,9 @@ impl Waypoint {
                 }
 
                 let rowcol = nav_grid.spec.to_rowcol(transform.translation.xy());
-                positions.push(rowcol);
+                for neighbor_rowcol in nav_grid.get_in_radius_discrete(rowcol, 2) {
+                    positions.push(neighbor_rowcol);
+                }
             }
             let target = nav_grid.spec.to_rowcol(position);
             nav_grid.add_waypoint(

@@ -76,7 +76,7 @@ impl NavigationShaderMaterial {
             position: _,
         } in input_actions.read()
         {
-            if action == InputAction::Move {
+            if action == InputAction::StartMove {
                 material.grid = vec![0.; material.grid.len()];
             }
         }
