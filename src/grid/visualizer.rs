@@ -132,13 +132,11 @@ impl GridShaderMaterial {
         } in grid_events.read()
         {
             if let Some(prev_cell) = prev_cell {
-                let (prev_row, prev_col) = prev_cell;
                 if prev_cell_empty {
-                    material.grid[grid_spec.index(prev_row, prev_col)] = 0;
+                    material.grid[grid_spec.flat_index(prev_cell)] = 0;
                 }
             }
-            let (row, col) = cell;
-            material.grid[grid_spec.index(row, col)] = 1;
+            material.grid[grid_spec.flat_index(cell)] = 1;
         }
     }
 }

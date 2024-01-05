@@ -27,7 +27,8 @@ impl GridSpec {
         (value / self.width) as u16
     }
     // Covert row, col to a single index.
-    pub fn index(&self, row: u16, col: u16) -> usize {
+    pub fn flat_index(&self, rowcol: RowCol) -> usize {
+        let (row, col) = rowcol;
         row as usize * self.cols as usize + col as usize
     }
 
@@ -69,6 +70,7 @@ impl GridSpec {
         }
     }
 
+    /// Returns true iff the rowcol is on the boundary of the grid.
     pub fn is_boundary(&self, rowcol: RowCol) -> bool {
         let (row, col) = rowcol;
         if row == 0 || row == self.rows - 1 {

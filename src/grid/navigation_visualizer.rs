@@ -86,8 +86,7 @@ impl NavigationShaderMaterial {
             cost,
         } in events.read()
         {
-            let (row, col) = rowcol;
-            material.grid[grid_spec.index(row, col)] = cost * 0.005;
+            material.grid[grid_spec.flat_index(rowcol)] = cost * 0.005;
         }
     }
 }

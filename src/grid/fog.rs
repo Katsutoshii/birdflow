@@ -46,7 +46,7 @@ impl TeamVisibility {
 
 /// Handles to common fog assets.
 #[derive(Resource, Default, Deref, DerefMut)]
-struct VisibilityGrid(pub Grid2<TeamVisibility>);
+pub struct VisibilityGrid(pub Grid2<TeamVisibility>);
 impl VisibilityGrid {
     pub fn resize_on_change(
         mut grid: ResMut<Self>,
@@ -63,7 +63,7 @@ impl VisibilityGrid {
             commands.entity(entity).despawn();
         }
 
-        grid.0.resize_with(spec.clone());
+        grid.resize_with(spec.clone());
 
         let material = shader_assets.get_mut(&assets.shader_material).unwrap();
         material.resize(&spec);
@@ -116,12 +116,13 @@ impl VisibilityGrid {
         visibility: &mut [f32],
     ) {
         let radius = configs.visibility_radius;
-        for (other_row, other_col) in self.0.get_in_radius_discrete(rowcol, radius) {
-            if let Some(grid_visibility) = self.0.get_mut(other_row, other_col) {
+        for other_rowcol in self.get_in_radius_discrete(rowcol, radius) {
+            if let Some(grid_visibility) = self.get_mut(other_rowcol) {
                 if grid_visibility.get(team) > 0 {
                     *grid_visibility.get_mut(team) -= 1;
                     if team == configs.player_team && grid_visibility.get(team) == 0 {
-                        visibility[self.0.spec.index(other_row, other_col)] = 0.5;
+                        let index = self.flat_index(other_rowcol);
+                        visibility[index] = 0.5;
                     }
                 }
             }
@@ -129,9 +130,8 @@ impl VisibilityGrid {
     }
 
     /// Return the visibility status at the cell corresponding to position for the given team.
-    pub fn get_visibility(&self, cell: RowCol, team: Team) -> Visibility {
-        let (row, col) = cell;
-        if let Some(visibility) = self.0.get(row, col) {
+    pub fn get_visibility(&self, rowcol: RowCol, team: Team) -> Visibility {
+        if let Some(visibility) = self.get(rowcol) {
             if visibility.get(team) > 0 {
                 return Visibility::Visible;
             }
@@ -147,13 +147,13 @@ impl VisibilityGrid {
         visibility: &mut [f32],
     ) {
         let radius = configs.visibility_radius;
-        for (other_row, other_col) in self.0.get_in_radius_discrete(cell, radius) {
-            if let Some(grid_visibility) = self.0.get_mut(other_row, other_col) {
+        for other_rowcol in self.get_in_radius_discrete(cell, radius) {
+            if let Some(grid_visibility) = self.get_mut(other_rowcol) {
                 *grid_visibility.get_mut(team) += 1;
                 if team == configs.player_team
-                    && Grid2::<()>::in_radius(cell, (other_row, other_col), configs.fog_radius)
+                    && Grid2::<()>::in_radius(cell, other_rowcol, configs.fog_radius)
                 {
-                    visibility[self.0.spec.index(other_row, other_col)] = 0.
+                    visibility[self.flat_index(other_rowcol)] = 0.
                 }
             }
         }

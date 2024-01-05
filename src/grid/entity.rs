@@ -79,31 +79,31 @@ impl EntityGrid {
         cell: Option<RowCol>,
         position: Vec2,
     ) -> Option<EntityGridEvent> {
-        let (row, col) = self.spec.to_rowcol(position);
+        let rowcol = self.to_rowcol(position);
 
         // Remove this entity's old position if it was different.
         let mut prev_cell: Option<RowCol> = None;
         let mut prev_cell_empty: bool = false;
-        if let Some((prev_row, prev_col)) = cell {
+        if let Some(prev_rowcol) = cell {
             // If in same position, do nothing.
-            if (prev_row, prev_col) == (row, col) {
+            if prev_rowcol == rowcol {
                 return None;
             }
 
-            if let Some(entities) = self.get_mut(prev_row, prev_col) {
+            if let Some(entities) = self.get_mut(prev_rowcol) {
                 entities.remove(&entity);
-                prev_cell = Some((prev_row, prev_col));
+                prev_cell = Some(prev_rowcol);
                 prev_cell_empty = entities.is_empty();
             }
         }
 
-        if let Some(entities) = self.get_mut(row, col) {
+        if let Some(entities) = self.get_mut(rowcol) {
             entities.insert(entity);
             return Some(EntityGridEvent {
                 entity,
                 prev_cell,
                 prev_cell_empty,
-                cell: (row, col),
+                cell: rowcol,
             });
         }
         None
@@ -112,18 +112,18 @@ impl EntityGrid {
     pub fn get_entities_in_radius(&self, position: Vec2, config: &Config) -> HashSet<Entity> {
         let mut other_entities: HashSet<Entity> = HashSet::default();
         let positions = self.get_in_radius(position, config.neighbor_radius);
-        for (row, col) in positions {
-            other_entities.extend(self.get(row, col).unwrap());
+        for rowcol in positions {
+            other_entities.extend(self.get(rowcol).unwrap());
         }
         other_entities
     }
     /// Remove an entity from the grid entirely.
     pub fn remove(&mut self, entity: Entity, grid_entity: &GridEntity) {
-        if let Some((row, col)) = grid_entity.cell {
-            if let Some(cell) = self.get_mut(row, col) {
+        if let Some(rowcol) = grid_entity.cell {
+            if let Some(cell) = self.get_mut(rowcol) {
                 cell.remove(&entity);
             } else {
-                error!("No cell at {:?}.", (row, col))
+                error!("No cell at {:?}.", rowcol)
             }
         } else {
             error!("No row col for {:?}", entity)
@@ -134,8 +134,8 @@ impl EntityGrid {
     pub fn get_entities_in_aabb(&self, aabb: &Aabb2) -> Vec<Entity> {
         let mut result = HashSet::default();
 
-        for (row, col) in self.get_in_aabb(aabb) {
-            if let Some(set) = self.get(row, col) {
+        for rowcol in self.get_in_aabb(aabb) {
+            if let Some(set) = self.get(rowcol) {
                 result.extend(set.iter());
             }
         }
@@ -166,7 +166,7 @@ mod tests {
         let rowcol = grid.spec.to_rowcol(Vec2 { x: 0., y: 0. });
         assert_eq!(rowcol, (5, 5));
 
-        assert!(grid.get_mut(5, 5).is_some());
-        assert!(grid.get(5, 5).is_some());
+        assert!(grid.get_mut((5, 5)).is_some());
+        assert!(grid.get((5, 5)).is_some());
     }
 }

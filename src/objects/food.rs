@@ -112,7 +112,7 @@ impl FoodBackground {
             let parent_velocity = parent_velocities
                 .get(parent.get())
                 .expect("Invalid parent.");
-            transform.translation = -0.1 * parent_velocity.0.extend(0.);
+            transform.translation = -0.1 * parent_velocity.extend(0.);
         }
     }
 }

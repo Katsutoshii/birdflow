@@ -80,10 +80,8 @@ impl NavigationFlowGrid {
         if let Some(&acceleration) = self[rowcol].get(&entity) {
             // Weight each neighboring acceleration by width - distance.
             let weight = {
-                let cell_center = self.spec.to_world_position(rowcol);
+                let cell_center = self.to_world_position(rowcol);
                 (self.spec.width * self.spec.width - cell_center.distance_squared(position)).max(0.)
-                // let delta = (cell_center - position).abs();
-                // (self.spec.width - delta.x).max(0.) + (self.spec.width - delta.y).max(0.)
             };
             return acceleration * weight;
         }
@@ -93,7 +91,7 @@ impl NavigationFlowGrid {
     /// Compute acceleration using the weighted sum of the 4 neighboring cells and the current cell.
     pub fn flow_acceleration5(&self, position: Vec2, entity: Entity) -> Acceleration {
         let mut total_acceleration = Acceleration(Vec2::ZERO);
-        let rowcol = self.spec.to_rowcol(position);
+        let rowcol = self.to_rowcol(position);
 
         total_acceleration += self.flow_acceleration(position, rowcol, entity);
 
@@ -104,7 +102,7 @@ impl NavigationFlowGrid {
 
         // Add accelerations from neighboring cells.
         for (neighbor_rowcol, _) in self.neighbors8(rowcol) {
-            if self.spec.is_boundary(neighbor_rowcol) {
+            if self.is_boundary(neighbor_rowcol) {
                 continue;
             }
             total_acceleration += self.flow_acceleration(position, neighbor_rowcol, entity);
@@ -201,7 +199,7 @@ impl NavigationFlowGrid {
             // a lower cost going through this node
             for (neighbor_rowcol, neighbor_cost) in self.neighbors8(rowcol) {
                 // Skip out of bounds positions.
-                if self.spec.is_boundary(neighbor_rowcol) {
+                if self.is_boundary(neighbor_rowcol) {
                     continue;
                 }
 

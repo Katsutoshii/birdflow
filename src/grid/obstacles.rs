@@ -97,7 +97,7 @@ impl ObstaclesGrid {
         if self[cell] == Obstacle::Empty {
             return Acceleration(Vec2::ZERO);
         }
-        let obstacle_position = self.spec.to_world_position(cell);
+        let obstacle_position = self.to_world_position(cell);
         let d = obstacle_position - position;
         let v_dot_d = velocity.dot(d);
         let d_dot_d = d.dot(d);
@@ -124,7 +124,7 @@ impl ObstaclesGrid {
         let next_velocity = Velocity(velocity.0 + acceleration.0);
         let mut acceleration = Acceleration(Vec2::ZERO);
 
-        for (row, col) in self.get_in_radius(position, self.spec.width * 2.) {
+        for (row, col) in self.get_in_radius(position, self.width * 2.) {
             acceleration += self.obstacle_acceleration(position, (row, col), next_velocity)
         }
         Acceleration(acceleration.clamp_length(0., 1.5 * next_velocity.length()))
@@ -181,8 +181,8 @@ impl ObstaclesShaderMaterial {
             shader_assets.get_mut(&assets.shader_material).unwrap();
 
         material.grid.fill(Obstacle::Empty as u32);
-        for &((row, col), face) in spec.iter() {
-            material.grid[grid_spec.index(row, col)] = face as u32;
+        for &(rowcol, face) in spec.iter() {
+            material.grid[grid_spec.flat_index(rowcol)] = face as u32;
         }
     }
 }
