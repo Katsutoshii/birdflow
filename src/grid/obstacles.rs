@@ -102,8 +102,8 @@ impl ObstaclesGrid {
         let v_dot_d = velocity.dot(d);
         let d_dot_d = d.dot(d);
 
-        // If moving towards the obstacle:
-        if v_dot_d > 0.1 {
+        // If moving towards the obstacle, accelerate away from the obstacle.
+        if v_dot_d > 0.01 {
             let magnitude = (self.spec.width - position.distance(obstacle_position)).max(0.);
             let projection = d * (d_dot_d / v_dot_d);
             Acceleration(-magnitude * projection)
@@ -111,6 +111,7 @@ impl ObstaclesGrid {
             Acceleration(Vec2::ZERO)
         }
     }
+
     /// Compute acceleration due to neighboring obstacles.
     /// For each neighboring obstacle, if the object is moving towards the obstacle
     /// we apply a force away from the obstacle.
@@ -127,7 +128,7 @@ impl ObstaclesGrid {
         for (row, col) in self.get_in_radius(position, self.width * 2.) {
             acceleration += self.obstacle_acceleration(position, (row, col), next_velocity)
         }
-        Acceleration(acceleration.clamp_length(0., 1.5 * next_velocity.length()))
+        Acceleration(acceleration.clamp_length(0., next_velocity.length()))
     }
 }
 
