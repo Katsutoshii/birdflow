@@ -161,7 +161,11 @@ impl NavigationFlowGrid {
         // Initial setup.
         let mut costs: HashMap<RowCol, f32> = HashMap::new();
         let mut heap: BinaryHeap<AStarState> = BinaryHeap::new();
-        let mut goals: HashSet<RowCol> = sources.iter().copied().collect();
+        let mut goals: HashSet<RowCol> = sources
+            .iter()
+            .filter(|&&rowcol| obstacles[rowcol] == Obstacle::Empty)
+            .copied()
+            .collect();
 
         // TODO: debug using heuristic.
         // let mut source_index = 0;
