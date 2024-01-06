@@ -1,10 +1,10 @@
-use std::{cmp::Ordering, collections::BinaryHeap};
+use std::{
+    cmp::Ordering,
+    collections::{BTreeSet, BinaryHeap},
+};
 
 use crate::{grid::Grid2, prelude::*};
-use bevy::{
-    prelude::*,
-    utils::{HashMap, HashSet},
-};
+use bevy::{prelude::*, utils::HashMap};
 
 use super::{GridSpec, Obstacle, ObstaclesGrid, RowCol, RowColDistance};
 
@@ -158,20 +158,27 @@ impl NavigationFlowGrid {
         destination: RowCol,
         obstacles: &ObstaclesGrid,
     ) -> HashMap<RowCol, f32> {
+        info!("A* search");
         // Initial setup.
         let mut costs: HashMap<RowCol, f32> = HashMap::new();
         let mut heap: BinaryHeap<AStarState> = BinaryHeap::new();
-        let mut goals: HashSet<RowCol> = sources
+        let mut goals: BTreeSet<RowCol> = sources
             .iter()
             .filter(|&&rowcol| obstacles[rowcol] == Obstacle::Empty)
             .copied()
             .collect();
+        let mut current_goal = *goals.first().unwrap();
 
-        // TODO: debug using heuristic.
-        // let mut source_index = 0;
-        // let mut use_heuristic = 0;
-        // let heuristic_count = 3;
-
+        let min_grid_dist = 1.;
+        let max_grid_dist = 30.;
+        let max_dist = goals
+            .iter()
+            .map(|&rowcol| destination.distance8(rowcol))
+            .fold(0f32, |a, b| a.max(b));
+        let max_heuristic = 0.9;
+        let final_dist = max_dist.clamp(min_grid_dist, max_grid_dist);
+        let heuristic_factor = max_heuristic * final_dist / max_grid_dist;
+        dbg!(heuristic_factor);
         // We're at `start`, with a zero cost
         heap.push(AStarState {
             cost: 0.,
@@ -194,11 +201,16 @@ impl NavigationFlowGrid {
             // Costs inserted here are guaranteed to be the best costs seen so far.
             costs.insert(rowcol, cost);
 
-            // If all goals have been reached, stop.
-            if goals.remove(&rowcol) && goals.is_empty() {
-                break;
+            // If the current goal has been reached, clear the heap and move on to the next goal.
+            if goals.remove(&rowcol) {
+                if goals.is_empty() {
+                    break;
+                }
+                if rowcol == current_goal {
+                    info!("Source reached: {:?}", rowcol);
+                    current_goal = *goals.first().unwrap();
+                }
             }
-
             // For each node we can reach, see if we can find a way with
             // a lower cost going through this node
             for (neighbor_rowcol, neighbor_cost) in self.neighbors8(rowcol) {
@@ -214,18 +226,9 @@ impl NavigationFlowGrid {
                 heap.push(AStarState {
                     cost: cost + neighbor_cost,
                     rowcol: neighbor_rowcol,
-                    heuristic: 0., // heuristic: if use_heuristic > 0 {
-                                   //     neighbor_rowcol.distance8(sources[source_index])
-                                   // } else {
-                                   //     0.
-                                   // },
+                    heuristic: heuristic_factor * neighbor_rowcol.distance8(current_goal),
                 });
             }
-
-            // if use_heuristic > 0 {
-            //     source_index = (source_index + 1) % sources.len();
-            // }
-            // use_heuristic = (use_heuristic + 1) % heuristic_count;
         }
         costs
     }

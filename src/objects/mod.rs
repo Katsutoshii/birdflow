@@ -117,7 +117,7 @@ impl Object {
                 other_velocity,
                 config,
                 other_entities.len(),
-            ) * (1.0 / (other_entities.len() as f32 + 1 as f32));
+            ) * (1.0 / (other_entities.len() as f32 + 1.));
         }
 
         acceleration += obstacles.obstacles_acceleration(position, velocity, acceleration) * 3.;
