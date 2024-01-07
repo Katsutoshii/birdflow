@@ -1,29 +1,25 @@
-use crate::{
-    meshes::UNIT_SQUARE,
-    objects::{Configs, Team},
-    prelude::*,
-};
 use bevy::{
     prelude::*,
     render::render_resource::{AsBindGroup, ShaderRef},
     sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle},
 };
 
-use super::{EntityGridEvent, Grid2, GridEntity, GridSpec, RowCol};
+use crate::prelude::*;
 
 /// Plugin for fog of war.
 pub struct FogPlugin;
 impl Plugin for FogPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(Material2dPlugin::<FogShaderMaterial>::default())
-            .insert_resource(VisibilityGrid::default())
+            .add_plugins(Grid2Plugin::<TeamVisibility>::default())
             .init_resource::<FogAssets>()
             .add_systems(
                 FixedUpdate,
                 (
-                    VisibilityGrid::update.after(grid::GridEntity::update),
-                    VisibilityGrid::resize_on_change,
-                    VisibilityGrid::update_visibility.after(VisibilityGrid::update),
+                    Grid2::<TeamVisibility>::update.after(GridEntity::update),
+                    FogPlane::resize_on_change,
+                    Grid2::<TeamVisibility>::update_visibility
+                        .after(Grid2::<TeamVisibility>::update),
                 ),
             );
     }
@@ -44,33 +40,7 @@ impl TeamVisibility {
     }
 }
 
-/// Handles to common fog assets.
-#[derive(Resource, Default, Deref, DerefMut)]
-pub struct VisibilityGrid(pub Grid2<TeamVisibility>);
-impl VisibilityGrid {
-    pub fn resize_on_change(
-        mut grid: ResMut<Self>,
-        spec: Res<GridSpec>,
-        assets: Res<FogAssets>,
-        query: Query<Entity, With<FogPlane>>,
-        mut shader_assets: ResMut<Assets<FogShaderMaterial>>,
-        mut commands: Commands,
-    ) {
-        if !spec.is_changed() {
-            return;
-        }
-        for entity in &query {
-            commands.entity(entity).despawn();
-        }
-
-        grid.resize_with(spec.clone());
-
-        let material = shader_assets.get_mut(&assets.shader_material).unwrap();
-        material.resize(&spec);
-
-        commands.spawn(FogPlane.bundle(&spec, &assets));
-    }
-
+impl Grid2<TeamVisibility> {
     pub fn update_visibility(
         mut query: Query<(&GridEntity, &mut Visibility)>,
         grid: ResMut<Self>,
@@ -170,7 +140,7 @@ impl FromWorld for FogAssets {
     fn from_world(world: &mut World) -> Self {
         let mesh = {
             let mut meshes = world.get_resource_mut::<Assets<Mesh>>().unwrap();
-            meshes.add(Mesh::from(UNIT_SQUARE))
+            meshes.add(Mesh::from(meshes::UNIT_SQUARE))
         };
         let shader_material = {
             let mut materials = world
@@ -204,9 +174,30 @@ impl FogPlane {
                 material: assets.shader_material.clone(),
                 ..default()
             },
-            Name::new("GridVis"),
+            Name::new("FogVis"),
             self,
         )
+    }
+
+    /// Resize the fog shader.
+    pub fn resize_on_change(
+        spec: Res<GridSpec>,
+        assets: Res<FogAssets>,
+        query: Query<Entity, With<Self>>,
+        mut shader_assets: ResMut<Assets<FogShaderMaterial>>,
+        mut commands: Commands,
+    ) {
+        if !spec.is_changed() {
+            return;
+        }
+        for entity in &query {
+            commands.entity(entity).despawn();
+        }
+
+        let material = shader_assets.get_mut(&assets.shader_material).unwrap();
+        material.resize(&spec);
+
+        commands.spawn(FogPlane.bundle(&spec, &assets));
     }
 }
 

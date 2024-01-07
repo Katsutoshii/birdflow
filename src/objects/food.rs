@@ -1,13 +1,8 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
-use crate::physics::PhysicsBundle;
 use crate::prelude::*;
-use crate::{
-    grid::{GridEntity, GridSpec},
-    physics::{Acceleration, Velocity},
-};
 
-use super::{Object, Team, ZooidAssets};
+use super::ZooidAssets;
 
 pub struct FoodPlugin;
 impl Plugin for FoodPlugin {

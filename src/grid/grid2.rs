@@ -1,13 +1,16 @@
-use crate::prelude::Aabb2;
+use crate::prelude::*;
 use bevy::prelude::*;
-use std::ops::{Index, IndexMut, RangeInclusive};
+use std::{
+    marker::PhantomData,
+    ops::{Index, IndexMut, RangeInclusive},
+};
 
 use super::GridSpec;
 
 /// Represents (row, col) coordinates in the grid.
 pub type RowCol = (u16, u16);
 
-// Extension trait to allow computing distances between RowCols.
+/// Extension trait to allow computing distances between RowCols.
 pub trait RowColDistance {
     fn distance8(self, other: Self) -> f32;
     fn signed_delta8(self, other: Self) -> Vec2;
@@ -36,8 +39,19 @@ impl RowColDistance for RowCol {
     }
 }
 
+#[derive(Default)]
+pub struct Grid2Plugin<T: Sized + Default>(PhantomData<T>);
+impl<T: Sized + Default + Clone + Sync + Send + 'static> Plugin for Grid2Plugin<T> {
+    fn build(&self, app: &mut App) {
+        app.insert_resource(Grid2::<T>::default()).add_systems(
+            FixedUpdate,
+            Grid2::<T>::resize_on_change.in_set(SystemStage::PreCompute),
+        );
+    }
+}
+
 /// 2D Grid containing arbitrary data.
-#[derive(Clone, Default, Debug, Deref, DerefMut)]
+#[derive(Clone, Default, Debug, Deref, DerefMut, Resource)]
 pub struct Grid2<T: Sized + Default + Clone> {
     #[deref]
     pub spec: GridSpec,
@@ -55,7 +69,12 @@ impl<T: Sized + Default + Clone> IndexMut<RowCol> for Grid2<T> {
         &mut self.cells[flat_i]
     }
 }
-impl<T: Sized + Default + Clone> Grid2<T> {
+impl<T: Sized + Default + Clone + Send + Sync + 'static> Grid2<T> {
+    pub fn resize_on_change(mut grid: ResMut<Self>, spec: Res<GridSpec>) {
+        if spec.is_changed() {
+            grid.resize_with(spec.clone());
+        }
+    }
     /// Resize the grid to match the given spec.
     pub fn resize_with(&mut self, spec: GridSpec) {
         self.spec = spec;

@@ -1,10 +1,6 @@
 use std::f32::consts::PI;
 
-use crate::{
-    grid::{NavigationCostEvent, NavigationFlowGrid, ObstaclesGrid},
-    inputs::{InputAction, InputActionEvent},
-    prelude::*,
-};
+use crate::{grid::NavigationCostEvent, prelude::*};
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle, utils::hashbrown::HashSet};
 
 use super::objective::Objective;
@@ -14,7 +10,6 @@ pub struct WaypointPlugin;
 impl Plugin for WaypointPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<WaypointAssets>()
-            // .add_systems(PreStartup, Waypoint::startup)
             .add_systems(FixedUpdate, Waypoint::update.in_set(SystemStage::Compute))
             .add_systems(
                 FixedUpdate,
@@ -66,13 +61,11 @@ impl Waypoint {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub fn update(
-        // mut waypoint: Query<(Entity, &mut Transform), With<Self>>,
         mut input_actions: EventReader<InputActionEvent>,
         mut selection: Query<(&Selected, &mut Objective, &Transform), Without<Self>>,
-        mut nav_grid: ResMut<NavigationFlowGrid>,
-        obstacles: Res<ObstaclesGrid>,
+        mut nav_grid: ResMut<Grid2<EntityFlow>>,
+        obstacles: Res<Grid2<Obstacle>>,
         mut event_writer: EventWriter<NavigationCostEvent>,
         mut commands: Commands,
         assets: Res<WaypointAssets>,

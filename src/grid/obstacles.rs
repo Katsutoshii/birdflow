@@ -1,11 +1,9 @@
-use crate::{meshes::UNIT_SQUARE, prelude::*};
+use crate::prelude::*;
 use bevy::{
     prelude::*,
     render::render_resource::{AsBindGroup, ShaderRef},
     sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle},
 };
-
-use super::{Grid2, GridSpec, RowCol};
 
 /// Plugin for obstacles.
 /// Obstacles are implemented as a hacky force field in the center of each cell they are present in.
@@ -14,19 +12,19 @@ pub struct ObstaclesPlugin;
 impl Plugin for ObstaclesPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(Material2dPlugin::<ObstaclesShaderMaterial>::default())
+            .add_plugins(Grid2Plugin::<Obstacle>::default())
             .register_type::<ObstaclesSpec>()
             .register_type::<Obstacle>()
             .register_type::<Vec<(RowCol, Obstacle)>>()
             .register_type::<(RowCol, Obstacle)>()
             .register_type::<RowCol>()
-            .insert_resource(ObstaclesGrid::default())
             .init_resource::<ObstaclesAssets>()
             .add_systems(
                 FixedUpdate,
                 (
-                    ObstaclesGrid::resize_on_change,
-                    ObstaclesGrid::update.after(ObstaclesGrid::resize_on_change),
-                    ObstaclesShaderMaterial::update.after(ObstaclesGrid::resize_on_change),
+                    ObstaclesPlane::resize_on_change,
+                    Grid2::<Obstacle>::update.after(Grid2::<Obstacle>::resize_on_change),
+                    ObstaclesShaderMaterial::update.after(Grid2::<Obstacle>::resize_on_change),
                 ),
             );
     }
@@ -50,33 +48,7 @@ pub enum Obstacle {
 #[reflect(Resource)]
 pub struct ObstaclesSpec(pub Vec<(RowCol, Obstacle)>);
 
-/// Grid of obstacle data.
-#[derive(Resource, Default, Deref, DerefMut)]
-pub struct ObstaclesGrid(pub Grid2<Obstacle>);
-impl ObstaclesGrid {
-    pub fn resize_on_change(
-        mut grid: ResMut<Self>,
-        grid_spec: Res<GridSpec>,
-        assets: Res<ObstaclesAssets>,
-        query: Query<Entity, With<ObstaclesPlane>>,
-        mut shader_assets: ResMut<Assets<ObstaclesShaderMaterial>>,
-        mut commands: Commands,
-    ) {
-        if !grid_spec.is_changed() {
-            return;
-        }
-        for entity in &query {
-            commands.entity(entity).despawn();
-        }
-
-        grid.resize_with(grid_spec.clone());
-
-        let material = shader_assets.get_mut(&assets.shader_material).unwrap();
-        material.resize(&grid_spec);
-
-        commands.spawn(ObstaclesPlane.bundle(&grid_spec, &assets));
-    }
-
+impl Grid2<Obstacle> {
     pub fn update(mut grid: ResMut<Self>, spec: Res<ObstaclesSpec>) {
         if !spec.is_changed() {
             return;
@@ -203,7 +175,7 @@ impl FromWorld for ObstaclesAssets {
     fn from_world(world: &mut World) -> Self {
         let mesh = {
             let mut meshes = world.get_resource_mut::<Assets<Mesh>>().unwrap();
-            meshes.add(Mesh::from(UNIT_SQUARE))
+            meshes.add(Mesh::from(meshes::UNIT_SQUARE))
         };
         let shader_material = {
             let mut materials = world
@@ -240,5 +212,25 @@ impl ObstaclesPlane {
             Name::new("GridVis"),
             self,
         )
+    }
+
+    pub fn resize_on_change(
+        grid_spec: Res<GridSpec>,
+        assets: Res<ObstaclesAssets>,
+        query: Query<Entity, With<ObstaclesPlane>>,
+        mut shader_assets: ResMut<Assets<ObstaclesShaderMaterial>>,
+        mut commands: Commands,
+    ) {
+        if !grid_spec.is_changed() {
+            return;
+        }
+        for entity in &query {
+            commands.entity(entity).despawn();
+        }
+
+        let material = shader_assets.get_mut(&assets.shader_material).unwrap();
+        material.resize(&grid_spec);
+
+        commands.spawn(ObstaclesPlane.bundle(&grid_spec, &assets));
     }
 }

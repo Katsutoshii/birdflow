@@ -3,13 +3,7 @@ use bevy::{
     sprite::{MaterialMesh2dBundle, Mesh2dHandle},
 };
 
-use crate::{
-    grid::EntityGrid,
-    inputs::{InputAction, InputActionEvent},
-    meshes::UNIT_SQUARE,
-    objects::{Configs, Object, Team},
-    zindex, Aabb2,
-};
+use crate::prelude::*;
 
 #[derive(Component, Default, PartialEq, Clone)]
 pub enum Selected {
@@ -53,7 +47,7 @@ impl Selector {
             (&Object, &Transform, &Team, &mut Selected, &Mesh2dHandle),
             Without<Self>,
         >,
-        grid: Res<EntityGrid>,
+        grid: Res<Grid2<EntitySet>>,
         assets: Res<SelectorAssets>,
         configs: Res<Configs>,
         mut input_actions: EventReader<InputActionEvent>,
@@ -152,7 +146,7 @@ impl FromWorld for SelectorAssets {
     fn from_world(world: &mut World) -> Self {
         let mesh = {
             let mut meshes = world.get_resource_mut::<Assets<Mesh>>().unwrap();
-            meshes.add(Mesh::from(UNIT_SQUARE))
+            meshes.add(Mesh::from(meshes::UNIT_SQUARE))
         };
         let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
         Self {

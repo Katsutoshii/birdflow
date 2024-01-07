@@ -17,10 +17,16 @@ pub mod prelude {
     pub use crate::{
         aabb::Aabb2,
         camera::MainCamera,
-        grid,
-        physics::{Acceleration, Velocity},
+        grid::{
+            EntityFlow, EntityGridEvent, EntitySet, Grid2, Grid2Plugin, GridEntity, GridSpec,
+            Obstacle, RowCol, RowColDistance,
+        },
+        inputs::{InputAction, InputActionEvent},
+        meshes,
+        objects::{Config, Configs, Object, Objective, Team},
+        physics::{Acceleration, PhysicsBundle, PhysicsMaterial, PhysicsMaterialType, Velocity},
         selector::Selected,
-        zindex, SystemStage,
+        window, zindex, SystemStage,
     };
 }
 

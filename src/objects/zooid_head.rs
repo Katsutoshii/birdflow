@@ -1,15 +1,12 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
-use crate::grid::GridEntity;
-use crate::objects::objective::Objective;
 use crate::physics::{PhysicsBundle, PhysicsMaterialType};
 use crate::prelude::*;
-use crate::{grid::EntityGrid, selector::Selected, zindex};
 
 use super::Team;
 use super::{
     zooid_worker::{ZooidWorker, ZooidWorkerBundler},
-    Configs, Object, ZooidAssets,
+    Object, ZooidAssets,
 };
 
 pub struct ZooidHeadPlugin;
@@ -149,7 +146,7 @@ impl ZooidHead {
     pub fn despawn_zooids(
         objects: Query<(Entity, &GridEntity, &Object)>,
         mut commands: Commands,
-        mut grid: ResMut<EntityGrid>,
+        mut grid: ResMut<Grid2<EntitySet>>,
         keyboard_input: Res<Input<KeyCode>>,
     ) {
         if !keyboard_input.just_pressed(KeyCode::D) {

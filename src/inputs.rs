@@ -5,7 +5,7 @@ use std::{
 
 use bevy::{prelude::*, utils::HashMap, window::PrimaryWindow};
 
-use crate::{camera::MainCamera, SystemStage};
+use crate::prelude::*;
 
 /// Plugin for input action events.
 pub struct InputActionPlugin;

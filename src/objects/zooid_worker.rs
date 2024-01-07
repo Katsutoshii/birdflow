@@ -1,12 +1,6 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
-use crate::{
-    grid::GridEntity,
-    objects::objective::Objective,
-    physics::{PhysicsBundle, PhysicsMaterialType, Velocity},
-    selector::Selected,
-    zindex, SystemStage,
-};
+use crate::prelude::*;
 
 use super::{Object, Team, TeamMaterials};
 

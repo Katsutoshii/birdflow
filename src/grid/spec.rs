@@ -1,8 +1,6 @@
 use crate::prelude::*;
 use bevy::prelude::*;
 
-use super::RowCol;
-
 /// Specification describing how large the grid is.
 #[derive(Resource, Reflect, Clone, Debug)]
 #[reflect(Resource)]

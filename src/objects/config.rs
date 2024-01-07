@@ -1,8 +1,7 @@
 use bevy::prelude::*;
 
+use crate::prelude::*;
 use crate::{objects::objective::ObjectiveConfig, physics::PhysicsMaterialType};
-
-use super::{Object, Team};
 
 /// Singleton that spawns birds with specified stats.
 #[derive(Resource, Reflect)]

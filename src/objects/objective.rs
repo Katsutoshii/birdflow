@@ -1,7 +1,5 @@
-use crate::{grid::NavigationFlowGrid, prelude::*};
+use crate::prelude::*;
 use bevy::prelude::*;
-
-use super::{Configs, Object};
 
 pub struct ObjectivePlugin;
 impl Plugin for ObjectivePlugin {
@@ -68,7 +66,7 @@ impl Objective {
         mut query: Query<(&Self, &Object, &Transform, &Velocity, &mut Acceleration)>,
         transforms: Query<&Transform>,
         configs: Res<Configs>,
-        navigation_grid: Res<NavigationFlowGrid>,
+        navigation_grid: Res<Grid2<EntityFlow>>,
     ) {
         for (follower, object, transform, velocity, mut acceleration) in &mut query {
             let config = configs.get(object);
@@ -107,7 +105,7 @@ impl Objective {
         transform: &Transform,
         velocity: Velocity,
         config: &ObjectiveConfig,
-        navigation_grid: &NavigationFlowGrid,
+        navigation_grid: &Grid2<EntityFlow>,
     ) -> Acceleration {
         match *self {
             Objective::MoveToPosition(target_position) => self.acceleration_to_position(

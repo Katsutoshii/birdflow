@@ -1,9 +1,9 @@
 use bevy::{prelude::*, utils::HashSet};
 
-use crate::{objects::Config, prelude::Aabb2};
+use crate::prelude::*;
 
-use super::{Grid2, GridSpec, RowCol};
-use std::ops::{Deref, DerefMut};
+/// Stores a set of entities in each grid cell.
+pub type EntitySet = HashSet<Entity>;
 
 /// Component to track an entity in the grid.
 /// Holds its cell position so it can move/remove itself from the grid.
@@ -13,10 +13,9 @@ pub struct GridEntity {
     pub cell: Option<RowCol>,
 }
 impl GridEntity {
-    #[allow(clippy::too_many_arguments)]
     pub fn update(
         mut query: Query<(Entity, &mut Self, &Transform)>,
-        mut grid: ResMut<EntityGrid>,
+        mut grid: ResMut<Grid2<EntitySet>>,
         mut event_writer: EventWriter<EntityGridEvent>,
     ) {
         for (entity, mut grid_entity, transform) in &mut query {
@@ -49,29 +48,7 @@ impl Default for EntityGridEvent {
     }
 }
 
-/// A grid of cells that keep track of what entities are contained within them.
-#[derive(Resource, Default)]
-pub struct EntityGrid(Grid2<HashSet<Entity>>);
-impl Deref for EntityGrid {
-    type Target = Grid2<HashSet<Entity>>;
-    fn deref(&self) -> &Grid2<HashSet<Entity>> {
-        &self.0
-    }
-}
-impl DerefMut for EntityGrid {
-    fn deref_mut(&mut self) -> &mut Grid2<HashSet<Entity>> {
-        &mut self.0
-    }
-}
-impl EntityGrid {
-    /// When the spec changes, update the grid spec and resize.
-    pub fn resize_on_change(mut grid: ResMut<Self>, spec: Res<GridSpec>) {
-        if !spec.is_changed() {
-            return;
-        }
-        grid.resize_with(spec.clone())
-    }
-
+impl Grid2<HashSet<Entity>> {
     /// Update an entity's position in the grid.
     pub fn update_entity(
         &mut self,
@@ -145,14 +122,13 @@ impl EntityGrid {
 
 #[cfg(test)]
 mod tests {
-    use crate::grid::{Grid2, GridSpec};
+    use crate::grid::{entity::EntitySet, Grid2, GridSpec};
 
-    use super::EntityGrid;
     use bevy::prelude::*;
 
     #[test]
     fn test_update() {
-        let mut grid = EntityGrid(Grid2 {
+        let mut grid = Grid2::<EntitySet> {
             spec: GridSpec {
                 rows: 10,
                 cols: 10,
@@ -160,7 +136,7 @@ mod tests {
                 visualize: false,
             },
             ..Default::default()
-        });
+        };
         grid.resize();
         assert_eq!(grid.spec.offset(), Vec2 { x: 50.0, y: 50.0 });
         let rowcol = grid.spec.to_rowcol(Vec2 { x: 0., y: 0. });

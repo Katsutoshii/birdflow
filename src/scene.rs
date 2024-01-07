@@ -3,7 +3,7 @@ use std::io::Write;
 
 use bevy::{prelude::*, tasks::IoTaskPool};
 
-use crate::{grid, objects};
+use crate::prelude::*;
 
 /// Plugin for saving and loading scenes.
 pub struct LoadableScenePlugin;
@@ -51,8 +51,8 @@ pub fn save_system(
     }
     let scene = DynamicSceneBuilder::from_world(world)
         .extract_entities(query.iter())
-        .allow_resource::<objects::Config>()
-        .allow_resource::<grid::EntityGrid>()
+        .allow_resource::<Config>()
+        .allow_resource::<Grid2<EntitySet>>()
         .extract_resources()
         .build();
 

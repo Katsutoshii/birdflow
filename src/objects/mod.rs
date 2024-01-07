@@ -1,12 +1,10 @@
+use crate::prelude::*;
 use bevy::prelude::*;
 
-use crate::{
-    grid::{EntityGrid, ObstaclesGrid},
-    physics::{Acceleration, Velocity},
-    SystemStage,
+pub use self::{
+    config::{Config, Configs, InteractionConfig},
+    objective::Objective,
 };
-
-pub use self::config::{Config, Configs, InteractionConfig};
 use self::{
     food::FoodPlugin,
     objective::ObjectivePlugin,
@@ -65,8 +63,8 @@ impl Object {
     pub fn update_velocity(
         mut objects: Query<(Entity, &Self, &Velocity, &mut Acceleration, &Transform)>,
         other_objects: Query<(&Self, &Velocity, &Transform)>,
-        obstacles: Res<ObstaclesGrid>,
-        grid: Res<EntityGrid>,
+        obstacles: Res<Grid2<Obstacle>>,
+        grid: Res<Grid2<EntitySet>>,
         configs: Res<Configs>,
     ) {
         objects.par_iter_mut().for_each(
@@ -93,8 +91,8 @@ impl Object {
         velocity: Velocity,
         transform: &Transform,
         entities: &Query<(&Object, &Velocity, &Transform)>,
-        grid: &EntityGrid,
-        obstacles: &ObstaclesGrid,
+        grid: &Grid2<EntitySet>,
+        obstacles: &Grid2<Obstacle>,
         config: &Config,
     ) -> Acceleration {
         let mut acceleration = Acceleration(Vec2::ZERO);
@@ -247,15 +245,6 @@ impl TeamMaterials {
 pub struct ZooidAssets {
     pub mesh: Handle<Mesh>,
     team_materials: Vec<TeamMaterials>,
-    // pub blue_material: Handle<ColorMaterial>,
-    // pub transparent_blue_material: Handle<ColorMaterial>,
-    // pub green_material: Handle<ColorMaterial>,
-    // pub tranparent_green_material: Handle<ColorMaterial>,
-    // pub dark_green_material: Handle<ColorMaterial>,
-    // pub transparent_dark_green_material: Handle<ColorMaterial>,
-    // pub tomato_material: Handle<ColorMaterial>,
-    // pub white_material: Handle<ColorMaterial>,
-    // pub transparent_white_material: Handle<ColorMaterial>,
 }
 impl ZooidAssets {
     fn get_team_material(&self, team: Team) -> TeamMaterials {

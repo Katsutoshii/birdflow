@@ -1,17 +1,11 @@
-/// Simple sparse grid flow for path finding.
-///
-use crate::{
-    inputs::{InputAction, InputActionEvent},
-    meshes::UNIT_SQUARE,
-    prelude::*,
-};
+use crate::prelude::*;
 use bevy::{
     prelude::*,
     render::render_resource::{AsBindGroup, ShaderRef},
     sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle},
 };
 
-use super::{navigation::NavigationCostEvent, GridSpec};
+use super::navigation::NavigationCostEvent;
 
 pub struct NavigationVisualizerPlugin;
 impl Plugin for NavigationVisualizerPlugin {
@@ -106,7 +100,7 @@ impl FromWorld for NavigationAssets {
     fn from_world(world: &mut World) -> Self {
         let mesh = {
             let mut meshes = world.get_resource_mut::<Assets<Mesh>>().unwrap();
-            meshes.add(Mesh::from(UNIT_SQUARE))
+            meshes.add(Mesh::from(meshes::UNIT_SQUARE))
         };
         let shader_material = {
             let mut materials = world

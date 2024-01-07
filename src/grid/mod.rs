@@ -1,3 +1,4 @@
+use crate::prelude::*;
 use bevy::prelude::*;
 
 mod spec;
@@ -7,20 +8,19 @@ pub use fog::FogPlugin;
 mod visualizer;
 pub use visualizer::{GridShaderMaterial, GridVisualizer};
 mod entity;
-pub use entity::{EntityGrid, EntityGridEvent, GridEntity};
+pub use entity::{EntityGridEvent, EntitySet, GridEntity};
 mod obstacles;
-pub use obstacles::{Obstacle, ObstaclesGrid, ObstaclesPlugin};
+pub use obstacles::{Obstacle, ObstaclesPlugin};
 mod grid2;
 pub use grid2::{Grid2, RowCol, RowColDistance};
 
 mod navigation;
-pub use navigation::{NavigationCostEvent, NavigationFlowGrid};
+pub use navigation::{EntityFlow, NavigationCostEvent};
 mod navigation_visualizer;
-use self::{
-    navigation::NavigationPlugin, navigation_visualizer::NavigationVisualizerPlugin,
-    visualizer::GridVisualizerPlugin,
+pub use self::{
+    grid2::Grid2Plugin, navigation::NavigationPlugin,
+    navigation_visualizer::NavigationVisualizerPlugin, visualizer::GridVisualizerPlugin,
 };
-use crate::SystemStage;
 
 /// Plugin for an spacial entity paritioning grid with optional debug functionality.
 pub struct GridPlugin;
@@ -33,13 +33,10 @@ impl Plugin for GridPlugin {
             .add_plugins(NavigationPlugin)
             .add_plugins(NavigationVisualizerPlugin)
             .add_plugins(FogPlugin)
-            .insert_resource(EntityGrid::default())
+            .add_plugins(Grid2Plugin::<EntitySet>::default())
             .add_systems(
                 FixedUpdate,
-                (
-                    GridEntity::update.in_set(SystemStage::PostApply),
-                    EntityGrid::resize_on_change,
-                ),
+                GridEntity::update.in_set(SystemStage::PostApply),
             );
     }
 }

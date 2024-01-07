@@ -1,23 +1,18 @@
+/// Sparse grid flow for path finding.
 use std::{
     cmp::Ordering,
     collections::{BTreeSet, BinaryHeap},
 };
 
-use crate::{grid::Grid2, prelude::*};
+use crate::{grid::Grid2, prelude::*, Obstacle, RowCol, RowColDistance};
 use bevy::{prelude::*, utils::HashMap};
-
-use super::{GridSpec, Obstacle, ObstaclesGrid, RowCol, RowColDistance};
 
 /// Plugin for flow-based navigation.
 pub struct NavigationPlugin;
 impl Plugin for NavigationPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(NavigationFlowGrid::default())
-            .add_event::<NavigationCostEvent>()
-            .add_systems(
-                FixedUpdate,
-                (NavigationFlowGrid::resize_on_change.in_set(SystemStage::PreCompute),),
-            );
+        app.add_plugins(Grid2Plugin::<EntityFlow>::default())
+            .add_event::<NavigationCostEvent>();
     }
 }
 
@@ -59,17 +54,11 @@ impl PartialOrd for AStarState {
     }
 }
 
-/// Flow grid applying forces for the shortest path to the objective.
-#[derive(Resource, Debug, Clone, Default, DerefMut, Deref)]
-pub struct NavigationFlowGrid(Grid2<HashMap<Entity, Acceleration>>);
-impl NavigationFlowGrid {
-    pub fn resize_on_change(mut grid: ResMut<Self>, grid_spec: Res<GridSpec>) {
-        if !grid_spec.is_changed() {
-            return;
-        }
-        grid.resize_with(grid_spec.clone());
-    }
+/// Flow vector per entity.
+#[derive(Default, DerefMut, Deref, Clone)]
+pub struct EntityFlow(pub HashMap<Entity, Acceleration>);
 
+impl Grid2<EntityFlow> {
     /// Compute the weighted acceleration for flow from a single cell.
     pub fn flow_acceleration(
         &self,
@@ -95,11 +84,6 @@ impl NavigationFlowGrid {
 
         total_acceleration += self.flow_acceleration(position, rowcol, entity);
 
-        // // Prevent jitter at goal cell.
-        // if total_acceleration == Acceleration(Vec2::ZERO) {
-        //     return total_acceleration;
-        // }
-
         // Add accelerations from neighboring cells.
         for (neighbor_rowcol, _) in self.neighbors8(rowcol) {
             if self.is_boundary(neighbor_rowcol) {
@@ -117,7 +101,7 @@ impl NavigationFlowGrid {
         entity: Entity,
         waypoint_rowcol: RowCol,
         traveler_rowcols: &[RowCol],
-        obstacles: &ObstaclesGrid,
+        obstacles: &Grid2<Obstacle>,
         event_writer: &mut EventWriter<NavigationCostEvent>,
     ) {
         if traveler_rowcols.is_empty() {
@@ -156,9 +140,8 @@ impl NavigationFlowGrid {
         &self,
         sources: &[RowCol],
         destination: RowCol,
-        obstacles: &ObstaclesGrid,
+        obstacles: &Grid2<Obstacle>,
     ) -> HashMap<RowCol, f32> {
-        info!("A* search");
         // Initial setup.
         let mut costs: HashMap<RowCol, f32> = HashMap::new();
         let mut heap: BinaryHeap<AStarState> = BinaryHeap::new();
@@ -178,7 +161,6 @@ impl NavigationFlowGrid {
         let max_heuristic = 0.9;
         let final_dist = max_dist.clamp(min_grid_dist, max_grid_dist);
         let heuristic_factor = max_heuristic * final_dist / max_grid_dist;
-        dbg!(heuristic_factor);
         // We're at `start`, with a zero cost
         heap.push(AStarState {
             cost: 0.,
@@ -207,7 +189,6 @@ impl NavigationFlowGrid {
                     break;
                 }
                 if rowcol == current_goal {
-                    info!("Source reached: {:?}", rowcol);
                     current_goal = *goals.first().unwrap();
                 }
             }

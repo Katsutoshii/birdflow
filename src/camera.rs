@@ -1,8 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
-use crate::grid::GridSpec;
-use crate::{window, Aabb2};
+use crate::prelude::*;
 
 pub struct CameraPlugin;
 impl Plugin for CameraPlugin {

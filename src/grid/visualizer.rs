@@ -4,9 +4,7 @@ use bevy::{
     sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle},
 };
 
-use crate::{meshes::UNIT_SQUARE, zindex};
-
-use super::{EntityGridEvent, GridEntity, GridSpec};
+use crate::prelude::*;
 
 /// Plugin for visualizing the grid.
 /// This plugin reads events from the entity grid and updates the shader's input buffer
@@ -156,7 +154,7 @@ impl FromWorld for GridAssets {
     fn from_world(world: &mut World) -> Self {
         let mesh = {
             let mut meshes = world.get_resource_mut::<Assets<Mesh>>().unwrap();
-            meshes.add(Mesh::from(UNIT_SQUARE))
+            meshes.add(Mesh::from(meshes::UNIT_SQUARE))
         };
         let shader_material = {
             let mut materials = world
