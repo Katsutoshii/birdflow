@@ -2,7 +2,12 @@ use crate::prelude::*;
 use bevy::{
     prelude::*,
     render::render_resource::{AsBindGroup, ShaderRef},
-    sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle},
+    sprite::Material2d,
+};
+
+use super::{
+    shader_plane::{ShaderPlaneAssets, ShaderPlanePlugin},
+    GridShaderMaterial,
 };
 
 /// Plugin for obstacles.
@@ -11,18 +16,16 @@ use bevy::{
 pub struct ObstaclesPlugin;
 impl Plugin for ObstaclesPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(Material2dPlugin::<ObstaclesShaderMaterial>::default())
+        app.add_plugins(ShaderPlanePlugin::<ObstaclesShaderMaterial>::default())
             .add_plugins(Grid2Plugin::<Obstacle>::default())
             .register_type::<ObstaclesSpec>()
             .register_type::<Obstacle>()
             .register_type::<Vec<(RowCol, Obstacle)>>()
             .register_type::<(RowCol, Obstacle)>()
             .register_type::<RowCol>()
-            .init_resource::<ObstaclesAssets>()
             .add_systems(
                 FixedUpdate,
                 (
-                    ObstaclesPlane::resize_on_change,
                     Grid2::<Obstacle>::update.after(Grid2::<Obstacle>::resize_on_change),
                     ObstaclesShaderMaterial::update.after(Grid2::<Obstacle>::resize_on_change),
                 ),
@@ -123,8 +126,12 @@ impl Default for ObstaclesShaderMaterial {
         }
     }
 }
-impl ObstaclesShaderMaterial {
-    pub fn resize(&mut self, spec: &GridSpec) {
+impl GridShaderMaterial for ObstaclesShaderMaterial {
+    fn zindex() -> f32 {
+        zindex::OBSTACLES
+    }
+
+    fn resize(&mut self, spec: &GridSpec) {
         self.size.width = spec.width;
         self.size.rows = spec.rows.into();
         self.size.cols = spec.cols.into();
@@ -133,19 +140,19 @@ impl ObstaclesShaderMaterial {
             Obstacle::Empty as u32,
         );
     }
-
+}
+impl ObstaclesShaderMaterial {
     /// Update the grid shader material.
     pub fn update(
         grid_spec: Res<GridSpec>,
         spec: Res<ObstaclesSpec>,
-        assets: Res<ObstaclesAssets>,
-        mut shader_assets: ResMut<Assets<ObstaclesShaderMaterial>>,
+        assets: Res<ShaderPlaneAssets<Self>>,
+        mut shader_assets: ResMut<Assets<Self>>,
     ) {
         if !spec.is_changed() {
             return;
         }
-        let material: &mut ObstaclesShaderMaterial =
-            shader_assets.get_mut(&assets.shader_material).unwrap();
+        let material = shader_assets.get_mut(&assets.shader_material).unwrap();
 
         material.grid.fill(Obstacle::Empty as u32);
         for &(rowcol, face) in spec.iter() {
@@ -156,75 +163,5 @@ impl ObstaclesShaderMaterial {
 impl Material2d for ObstaclesShaderMaterial {
     fn fragment_shader() -> ShaderRef {
         "shaders/obstacles.wgsl".into()
-    }
-}
-
-/// Handles to common fog assets.
-#[derive(Resource)]
-pub struct ObstaclesAssets {
-    pub mesh: Handle<Mesh>,
-    pub shader_material: Handle<ObstaclesShaderMaterial>,
-}
-impl FromWorld for ObstaclesAssets {
-    fn from_world(world: &mut World) -> Self {
-        let mesh = {
-            let mut meshes = world.get_resource_mut::<Assets<Mesh>>().unwrap();
-            meshes.add(Mesh::from(meshes::UNIT_SQUARE))
-        };
-        let shader_material = {
-            let mut materials = world
-                .get_resource_mut::<Assets<ObstaclesShaderMaterial>>()
-                .unwrap();
-            materials.add(ObstaclesShaderMaterial::default())
-        };
-        Self {
-            mesh,
-            shader_material,
-        }
-    }
-}
-
-/// Fog plane between the world and the camera.
-#[derive(Debug, Default, Component, Clone)]
-#[component(storage = "SparseSet")]
-pub struct ObstaclesPlane;
-impl ObstaclesPlane {
-    pub fn bundle(self, spec: &GridSpec, assets: &ObstaclesAssets) -> impl Bundle {
-        (
-            MaterialMesh2dBundle::<ObstaclesShaderMaterial> {
-                mesh: assets.mesh.clone().into(),
-                transform: Transform::default()
-                    .with_scale(spec.scale().extend(1.))
-                    .with_translation(Vec3 {
-                        x: 0.,
-                        y: 0.,
-                        z: zindex::OBSTACLES,
-                    }),
-                material: assets.shader_material.clone(),
-                ..default()
-            },
-            Name::new("GridVis"),
-            self,
-        )
-    }
-
-    pub fn resize_on_change(
-        grid_spec: Res<GridSpec>,
-        assets: Res<ObstaclesAssets>,
-        query: Query<Entity, With<ObstaclesPlane>>,
-        mut shader_assets: ResMut<Assets<ObstaclesShaderMaterial>>,
-        mut commands: Commands,
-    ) {
-        if !grid_spec.is_changed() {
-            return;
-        }
-        for entity in &query {
-            commands.entity(entity).despawn();
-        }
-
-        let material = shader_assets.get_mut(&assets.shader_material).unwrap();
-        material.resize(&grid_spec);
-
-        commands.spawn(ObstaclesPlane.bundle(&grid_spec, &assets));
     }
 }

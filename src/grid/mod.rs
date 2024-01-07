@@ -6,13 +6,15 @@ pub use spec::{GridSize, GridSpec};
 mod fog;
 pub use fog::FogPlugin;
 mod visualizer;
-pub use visualizer::{GridShaderMaterial, GridVisualizer};
+pub use visualizer::GridVisualizer;
 mod entity;
 pub use entity::{EntityGridEvent, EntitySet, GridEntity};
 mod obstacles;
 pub use obstacles::{Obstacle, ObstaclesPlugin};
 mod grid2;
 pub use grid2::{Grid2, RowCol, RowColDistance};
+mod shader_plane;
+pub use shader_plane::GridShaderMaterial;
 
 mod navigation;
 pub use navigation::{EntityFlow, NavigationCostEvent};
