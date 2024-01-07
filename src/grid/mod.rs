@@ -2,7 +2,7 @@ use crate::prelude::*;
 use bevy::prelude::*;
 
 mod spec;
-pub use spec::GridSpec;
+pub use spec::{GridSize, GridSpec};
 mod fog;
 pub use fog::FogPlugin;
 mod visualizer;

@@ -87,30 +87,24 @@ pub struct GridShaderMaterial {
     #[uniform(0)]
     color: Color,
     #[uniform(1)]
-    width: f32,
-    #[uniform(2)]
-    rows: u32,
-    #[uniform(3)]
-    cols: u32,
-    #[storage(4, read_only)]
+    size: GridSize,
+    #[storage(2, read_only)]
     grid: Vec<u32>,
 }
 impl Default for GridShaderMaterial {
     fn default() -> Self {
         Self {
             color: Color::WHITE,
-            width: 100.,
-            rows: 50,
-            cols: 100,
+            size: GridSize::default(),
             grid: Vec::default(),
         }
     }
 }
 impl GridShaderMaterial {
     pub fn resize(&mut self, spec: &GridSpec) {
-        self.width = spec.width;
-        self.rows = spec.rows.into();
-        self.cols = spec.cols.into();
+        self.size.width = spec.width;
+        self.size.rows = spec.rows.into();
+        self.size.cols = spec.cols.into();
         self.grid.resize(spec.rows as usize * spec.cols as usize, 0);
     }
     /// Update the grid shader material.

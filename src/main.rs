@@ -18,8 +18,8 @@ pub mod prelude {
         aabb::Aabb2,
         camera::MainCamera,
         grid::{
-            EntityFlow, EntityGridEvent, EntitySet, Grid2, Grid2Plugin, GridEntity, GridSpec,
-            Obstacle, RowCol, RowColDistance,
+            EntityFlow, EntityGridEvent, EntitySet, Grid2, Grid2Plugin, GridEntity, GridSize,
+            GridSpec, Obstacle, RowCol, RowColDistance,
         },
         inputs::{InputAction, InputActionEvent},
         meshes,

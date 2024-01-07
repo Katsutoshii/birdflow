@@ -28,30 +28,24 @@ pub struct NavigationShaderMaterial {
     #[uniform(0)]
     color: Color,
     #[uniform(1)]
-    width: f32,
-    #[uniform(2)]
-    rows: u32,
-    #[uniform(3)]
-    cols: u32,
-    #[storage(4, read_only)]
+    size: GridSize,
+    #[storage(2, read_only)]
     grid: Vec<f32>,
 }
 impl Default for NavigationShaderMaterial {
     fn default() -> Self {
         Self {
             color: Color::ORANGE_RED,
-            width: 100.,
-            rows: 50,
-            cols: 100,
+            size: GridSize::default(),
             grid: Vec::default(),
         }
     }
 }
 impl NavigationShaderMaterial {
     pub fn resize(&mut self, spec: &GridSpec) {
-        self.width = spec.width;
-        self.rows = spec.rows.into();
-        self.cols = spec.cols.into();
+        self.size.width = spec.width;
+        self.size.rows = spec.rows.into();
+        self.size.cols = spec.cols.into();
         self.grid
             .resize(spec.rows as usize * spec.cols as usize, 0.);
     }
@@ -80,7 +74,7 @@ impl NavigationShaderMaterial {
             cost,
         } in events.read()
         {
-            material.grid[grid_spec.flat_index(rowcol)] = cost * 0.005;
+            material.grid[grid_spec.flat_index(rowcol)] = cost * 0.002;
         }
     }
 }

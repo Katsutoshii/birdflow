@@ -1,5 +1,14 @@
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{prelude::*, render::render_resource::ShaderType};
+
+/// Shader supported grid size.
+#[derive(Default, ShaderType, Clone)]
+#[repr(C)]
+pub struct GridSize {
+    pub width: f32,
+    pub rows: u32,
+    pub cols: u32,
+}
 
 /// Specification describing how large the grid is.
 #[derive(Resource, Reflect, Clone, Debug)]

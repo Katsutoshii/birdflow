@@ -207,30 +207,24 @@ pub struct FogShaderMaterial {
     #[uniform(0)]
     pub color: Color,
     #[uniform(1)]
-    pub width: f32,
-    #[uniform(2)]
-    pub rows: u32,
-    #[uniform(3)]
-    pub cols: u32,
-    #[storage(4, read_only)]
+    pub size: GridSize,
+    #[storage(2, read_only)]
     pub grid: Vec<f32>,
 }
 impl Default for FogShaderMaterial {
     fn default() -> Self {
         Self {
             color: Color::BLACK,
-            width: 100.,
-            rows: 50,
-            cols: 100,
+            size: GridSize::default(),
             grid: Vec::default(),
         }
     }
 }
 impl FogShaderMaterial {
     pub fn resize(&mut self, spec: &GridSpec) {
-        self.width = spec.width;
-        self.rows = spec.rows.into();
-        self.cols = spec.cols.into();
+        self.size.width = spec.width;
+        self.size.rows = spec.rows.into();
+        self.size.cols = spec.cols.into();
         self.grid
             .resize(spec.rows as usize * spec.cols as usize, 1.);
     }
