@@ -11,7 +11,7 @@ impl Plugin for CameraPlugin {
             .add_systems(
                 FixedUpdate,
                 (
-                    CameraController::update_bounds,
+                    CameraController::update_bounds.after(window::resize_window),
                     CameraController::update,
                     CameraController::update_drag,
                 ),
@@ -57,31 +57,39 @@ impl Default for CameraController {
 impl CameraController {
     fn update_bounds(
         grid_spec: Res<GridSpec>,
+        configs: Res<Configs>,
         mut controller_query: Query<(&mut Self, &Camera, &GlobalTransform), With<MainCamera>>,
+        window: Query<&Window, With<PrimaryWindow>>,
     ) {
-        if !grid_spec.is_changed() {
+        if !(grid_spec.is_changed() || configs.is_changed()) {
             return;
         }
         let (mut controller, camera, camera_transform) = controller_query.single_mut();
-        if let Some(world2d_size) = Self::get_world2d_size(camera, camera_transform) {
+        if let Some(world2d_size) =
+            Self::get_world2d_size(camera, camera_transform, window.single())
+        {
             controller.world2d_bounds = grid_spec.world2d_bounds();
             controller.world2d_bounds.min += world2d_size * 0.5;
             controller.world2d_bounds.max -= world2d_size * 0.5;
         }
     }
 
-    fn get_world2d_size(camera: &Camera, camera_transform: &GlobalTransform) -> Option<Vec2> {
+    fn get_world2d_size(
+        camera: &Camera,
+        camera_transform: &GlobalTransform,
+        window: &Window,
+    ) -> Option<Vec2> {
         let camera_min = camera.viewport_to_world_2d(
             camera_transform,
             Vec2 {
                 x: 0.,
-                y: window::DIMENSIONS.y,
+                y: window.physical_height() as f32,
             },
         )?;
         let camera_max = camera.viewport_to_world_2d(
             camera_transform,
             Vec2 {
-                x: window::DIMENSIONS.x,
+                x: window.physical_width() as f32,
                 y: 0.,
             },
         )?;
@@ -106,14 +114,14 @@ impl CameraController {
                 if let Some(cursor_world2d) =
                     camera.viewport_to_world_2d(camera_global_transform, cursor_position)
                 {
-                    if let Some(last_drag_position) = controller.last_drag_position {
+                    let delta = if let Some(last_drag_position) = controller.last_drag_position {
                         let delta = last_drag_position - cursor_world2d;
-                        // Why is this 0.5 here?
-                        // Must have something to do with the default orthographic projection...
-                        // This is probably why it feels so slow, too.
-                        camera_transform.translation += (0.5 * delta).extend(0.);
-                    }
-                    controller.last_drag_position = Some(cursor_world2d);
+                        camera_transform.translation += delta.extend(0.);
+                        delta
+                    } else {
+                        Vec2::ZERO
+                    };
+                    controller.last_drag_position = Some(cursor_world2d + delta);
                 }
             } else if mouse_input.just_released(MouseButton::Middle) {
                 controller.last_drag_position = None;
@@ -135,18 +143,22 @@ impl CameraController {
 
         let mut acceleration = Vec2::ZERO;
         controller.velocity = Vec2::ZERO;
+        let window_size = Vec2 {
+            x: window.physical_width() as f32,
+            y: window.physical_height() as f32,
+        } / window.scale_factor() as f32;
         if let Some(cursor_position) = window.cursor_position() {
             // Screen border panning.
             acceleration += if cursor_position.x < 1. {
                 -Vec2::X
-            } else if cursor_position.x > window::DIMENSIONS.x - 1. {
+            } else if cursor_position.x > window_size.x - 1. {
                 Vec2::X
             } else {
                 Vec2::ZERO
             };
             acceleration += if cursor_position.y < 1. {
                 Vec2::Y
-            } else if cursor_position.y > window::DIMENSIONS.y - 1. {
+            } else if cursor_position.y > window_size.y - 1. {
                 -Vec2::Y
             } else {
                 Vec2::ZERO

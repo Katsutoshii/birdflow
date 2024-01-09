@@ -24,6 +24,7 @@ impl Plugin for ObjectsPlugin {
             FoodPlugin,
             WaypointPlugin,
         ))
+        .register_type::<Vec2>()
         .register_type::<Object>()
         .register_type::<Configs>()
         .register_type::<Config>()

@@ -81,11 +81,12 @@ impl InputAction {
         }
 
         let (_camera_entity, camera, camera_transform) = camera_query.single();
-        if let Some(position) = window_query
+        if let Some(ray) = window_query
             .single()
             .cursor_position()
-            .and_then(|cursor| camera.viewport_to_world_2d(camera_transform, cursor))
+            .and_then(|cursor| camera.viewport_to_world(camera_transform, cursor))
         {
+            let position = ray.origin.xy();
             // Movement
             if mouse_input.just_pressed(MouseButton::Right) {
                 event_writer.send(InputActionEvent {

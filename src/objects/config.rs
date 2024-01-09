@@ -35,6 +35,7 @@ pub struct Configs {
     pub player_team: Team,
     pub visibility_radius: u16,
     pub fog_radius: u16,
+    pub window_size: Vec2,
     // Configs for each Zooid type.
     pub worker: Config,
     pub head: Config,

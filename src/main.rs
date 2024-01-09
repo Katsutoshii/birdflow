@@ -8,6 +8,7 @@ pub mod inputs;
 pub mod meshes;
 pub mod objects;
 pub mod physics;
+pub mod raycast;
 pub mod scene;
 pub mod selector;
 pub mod window;
@@ -75,6 +76,10 @@ fn main() {
             physics::PhysicsPlugin,
         ))
         .add_systems(Startup, startup)
+        .add_systems(
+            FixedUpdate,
+            window::resize_window.in_set(SystemStage::Spawn),
+        )
         .run();
 }
 

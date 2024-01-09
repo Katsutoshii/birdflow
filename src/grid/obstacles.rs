@@ -127,8 +127,8 @@ impl Default for ObstaclesShaderMaterial {
     }
 }
 impl GridShaderMaterial for ObstaclesShaderMaterial {
-    fn zindex() -> f32 {
-        zindex::OBSTACLES
+    fn translation(_window: &Window, _spec: &GridSpec) -> Vec3 {
+        Vec2::ZERO.extend(zindex::OBSTACLES)
     }
 
     fn resize(&mut self, spec: &GridSpec) {

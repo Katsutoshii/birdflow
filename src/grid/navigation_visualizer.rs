@@ -39,8 +39,8 @@ impl Default for NavigationShaderMaterial {
     }
 }
 impl GridShaderMaterial for NavigationShaderMaterial {
-    fn zindex() -> f32 {
-        zindex::NAVIGATION_LAYER
+    fn translation(_window: &Window, _spec: &GridSpec) -> Vec3 {
+        Vec2::ZERO.extend(zindex::NAVIGATION_LAYER)
     }
     fn resize(&mut self, spec: &GridSpec) {
         self.size.width = spec.width;

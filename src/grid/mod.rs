@@ -5,9 +5,8 @@ mod spec;
 pub use spec::{GridSize, GridSpec};
 mod fog;
 pub use fog::FogPlugin;
-mod visualizer;
-pub use visualizer::GridVisualizer;
 mod entity;
+mod visualizer;
 pub use entity::{EntityGridEvent, EntitySet, GridEntity};
 mod obstacles;
 pub use obstacles::{Obstacle, ObstaclesPlugin};
@@ -15,10 +14,12 @@ mod grid2;
 pub use grid2::{Grid2, RowCol, RowColDistance};
 mod shader_plane;
 pub use shader_plane::GridShaderMaterial;
-
 mod navigation;
 pub use navigation::{EntityFlow, NavigationCostEvent};
+mod minimap;
+pub use minimap::MinimapPlugin;
 mod navigation_visualizer;
+
 pub use self::{
     grid2::Grid2Plugin, navigation::NavigationPlugin,
     navigation_visualizer::NavigationVisualizerPlugin, visualizer::GridVisualizerPlugin,
@@ -31,6 +32,7 @@ impl Plugin for GridPlugin {
         app.register_type::<GridSpec>()
             .add_event::<EntityGridEvent>()
             .add_plugins(GridVisualizerPlugin)
+            .add_plugins(MinimapPlugin)
             .add_plugins(ObstaclesPlugin)
             .add_plugins(NavigationPlugin)
             .add_plugins(NavigationVisualizerPlugin)

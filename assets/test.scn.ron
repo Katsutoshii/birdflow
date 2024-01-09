@@ -1,18 +1,18 @@
 (
   resources: {
     "birdflow::grid::spec::GridSpec": (
-      rows: 200,
-      cols: 200,
+      rows: 256,
+      cols: 256,
       width: 64.0,
       visualize: false,
     ),
     "birdflow::grid::obstacles::ObstaclesSpec": ([
-      ((104, 104), Full),
-      ((107, 102), Full),
-      ((104, 105), Full),
-      ((105, 105), DownRight),
-      ((105, 106), Full),
-      ((104, 106), UpLeft),
+      // ((104, 104), Full),
+      // ((107, 102), Full),
+      // ((104, 105), Full),
+      // ((105, 105), DownRight),
+      // ((105, 106), Full),
+      // ((104, 106), UpLeft),
     ]),
     "birdflow::physics::PhysicsMaterials": PhysicsMaterials(
       {
@@ -35,6 +35,10 @@
       }
     ),
     "birdflow::objects::config::Configs": (
+      window_size: Vec2(
+        x: 1600.,
+        y: 900.,
+      ),
       player_team: Blue,
       visibility_radius: 5,
       fog_radius: 4,

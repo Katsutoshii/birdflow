@@ -2,7 +2,9 @@ use crate::prelude::*;
 use bevy::{
     prelude::*,
     sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle},
+    window::PrimaryWindow,
 };
+use bevy_mod_raycast::deferred::RaycastMesh;
 use std::marker::PhantomData;
 
 /// Plugin for a 2D plane with a shader material.
@@ -21,16 +23,34 @@ where
 
 /// Trait must be implemented by all Plane shaders.
 pub trait GridShaderMaterial: Material2d + Default {
-    /// Return the zindex for the position of the grid.
-    fn zindex() -> f32;
+    /// If true, this grid shader will have the camera as a parent.
+    fn parent_camera() -> bool {
+        false
+    }
 
+    /// If true, receive raycasts.
+    fn receive_raycasts() -> bool {
+        false
+    }
+
+    /// Scale factor
+    fn scale(_window: &Window, spec: &GridSpec) -> Vec3 {
+        spec.scale().extend(1.)
+    }
+
+    /// Translation
+    fn translation(_window: &Window, spec: &GridSpec) -> Vec3;
+
+    /// Resize the grid based on the grid spec.
     fn resize(&mut self, spec: &GridSpec);
 
     /// When the spec is changed, respawn the visualizer entity with the new size.
     fn resize_on_change(
         spec: Res<GridSpec>,
-        assets: Res<ShaderPlaneAssets<Self>>,
         query: Query<Entity, With<ShaderPlane<Self>>>,
+        camera: Query<Entity, With<MainCamera>>,
+        assets: Res<ShaderPlaneAssets<Self>>,
+        window: Query<&Window, With<PrimaryWindow>>,
         mut shader_assets: ResMut<Assets<Self>>,
         mut commands: Commands,
     ) {
@@ -46,7 +66,22 @@ pub trait GridShaderMaterial: Material2d + Default {
         let material = shader_assets.get_mut(&assets.shader_material).unwrap();
         material.resize(&spec);
 
-        commands.spawn(ShaderPlane::<Self>::default().bundle(&spec, &assets));
+        let plane_entity = {
+            let window = window.single();
+            let mut plane =
+                commands.spawn(ShaderPlane::<Self>::default().bundle(&spec, window, &assets));
+            if Self::receive_raycasts() {
+                plane.insert(RaycastMesh::<()>::default());
+            }
+            plane.id()
+        };
+        if Self::parent_camera() {
+            let camera_entity = camera.single();
+            commands
+                .entity(camera_entity)
+                .push_children(&[plane_entity]);
+            info!("Added main camera as parent");
+        }
     }
 }
 
@@ -55,21 +90,23 @@ pub trait GridShaderMaterial: Material2d + Default {
 #[component(storage = "SparseSet")]
 pub struct ShaderPlane<M: GridShaderMaterial>(PhantomData<M>);
 impl<M: GridShaderMaterial> ShaderPlane<M> {
-    pub fn bundle(self, spec: &GridSpec, assets: &ShaderPlaneAssets<M>) -> impl Bundle {
+    pub fn bundle(
+        self,
+        spec: &GridSpec,
+        window: &Window,
+        assets: &ShaderPlaneAssets<M>,
+    ) -> impl Bundle {
+        let material = assets.shader_material.clone();
         (
             MaterialMesh2dBundle::<M> {
                 mesh: assets.mesh.clone().into(),
                 transform: Transform::default()
-                    .with_scale(spec.scale().extend(1.))
-                    .with_translation(Vec3 {
-                        x: 0.,
-                        y: 0.,
-                        z: M::zindex(),
-                    }),
-                material: assets.shader_material.clone(),
+                    .with_scale(M::scale(window, spec))
+                    .with_translation(M::translation(window, spec)),
+                material,
                 ..default()
             },
-            Name::new("ShaderPlane"),
+            Name::new(std::any::type_name::<Self>()),
             self,
         )
     }

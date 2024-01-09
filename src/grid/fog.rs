@@ -1,23 +1,26 @@
 use bevy::{
     prelude::*,
     render::render_resource::{AsBindGroup, ShaderRef},
-    sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle},
+    sprite::Material2d,
 };
 
 use crate::prelude::*;
+
+use super::{
+    shader_plane::{ShaderPlaneAssets, ShaderPlanePlugin},
+    GridShaderMaterial,
+};
 
 /// Plugin for fog of war.
 pub struct FogPlugin;
 impl Plugin for FogPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(Material2dPlugin::<FogShaderMaterial>::default())
+        app.add_plugins(ShaderPlanePlugin::<FogShaderMaterial>::default())
             .add_plugins(Grid2Plugin::<TeamVisibility>::default())
-            .init_resource::<FogAssets>()
             .add_systems(
                 FixedUpdate,
                 (
                     Grid2::<TeamVisibility>::update.after(GridEntity::update),
-                    FogPlane::resize_on_change,
                     Grid2::<TeamVisibility>::update_visibility
                         .after(Grid2::<TeamVisibility>::update),
                 ),
@@ -56,7 +59,7 @@ impl Grid2<TeamVisibility> {
     pub fn update(
         mut grid: ResMut<Self>,
         configs: Res<Configs>,
-        assets: Res<FogAssets>,
+        assets: Res<ShaderPlaneAssets<FogShaderMaterial>>,
         teams: Query<&Team>,
         mut shader_assets: ResMut<Assets<FogShaderMaterial>>,
         mut grid_events: EventReader<EntityGridEvent>,
@@ -130,77 +133,6 @@ impl Grid2<TeamVisibility> {
     }
 }
 
-/// Handles to common fog assets.
-#[derive(Resource)]
-pub struct FogAssets {
-    pub mesh: Handle<Mesh>,
-    pub shader_material: Handle<FogShaderMaterial>,
-}
-impl FromWorld for FogAssets {
-    fn from_world(world: &mut World) -> Self {
-        let mesh = {
-            let mut meshes = world.get_resource_mut::<Assets<Mesh>>().unwrap();
-            meshes.add(Mesh::from(meshes::UNIT_SQUARE))
-        };
-        let shader_material = {
-            let mut materials = world
-                .get_resource_mut::<Assets<FogShaderMaterial>>()
-                .unwrap();
-            materials.add(FogShaderMaterial::default())
-        };
-        Self {
-            mesh,
-            shader_material,
-        }
-    }
-}
-
-/// Fog plane between the world and the camera.
-#[derive(Debug, Default, Component, Clone)]
-#[component(storage = "SparseSet")]
-pub struct FogPlane;
-impl FogPlane {
-    pub fn bundle(self, spec: &GridSpec, assets: &FogAssets) -> impl Bundle {
-        (
-            MaterialMesh2dBundle::<FogShaderMaterial> {
-                mesh: assets.mesh.clone().into(),
-                transform: Transform::default()
-                    .with_scale(spec.scale().extend(1.))
-                    .with_translation(Vec3 {
-                        x: 0.,
-                        y: 0.,
-                        z: zindex::FOG_OF_WAR,
-                    }),
-                material: assets.shader_material.clone(),
-                ..default()
-            },
-            Name::new("FogVis"),
-            self,
-        )
-    }
-
-    /// Resize the fog shader.
-    pub fn resize_on_change(
-        spec: Res<GridSpec>,
-        assets: Res<FogAssets>,
-        query: Query<Entity, With<Self>>,
-        mut shader_assets: ResMut<Assets<FogShaderMaterial>>,
-        mut commands: Commands,
-    ) {
-        if !spec.is_changed() {
-            return;
-        }
-        for entity in &query {
-            commands.entity(entity).despawn();
-        }
-
-        let material = shader_assets.get_mut(&assets.shader_material).unwrap();
-        material.resize(&spec);
-
-        commands.spawn(FogPlane.bundle(&spec, &assets));
-    }
-}
-
 // This is the struct that will be passed to your shader
 #[derive(Asset, TypePath, AsBindGroup, Clone)]
 pub struct FogShaderMaterial {
@@ -220,13 +152,16 @@ impl Default for FogShaderMaterial {
         }
     }
 }
-impl FogShaderMaterial {
-    pub fn resize(&mut self, spec: &GridSpec) {
+impl GridShaderMaterial for FogShaderMaterial {
+    fn resize(&mut self, spec: &GridSpec) {
         self.size.width = spec.width;
         self.size.rows = spec.rows.into();
         self.size.cols = spec.cols.into();
         self.grid
             .resize(spec.rows as usize * spec.cols as usize, 1.);
+    }
+    fn translation(_window: &Window, _spec: &GridSpec) -> Vec3 {
+        Vec2::ZERO.extend(zindex::FOG_OF_WAR)
     }
 }
 impl Material2d for FogShaderMaterial {

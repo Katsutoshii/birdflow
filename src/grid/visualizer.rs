@@ -32,13 +32,6 @@ fn should_visualize_grid(spec: Res<GridSpec>) -> bool {
     spec.visualize
 }
 
-/// Component to visualize the grid.
-#[derive(Debug, Default, Component, Clone)]
-#[component(storage = "SparseSet")]
-pub struct GridVisualizer {
-    pub active: bool,
-}
-
 /// Parameters passed to grid background shader.
 #[derive(Asset, TypePath, AsBindGroup, Clone)]
 pub struct GridVisualizerShaderMaterial {
@@ -59,8 +52,8 @@ impl Default for GridVisualizerShaderMaterial {
     }
 }
 impl GridShaderMaterial for GridVisualizerShaderMaterial {
-    fn zindex() -> f32 {
-        zindex::SHADER_BACKGROUND
+    fn translation(_window: &Window, _spec: &GridSpec) -> Vec3 {
+        Vec2::ZERO.extend(zindex::SHADER_BACKGROUND)
     }
     fn resize(&mut self, spec: &GridSpec) {
         self.size.width = spec.width;
