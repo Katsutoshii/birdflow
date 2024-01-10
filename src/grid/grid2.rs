@@ -120,8 +120,8 @@ impl<T: Sized + Default + Clone + Send + Sync + 'static> Grid2<T> {
         let (row, col) = rowcol;
 
         let mut results = Vec::default();
-        for other_row in Self::cell_range(row, radius) {
-            for other_col in Self::cell_range(col, radius) {
+        for other_row in self.cell_range(row, radius) {
+            for other_col in self.cell_range(col, radius) {
                 let other_rowcol = (other_row, other_col);
                 if !Self::in_radius(rowcol, other_rowcol, radius) {
                     continue;
@@ -142,10 +142,10 @@ impl<T: Sized + Default + Clone + Send + Sync + 'static> Grid2<T> {
     }
 
     /// Returns a range starting at `center - radius` ending at `center + radius`.
-    fn cell_range(center: u16, radius: u16) -> RangeInclusive<u16> {
+    fn cell_range(&self, center: u16, radius: u16) -> RangeInclusive<u16> {
         let (min, max) = (
             (center as i16 - radius as i16).max(0) as u16,
-            center + radius,
+            (center + radius).min(self.spec.rows),
         );
         min..=max
     }

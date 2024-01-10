@@ -88,4 +88,10 @@ impl GridSpec {
         }
         false
     }
+
+    /// Returns true if the rowcol is in bounds.
+    pub fn in_bounds(&self, rowcol: RowCol) -> bool {
+        let (row, col) = rowcol;
+        row < self.rows && col < self.cols
+    }
 }

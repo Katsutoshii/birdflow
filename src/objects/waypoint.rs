@@ -84,11 +84,10 @@ impl Waypoint {
             for (selected, mut objective, transform) in selection.iter_mut() {
                 if selected.is_selected() {
                     *objective = Objective::FollowEntity(waypoint_entity);
-                }
-
-                let rowcol = nav_grid.spec.to_rowcol(transform.translation.xy());
-                for neighbor_rowcol in nav_grid.get_in_radius_discrete(rowcol, 2) {
-                    positions.push(neighbor_rowcol);
+                    let rowcol = nav_grid.spec.to_rowcol(transform.translation.xy());
+                    for neighbor_rowcol in nav_grid.get_in_radius_discrete(rowcol, 2) {
+                        positions.push(neighbor_rowcol);
+                    }
                 }
             }
             let target = nav_grid.spec.to_rowcol(position);

@@ -17,15 +17,31 @@ impl Plugin for FogPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(ShaderPlanePlugin::<FogShaderMaterial>::default())
             .add_plugins(Grid2Plugin::<TeamVisibility>::default())
+            .add_event::<VisibilityUpdateEvent>()
             .add_systems(
                 FixedUpdate,
                 (
                     Grid2::<TeamVisibility>::update.after(GridEntity::update),
                     Grid2::<TeamVisibility>::update_visibility
                         .after(Grid2::<TeamVisibility>::update),
+                    FogShaderMaterial::update.after(Grid2::<TeamVisibility>::update),
                 ),
             );
     }
+}
+
+/// Represents an update to visibility.
+#[derive(Default)]
+pub struct VisibilityUpdate {
+    pub team: Team,
+    pub rowcol: RowCol,
+}
+
+/// Communicates to other systems that visibility has been updated.
+#[derive(Event, Default)]
+pub struct VisibilityUpdateEvent {
+    pub additions: Vec<VisibilityUpdate>,
+    pub removals: Vec<VisibilityUpdate>,
 }
 
 /// Stores visibility per team.
@@ -59,13 +75,12 @@ impl Grid2<TeamVisibility> {
     pub fn update(
         mut grid: ResMut<Self>,
         configs: Res<Configs>,
-        assets: Res<ShaderPlaneAssets<FogShaderMaterial>>,
         teams: Query<&Team>,
-        mut shader_assets: ResMut<Assets<FogShaderMaterial>>,
         mut grid_events: EventReader<EntityGridEvent>,
+        mut visibility_events: EventWriter<VisibilityUpdateEvent>,
     ) {
-        let material: &mut FogShaderMaterial =
-            shader_assets.get_mut(&assets.shader_material).unwrap();
+        let mut updates = VisibilityUpdateEvent::default();
+
         for &EntityGridEvent {
             entity,
             prev_cell,
@@ -75,10 +90,16 @@ impl Grid2<TeamVisibility> {
         {
             let team = *teams.get(entity).unwrap();
             if let Some(prev_cell) = prev_cell {
-                grid.remove_visibility(prev_cell, team, &configs, &mut material.grid)
+                updates
+                    .removals
+                    .extend(grid.remove_visibility(prev_cell, team, &configs))
             }
-            grid.add_visibility(cell, team, &configs, &mut material.grid);
+            updates
+                .additions
+                .extend(grid.add_visibility(cell, team, &configs));
         }
+
+        visibility_events.send(updates);
     }
 
     fn remove_visibility(
@@ -86,20 +107,23 @@ impl Grid2<TeamVisibility> {
         rowcol: RowCol,
         team: Team,
         configs: &Configs,
-        visibility: &mut [f32],
-    ) {
+    ) -> Vec<VisibilityUpdate> {
+        let mut updates = Vec::default();
         let radius = configs.visibility_radius;
         for other_rowcol in self.get_in_radius_discrete(rowcol, radius) {
             if let Some(grid_visibility) = self.get_mut(other_rowcol) {
                 if grid_visibility.get(team) > 0 {
                     *grid_visibility.get_mut(team) -= 1;
                     if team == configs.player_team && grid_visibility.get(team) == 0 {
-                        let index = self.flat_index(other_rowcol);
-                        visibility[index] = 0.5;
+                        updates.push(VisibilityUpdate {
+                            team,
+                            rowcol: other_rowcol,
+                        });
                     }
                 }
             }
         }
+        updates
     }
 
     /// Return the visibility status at the cell corresponding to position for the given team.
@@ -117,8 +141,8 @@ impl Grid2<TeamVisibility> {
         cell: RowCol,
         team: Team,
         configs: &Configs,
-        visibility: &mut [f32],
-    ) {
+    ) -> Vec<VisibilityUpdate> {
+        let mut updates = Vec::default();
         let radius = configs.visibility_radius;
         for other_rowcol in self.get_in_radius_discrete(cell, radius) {
             if let Some(grid_visibility) = self.get_mut(other_rowcol) {
@@ -126,10 +150,14 @@ impl Grid2<TeamVisibility> {
                 if team == configs.player_team
                     && Grid2::<()>::in_radius(cell, other_rowcol, configs.fog_radius)
                 {
-                    visibility[self.flat_index(other_rowcol)] = 0.
+                    updates.push(VisibilityUpdate {
+                        team,
+                        rowcol: other_rowcol,
+                    });
                 }
             }
         }
+        updates
     }
 }
 
@@ -167,5 +195,24 @@ impl ShaderPlaneMaterial for FogShaderMaterial {
 impl Material2d for FogShaderMaterial {
     fn fragment_shader() -> ShaderRef {
         "shaders/fog_of_war.wgsl".into()
+    }
+}
+impl FogShaderMaterial {
+    pub fn update(
+        spec: Res<GridSpec>,
+        assets: Res<ShaderPlaneAssets<Self>>,
+        mut shader_assets: ResMut<Assets<Self>>,
+        mut updates: EventReader<VisibilityUpdateEvent>,
+    ) {
+        let material: &mut FogShaderMaterial =
+            shader_assets.get_mut(&assets.shader_material).unwrap();
+        for event in updates.read() {
+            for &VisibilityUpdate { team: _, rowcol } in &event.removals {
+                material.grid[spec.flat_index(rowcol)] = 0.5;
+            }
+            for &VisibilityUpdate { team: _, rowcol } in &event.additions {
+                material.grid[spec.flat_index(rowcol)] = 0.;
+            }
+        }
     }
 }
