@@ -36,8 +36,8 @@
     ),
     "birdflow::objects::config::Configs": (
       window_size: Vec2(
-        x: 1600.,
-        y: 900.,
+        x: 1920.,
+        y: 1080.,
       ),
       player_team: Blue,
       visibility_radius: 5,

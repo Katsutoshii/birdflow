@@ -9,8 +9,8 @@ use std::marker::PhantomData;
 
 /// Plugin for a 2D plane with a shader material.
 #[derive(Default)]
-pub struct ShaderPlanePlugin<M: GridShaderMaterial>(PhantomData<M>);
-impl<M: GridShaderMaterial> Plugin for ShaderPlanePlugin<M>
+pub struct ShaderPlanePlugin<M: ShaderPlaneMaterial>(PhantomData<M>);
+impl<M: ShaderPlaneMaterial> Plugin for ShaderPlanePlugin<M>
 where
     Material2dPlugin<M>: Plugin,
 {
@@ -22,7 +22,7 @@ where
 }
 
 /// Trait must be implemented by all Plane shaders.
-pub trait GridShaderMaterial: Material2d + Default {
+pub trait ShaderPlaneMaterial: Material2d + Default {
     /// If true, this grid shader will have the camera as a parent.
     fn parent_camera() -> bool {
         false
@@ -88,8 +88,8 @@ pub trait GridShaderMaterial: Material2d + Default {
 /// Component that marks an entity as a shader plane.
 #[derive(Debug, Default, Component, Clone)]
 #[component(storage = "SparseSet")]
-pub struct ShaderPlane<M: GridShaderMaterial>(PhantomData<M>);
-impl<M: GridShaderMaterial> ShaderPlane<M> {
+pub struct ShaderPlane<M: ShaderPlaneMaterial>(PhantomData<M>);
+impl<M: ShaderPlaneMaterial> ShaderPlane<M> {
     pub fn bundle(
         self,
         spec: &GridSpec,

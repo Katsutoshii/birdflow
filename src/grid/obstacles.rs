@@ -7,7 +7,7 @@ use bevy::{
 
 use super::{
     shader_plane::{ShaderPlaneAssets, ShaderPlanePlugin},
-    GridShaderMaterial,
+    ShaderPlaneMaterial,
 };
 
 /// Plugin for obstacles.
@@ -126,7 +126,7 @@ impl Default for ObstaclesShaderMaterial {
         }
     }
 }
-impl GridShaderMaterial for ObstaclesShaderMaterial {
+impl ShaderPlaneMaterial for ObstaclesShaderMaterial {
     fn translation(_window: &Window, _spec: &GridSpec) -> Vec3 {
         Vec2::ZERO.extend(zindex::OBSTACLES)
     }

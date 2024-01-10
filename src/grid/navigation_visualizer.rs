@@ -8,7 +8,7 @@ use bevy::{
 use super::{
     navigation::NavigationCostEvent,
     shader_plane::{ShaderPlaneAssets, ShaderPlanePlugin},
-    GridShaderMaterial,
+    ShaderPlaneMaterial,
 };
 
 pub struct NavigationVisualizerPlugin;
@@ -38,7 +38,7 @@ impl Default for NavigationShaderMaterial {
         }
     }
 }
-impl GridShaderMaterial for NavigationShaderMaterial {
+impl ShaderPlaneMaterial for NavigationShaderMaterial {
     fn translation(_window: &Window, _spec: &GridSpec) -> Vec3 {
         Vec2::ZERO.extend(zindex::NAVIGATION_LAYER)
     }

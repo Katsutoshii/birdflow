@@ -10,19 +10,7 @@
 
 @fragment
 fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
-    var offset = vec2<f32>(viewport.x, viewport.y) / 2. + vec2<f32>(offset.x, -offset.y);
-    // offset.y *= viewport.y / viewport.x;
-
-    let frag_coord = mesh.position.xy;
-    var sfrag_coord = (frag_coord - offset) / viewport.xy;
-    var uv = sfrag_coord;
-    uv.y *= viewport.y / viewport.x;
-    let width = 1. / 8.;
-    uv /= width;
-    uv *= vec2<f32>(1., -1.);
-    uv += 0.5;
-
-    let g = grid_uv(size, uv);
+    let g = grid_uv(size, mesh.uv);
     let row = u32(g.y);
     let col = u32(g.x);
 

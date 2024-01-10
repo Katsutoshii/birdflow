@@ -13,7 +13,7 @@ pub use obstacles::{Obstacle, ObstaclesPlugin};
 mod grid2;
 pub use grid2::{Grid2, RowCol, RowColDistance};
 mod shader_plane;
-pub use shader_plane::GridShaderMaterial;
+pub use shader_plane::ShaderPlaneMaterial;
 mod navigation;
 pub use navigation::{EntityFlow, NavigationCostEvent};
 mod minimap;

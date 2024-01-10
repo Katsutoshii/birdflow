@@ -1,6 +1,6 @@
 use bevy::{
     prelude::*,
-    window::{Cursor, CursorGrabMode, PresentMode, PrimaryWindow, WindowTheme},
+    window::{Cursor, CursorGrabMode, PresentMode, PrimaryWindow, WindowMode, WindowTheme},
 };
 
 use crate::prelude::Configs;
@@ -26,6 +26,7 @@ pub fn custom_plugin() -> WindowPlugin {
             },
             visible: true,
             resizable: false,
+            mode: WindowMode::Windowed,
             ..default()
         }),
         ..default()

@@ -8,7 +8,7 @@ use crate::prelude::*;
 
 use super::{
     shader_plane::{ShaderPlaneAssets, ShaderPlanePlugin},
-    GridShaderMaterial,
+    ShaderPlaneMaterial,
 };
 
 /// Plugin for fog of war.
@@ -152,7 +152,7 @@ impl Default for FogShaderMaterial {
         }
     }
 }
-impl GridShaderMaterial for FogShaderMaterial {
+impl ShaderPlaneMaterial for FogShaderMaterial {
     fn resize(&mut self, spec: &GridSpec) {
         self.size.width = spec.width;
         self.size.rows = spec.rows.into();

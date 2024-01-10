@@ -9,7 +9,7 @@ use crate::prelude::*;
 
 use super::{
     shader_plane::{ShaderPlaneAssets, ShaderPlanePlugin},
-    GridShaderMaterial,
+    ShaderPlaneMaterial,
 };
 
 /// Plugin for visualizing the grid.
@@ -51,14 +51,14 @@ impl Default for MinimapShaderMaterial {
         }
     }
 }
-impl GridShaderMaterial for MinimapShaderMaterial {
+impl ShaderPlaneMaterial for MinimapShaderMaterial {
     fn scale(window: &Window, _spec: &GridSpec) -> Vec3 {
         let viewport_size = Vec2 {
             x: window.physical_width() as f32,
             y: window.physical_height() as f32,
         } / window.scale_factor() as f32;
         let quad_size = viewport_size.xx() / 8.;
-        quad_size.extend(1.)
+        (quad_size * Vec2 { x: 1., y: -1. }).extend(1.)
     }
     fn translation(window: &Window, _spec: &GridSpec) -> Vec3 {
         let viewport_size = Vec2 {

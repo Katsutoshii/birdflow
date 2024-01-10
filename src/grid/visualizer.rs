@@ -8,7 +8,7 @@ use crate::prelude::*;
 
 use super::{
     shader_plane::{ShaderPlaneAssets, ShaderPlanePlugin},
-    GridShaderMaterial,
+    ShaderPlaneMaterial,
 };
 
 /// Plugin for visualizing the grid.
@@ -51,7 +51,7 @@ impl Default for GridVisualizerShaderMaterial {
         }
     }
 }
-impl GridShaderMaterial for GridVisualizerShaderMaterial {
+impl ShaderPlaneMaterial for GridVisualizerShaderMaterial {
     fn translation(_window: &Window, _spec: &GridSpec) -> Vec3 {
         Vec2::ZERO.extend(zindex::SHADER_BACKGROUND)
     }
