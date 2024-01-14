@@ -57,15 +57,16 @@ impl NavigationShaderMaterial {
         mut events: EventReader<NavigationCostEvent>,
         assets: Res<ShaderPlaneAssets<Self>>,
         mut shader_assets: ResMut<Assets<Self>>,
-        mut input_actions: EventReader<InputActionEvent>,
+        mut input_actions: EventReader<ControlEvent>,
     ) {
         let material = shader_assets.get_mut(&assets.shader_material).unwrap();
-        for &InputActionEvent {
+        for &ControlEvent {
             action,
+            state: _,
             position: _,
         } in input_actions.read()
         {
-            if action == InputAction::StartMove {
+            if action == ControlAction::Move {
                 material.grid = vec![0.; material.grid.len()];
             }
         }

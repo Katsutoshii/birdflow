@@ -22,10 +22,11 @@ pub mod prelude {
             EntityFlow, EntityGridEvent, EntitySet, Grid2, Grid2Plugin, GridEntity, GridSize,
             GridSpec, Obstacle, RowCol, RowColDistance,
         },
-        inputs::{InputAction, InputActionEvent},
+        inputs::{ControlAction, ControlEvent, InputState},
         meshes,
         objects::{Config, Configs, Object, Objective, Team},
         physics::{Acceleration, PhysicsBundle, PhysicsMaterial, PhysicsMaterialType, Velocity},
+        raycast::{RaycastEvent, RaycastTarget},
         selector::Selected,
         window, zindex, SystemStage,
     };
@@ -72,6 +73,7 @@ fn main() {
             objects::ObjectsPlugin,
             scene::LoadableScenePlugin,
             selector::SelectorPlugin,
+            raycast::RaycastPlugin,
             camera::CameraPlugin,
             physics::PhysicsPlugin,
         ))

@@ -54,6 +54,11 @@ impl GridSpec {
         } - self.offset()
     }
 
+    /// Convert local position [-0.5, 0.5] to world coordinates.
+    pub fn local_to_world_position(&self, position: Vec2) -> Vec2 {
+        position * 2. * self.offset()
+    }
+
     /// Compute the offset vector for this grid spec.
     pub fn offset(&self) -> Vec2 {
         Vec2 {

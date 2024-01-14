@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use bevy_mod_raycast::deferred::RaycastSource;
 
 use crate::prelude::*;
 
@@ -14,6 +15,7 @@ impl Plugin for CameraPlugin {
                     CameraController::update_bounds.after(window::resize_window),
                     CameraController::update,
                     CameraController::update_drag,
+                    CameraController::pan_to_position,
                 ),
             );
     }
@@ -26,6 +28,7 @@ impl MainCamera {
     pub fn startup(mut commands: Commands) {
         commands.spawn((
             Camera2dBundle::default(),
+            RaycastSource::<()>::new_cursor(),
             CameraController::default(),
             MainCamera,
         ));
@@ -169,6 +172,31 @@ impl CameraController {
             controller.velocity.extend(0.) * dt * controller.sensitivity;
         controller
             .world2d_bounds
+            .clamp3(&mut camera_transform.translation)
+    }
+
+    pub fn pan_to_position(
+        mut control_events: EventReader<ControlEvent>,
+        mut camera: Query<(&CameraController, &mut Transform), With<MainCamera>>,
+    ) {
+        for &ControlEvent {
+            action,
+            state: _,
+            position,
+        } in control_events.read()
+        {
+            if action != ControlAction::PanCamera {
+                continue;
+            }
+            let (controller, mut camera_transform) = camera.single_mut();
+            controller.set_position(&mut camera_transform, position);
+        }
+    }
+
+    // Set camera position.
+    pub fn set_position(&self, camera_transform: &mut Transform, position: Vec2) {
+        camera_transform.translation = position.extend(0.);
+        self.world2d_bounds
             .clamp3(&mut camera_transform.translation)
     }
 }

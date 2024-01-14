@@ -55,6 +55,11 @@ impl ShaderPlaneMaterial for GridVisualizerShaderMaterial {
     fn translation(_window: &Window, _spec: &GridSpec) -> Vec3 {
         Vec2::ZERO.extend(zindex::SHADER_BACKGROUND)
     }
+
+    fn raycast_target() -> RaycastTarget {
+        RaycastTarget::WorldGrid
+    }
+
     fn resize(&mut self, spec: &GridSpec) {
         self.size.width = spec.width;
         self.size.rows = spec.rows.into();

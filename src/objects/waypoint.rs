@@ -36,15 +36,16 @@ impl Waypoint {
         objectives: Query<&Objective, Without<Waypoint>>,
         waypoints: Query<Entity, With<Waypoint>>,
         mut commands: Commands,
-        mut input_actions: EventReader<InputActionEvent>,
+        mut input_actions: EventReader<ControlEvent>,
     ) {
-        if let Some(&InputActionEvent {
+        for &ControlEvent {
             action,
+            state: _,
             position: _,
-        }) = input_actions.read().next()
+        } in input_actions.read()
         {
-            if action != InputAction::Move {
-                return;
+            if action != ControlAction::Move {
+                continue;
             }
 
             let mut followed_entities = HashSet::new();
@@ -62,7 +63,7 @@ impl Waypoint {
     }
 
     pub fn update(
-        mut input_actions: EventReader<InputActionEvent>,
+        mut control_events: EventReader<ControlEvent>,
         mut selection: Query<(&Selected, &mut Objective, &Transform), Without<Self>>,
         mut nav_grid: ResMut<Grid2<EntityFlow>>,
         obstacles: Res<Grid2<Obstacle>>,
@@ -70,8 +71,13 @@ impl Waypoint {
         mut commands: Commands,
         assets: Res<WaypointAssets>,
     ) {
-        if let Some(&InputActionEvent { action, position }) = input_actions.read().next() {
-            if action != InputAction::Move {
+        for &ControlEvent {
+            action,
+            state: _,
+            position,
+        } in control_events.read()
+        {
+            if action != ControlAction::Move {
                 return;
             }
 

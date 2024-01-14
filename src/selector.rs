@@ -3,7 +3,7 @@ use bevy::{
     sprite::{MaterialMesh2dBundle, Mesh2dHandle},
 };
 
-use crate::prelude::*;
+use crate::{inputs::InputState, prelude::*};
 
 #[derive(Component, Default, PartialEq, Clone)]
 pub enum Selected {
@@ -50,12 +50,21 @@ impl Selector {
         grid: Res<Grid2<EntitySet>>,
         assets: Res<SelectorAssets>,
         configs: Res<Configs>,
-        mut input_actions: EventReader<InputActionEvent>,
+        mut events: EventReader<ControlEvent>,
     ) {
-        if let Some(&InputActionEvent { action, position }) = input_actions.read().next() {
+        for &ControlEvent {
+            action,
+            state,
+            position,
+        } in events.read()
+        {
+            if action != ControlAction::Select {
+                continue;
+            }
             let (mut selector, mut transform, mut visibility) = query.single_mut();
-            match action {
-                InputAction::StartSelect => {
+
+            match state {
+                InputState::Start => {
                     // Reset other selections.
                     for (_object, _transform, _team, mut selected, _mesh) in &mut objects {
                         if let Selected::Selected { child_entity } = selected.as_ref() {
@@ -71,7 +80,7 @@ impl Selector {
                     transform.scale = Vec3::ZERO;
                     transform.translation = position.extend(zindex::SELECTOR);
                 }
-                InputAction::Select => {
+                InputState::Held => {
                     selector.aabb.max = position;
                     // Resize the square to match the bounding box.
                     transform.translation = selector.aabb.center().extend(zindex::SELECTOR);
@@ -96,7 +105,7 @@ impl Selector {
                         }
                     }
                 }
-                InputAction::EndSelect => {
+                InputState::End => {
                     *visibility = Visibility::Hidden;
                 }
                 _ => {}

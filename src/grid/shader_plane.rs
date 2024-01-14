@@ -4,7 +4,6 @@ use bevy::{
     sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle},
     window::PrimaryWindow,
 };
-use bevy_mod_raycast::deferred::RaycastMesh;
 use std::marker::PhantomData;
 
 /// Plugin for a 2D plane with a shader material.
@@ -29,8 +28,8 @@ pub trait ShaderPlaneMaterial: Material2d + Default {
     }
 
     /// If true, receive raycasts.
-    fn receive_raycasts() -> bool {
-        false
+    fn raycast_target() -> RaycastTarget {
+        RaycastTarget::None
     }
 
     /// Scale factor
@@ -70,8 +69,8 @@ pub trait ShaderPlaneMaterial: Material2d + Default {
             let window = window.single();
             let mut plane =
                 commands.spawn(ShaderPlane::<Self>::default().bundle(&spec, window, &assets));
-            if Self::receive_raycasts() {
-                plane.insert(RaycastMesh::<()>::default());
+            if Self::raycast_target() != RaycastTarget::None {
+                plane.insert(Self::raycast_target());
             }
             plane.id()
         };
@@ -80,7 +79,6 @@ pub trait ShaderPlaneMaterial: Material2d + Default {
             commands
                 .entity(camera_entity)
                 .push_children(&[plane_entity]);
-            info!("Added main camera as parent");
         }
     }
 }

@@ -41,6 +41,5 @@ pub fn resize_window(mut query: Query<&mut Window, With<PrimaryWindow>>, configs
             (configs.window_size.x * scale_factor) as u32,
             (configs.window_size.y * scale_factor) as u32,
         );
-        dbg!(window.scale_factor());
     }
 }

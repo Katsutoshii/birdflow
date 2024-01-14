@@ -50,19 +50,12 @@ impl Default for MinimapShaderMaterial {
 }
 impl ShaderPlaneMaterial for MinimapShaderMaterial {
     fn scale(window: &Window, _spec: &GridSpec) -> Vec3 {
-        let viewport_size = Vec2 {
-            x: window.physical_width() as f32,
-            y: window.physical_height() as f32,
-        } / window.scale_factor() as f32;
-        let quad_size = viewport_size.xx() * Self::SCREEN_RATIO;
+        let quad_size = Self::quad_size(window);
         (quad_size * Vec2 { x: 1., y: -1. }).extend(1.)
     }
     fn translation(window: &Window, _spec: &GridSpec) -> Vec3 {
-        let viewport_size = Vec2 {
-            x: window.physical_width() as f32,
-            y: window.physical_height() as f32,
-        } / window.scale_factor() as f32;
-        let quad_size = viewport_size.xx() * Self::SCREEN_RATIO;
+        let viewport_size = Self::viewport_size(window);
+        let quad_size = Self::quad_size(window);
 
         let mut translation = Vec2::ZERO;
         translation += Vec2 {
@@ -86,12 +79,27 @@ impl ShaderPlaneMaterial for MinimapShaderMaterial {
         self.visibility_grid
             .resize(self.size.rows as usize * self.size.cols as usize, 1.);
     }
+    fn raycast_target() -> RaycastTarget {
+        RaycastTarget::Minimap
+    }
     fn parent_camera() -> bool {
         true
     }
 }
 impl MinimapShaderMaterial {
     const SCREEN_RATIO: f32 = 1. / 6.;
+
+    fn viewport_size(window: &Window) -> Vec2 {
+        Vec2 {
+            x: window.physical_width() as f32,
+            y: window.physical_height() as f32,
+        } / window.scale_factor() as f32
+    }
+
+    fn quad_size(window: &Window) -> Vec2 {
+        Self::viewport_size(window).xx() * Self::SCREEN_RATIO
+    }
+
     /// Update the grid shader material.
     pub fn update(
         spec: Res<GridSpec>,
