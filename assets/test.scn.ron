@@ -42,6 +42,7 @@
       player_team: Blue,
       visibility_radius: 5,
       fog_radius: 4,
+      cursor_sensitivity: 1.0,
       worker: (
         physics_material: Zooid,
         neighbor_radius: 300.0,

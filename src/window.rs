@@ -9,7 +9,8 @@ pub fn custom_plugin() -> WindowPlugin {
     WindowPlugin {
         primary_window: Some(Window {
             cursor: Cursor {
-                grab_mode: CursorGrabMode::Confined,
+                grab_mode: CursorGrabMode::Locked,
+                visible: false,
                 ..default()
             },
             title: "Bevy Zooids".into(),

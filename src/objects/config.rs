@@ -36,6 +36,7 @@ pub struct Configs {
     pub visibility_radius: u16,
     pub fog_radius: u16,
     pub window_size: Vec2,
+    pub cursor_sensitivity: f32,
     // Configs for each Zooid type.
     pub worker: Config,
     pub head: Config,

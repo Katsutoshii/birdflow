@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use bevy::{prelude::*, sprite::Mesh2dHandle, utils::HashMap, window::PrimaryWindow};
+use bevy::{prelude::*, sprite::Mesh2dHandle, utils::HashMap};
 use bevy_mod_raycast::primitives::Ray3d;
 
 use crate::{prelude::*, raycast::raycast};
@@ -85,11 +85,11 @@ impl InputEvent {
         }
     }
     pub fn update(
-        camera: Query<(Entity, &Camera, &GlobalTransform), With<MainCamera>>,
-        window: Query<&Window, With<PrimaryWindow>>,
         mouse_input: Res<Input<MouseButton>>,
+        cursor: Query<&GlobalTransform, With<Cursor>>,
         mut event_writer: EventWriter<Self>,
     ) {
+        let cursor = cursor.single();
         let mouse_buttons = [
             MouseButton::from(InputAction::Primary),
             MouseButton::from(InputAction::Secondary),
@@ -99,16 +99,12 @@ impl InputEvent {
             return;
         }
 
-        let (_camera_entity, camera, camera_transform) = camera.single();
-        let window = window.single();
-        if let Some(position) = window.cursor_position() {
-            let ray = Ray3d::from_screenspace(position, camera, camera_transform, window).unwrap();
-            if let Some(event) = Self::process_input(&mouse_input, InputAction::Primary, ray) {
-                event_writer.send(event);
-            }
-            if let Some(event) = Self::process_input(&mouse_input, InputAction::Secondary, ray) {
-                event_writer.send(event);
-            }
+        let ray = Ray3d::new(cursor.translation(), -Vec3::Z);
+        if let Some(event) = Self::process_input(&mouse_input, InputAction::Primary, ray) {
+            event_writer.send(event);
+        }
+        if let Some(event) = Self::process_input(&mouse_input, InputAction::Secondary, ray) {
+            event_writer.send(event);
         }
     }
 }

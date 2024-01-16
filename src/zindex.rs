@@ -16,3 +16,4 @@ pub const HIGHLIGHT: f32 = 15.0;
 pub const FOG_OF_WAR: f32 = 20.0;
 pub const MINIMAP: f32 = 25.0;
 pub const SELECTOR: f32 = 30.0;
+pub const CURSOR: f32 = 35.0;

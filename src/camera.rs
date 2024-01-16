@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use bevy_mod_raycast::deferred::RaycastSource;
 
+use crate::cursor::CursorAssets;
 use crate::prelude::*;
 
 pub struct CameraPlugin;
@@ -25,13 +25,20 @@ impl Plugin for CameraPlugin {
 #[derive(Component)]
 pub struct MainCamera;
 impl MainCamera {
-    pub fn startup(mut commands: Commands) {
-        commands.spawn((
-            Camera2dBundle::default(),
-            RaycastSource::<()>::new_cursor(),
-            CameraController::default(),
-            MainCamera,
-        ));
+    pub fn startup(mut commands: Commands, assets: Res<CursorAssets>) {
+        let camera_entity = commands
+            .spawn((
+                Camera2dBundle::default(),
+                CameraController::default(),
+                MainCamera,
+            ))
+            .id();
+
+        let cursor_bundle = Cursor.bundle(&assets, Vec2::ZERO.extend(zindex::CURSOR));
+        let cursor_entity = commands.spawn(cursor_bundle).id();
+        commands
+            .entity(camera_entity)
+            .push_children(&[cursor_entity]);
     }
 }
 
@@ -100,36 +107,29 @@ impl CameraController {
     }
 
     pub fn update_drag(
-        mut controller_query: Query<
-            (&mut Self, &mut Transform, &Camera, &GlobalTransform),
-            With<MainCamera>,
-        >,
-        window_query: Query<&Window, With<PrimaryWindow>>,
+        mut controller_query: Query<(&mut Self, &mut Transform), With<MainCamera>>,
+        cursor: Query<&GlobalTransform, (With<Cursor>, Without<MainCamera>)>,
         mouse_input: Res<Input<MouseButton>>,
     ) {
-        let window = window_query.single();
-        let (mut controller, mut camera_transform, camera, camera_global_transform) =
-            controller_query.single_mut();
+        let (mut controller, mut camera_transform) = controller_query.single_mut();
 
-        if let Some(cursor_position) = window.cursor_position() {
-            // Middle mouse drag
-            if mouse_input.pressed(MouseButton::Middle) {
-                if let Some(cursor_world2d) =
-                    camera.viewport_to_world_2d(camera_global_transform, cursor_position)
-                {
-                    let delta = if let Some(last_drag_position) = controller.last_drag_position {
-                        let delta = last_drag_position - cursor_world2d;
-                        camera_transform.translation += delta.extend(0.);
-                        delta
-                    } else {
-                        Vec2::ZERO
-                    };
-                    controller.last_drag_position = Some(cursor_world2d + delta);
-                }
-            } else if mouse_input.just_released(MouseButton::Middle) {
-                controller.last_drag_position = None;
-            }
+        let cursor = cursor.single();
+        let cursor_position = cursor.translation().xy();
+
+        // Middle mouse drag
+        if mouse_input.pressed(MouseButton::Middle) {
+            let delta = if let Some(last_drag_position) = controller.last_drag_position {
+                let delta = last_drag_position - cursor_position;
+                camera_transform.translation += delta.extend(0.);
+                delta
+            } else {
+                Vec2::ZERO
+            };
+            controller.last_drag_position = Some(cursor_position + delta);
+        } else if mouse_input.just_released(MouseButton::Middle) {
+            controller.last_drag_position = None;
         }
+
         controller
             .world2d_bounds
             .clamp3(&mut camera_transform.translation)
@@ -138,11 +138,19 @@ impl CameraController {
     pub fn update(
         time: Res<Time>,
         mut controller_query: Query<(&mut Self, &mut Transform), With<MainCamera>>,
+        cursor: Query<&Transform, (Without<MainCamera>, With<Cursor>)>,
         window_query: Query<&Window, With<PrimaryWindow>>,
+        input: Res<Input<KeyCode>>,
     ) {
         let dt = time.delta_seconds();
         let window = window_query.single();
         let (mut controller, mut camera_transform) = controller_query.single_mut();
+
+        let cursor = cursor.single();
+        let cursor_position = cursor.translation.xy();
+        if input.just_pressed(KeyCode::Space) {
+            dbg!(cursor_position);
+        }
 
         let mut acceleration = Vec2::ZERO;
         controller.velocity = Vec2::ZERO;
@@ -150,23 +158,26 @@ impl CameraController {
             x: window.physical_width() as f32,
             y: window.physical_height() as f32,
         } / window.scale_factor() as f32;
-        if let Some(cursor_position) = window.cursor_position() {
-            // Screen border panning.
-            acceleration += if cursor_position.x < 1. {
-                -Vec2::X
-            } else if cursor_position.x > window_size.x - 1. {
-                Vec2::X
-            } else {
-                Vec2::ZERO
-            };
-            acceleration += if cursor_position.y < 1. {
-                Vec2::Y
-            } else if cursor_position.y > window_size.y - 1. {
-                -Vec2::Y
-            } else {
-                Vec2::ZERO
-            };
-        }
+
+        let centered_cursor_position = cursor_position + window_size / 2.;
+
+        let boundary = 1.;
+        // Screen border panning.
+        acceleration += if centered_cursor_position.x < boundary {
+            -Vec2::X
+        } else if centered_cursor_position.x > window_size.x - boundary {
+            Vec2::X
+        } else {
+            Vec2::ZERO
+        };
+        acceleration += if centered_cursor_position.y < boundary {
+            -Vec2::Y
+        } else if centered_cursor_position.y > window_size.y - boundary {
+            Vec2::Y
+        } else {
+            Vec2::ZERO
+        };
+
         controller.velocity += acceleration;
         camera_transform.translation +=
             controller.velocity.extend(0.) * dt * controller.sensitivity;

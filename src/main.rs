@@ -3,6 +3,7 @@ use bevy_editor_pls::prelude::*;
 
 pub mod aabb;
 pub mod camera;
+pub mod cursor;
 pub mod grid;
 pub mod inputs;
 pub mod meshes;
@@ -18,6 +19,7 @@ pub mod prelude {
     pub use crate::{
         aabb::Aabb2,
         camera::MainCamera,
+        cursor::Cursor,
         grid::{
             EntityFlow, EntityGridEvent, EntitySet, Grid2, Grid2Plugin, GridEntity, GridSize,
             GridSpec, Obstacle, RowCol, RowColDistance,
@@ -76,6 +78,7 @@ fn main() {
             raycast::RaycastPlugin,
             camera::CameraPlugin,
             physics::PhysicsPlugin,
+            cursor::CursorPlugin,
         ))
         .add_systems(Startup, startup)
         .add_systems(

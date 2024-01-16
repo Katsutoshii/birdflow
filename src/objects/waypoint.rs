@@ -9,12 +9,13 @@ use super::objective::Objective;
 pub struct WaypointPlugin;
 impl Plugin for WaypointPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<WaypointAssets>()
-            .add_systems(FixedUpdate, Waypoint::update.in_set(SystemStage::Compute))
-            .add_systems(
-                FixedUpdate,
+        app.init_resource::<WaypointAssets>().add_systems(
+            FixedUpdate,
+            (
+                Waypoint::update.in_set(SystemStage::Compute),
                 Waypoint::cleanup.in_set(SystemStage::PostApply),
-            );
+            ),
+        );
     }
 }
 

@@ -48,7 +48,7 @@ impl Default for EntityGridEvent {
     }
 }
 
-impl Grid2<HashSet<Entity>> {
+impl Grid2<EntitySet> {
     /// Update an entity's position in the grid.
     pub fn update_entity(
         &mut self,
