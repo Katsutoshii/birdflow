@@ -1,7 +1,10 @@
 use crate::prelude::*;
 use bevy::{prelude::*, utils::HashMap};
 use derive_more::{Add, AddAssign, Sub, SubAssign};
-use std::ops::Mul;
+use std::{
+    cmp::{max, min},
+    ops::Mul,
+};
 
 /// Plugin to add a waypoint system where the player can click to create a waypoint.
 pub struct PhysicsPlugin;
@@ -78,7 +81,12 @@ pub fn update(
         let prev_velocity = *velocity;
 
         velocity.0 += acceleration.0;
+        if velocity.length_squared() != 0.0 {
+            velocity.0 = velocity.clamp_length_min(material.min_velocity);
+        }
+        let overflow = velocity.length_squared() / (material.max_velocity.powi(2)) * 0.1;
         velocity.0 = velocity.clamp_length_max(material.max_velocity);
+        velocity.0 *= overflow.clamp(1.0, 10.0);
         velocity.0 = velocity.lerp(prev_velocity.0, material.velocity_smoothing);
 
         transform.translation += velocity.0.extend(0.);
@@ -106,12 +114,14 @@ pub enum PhysicsMaterialType {
 #[derive(Clone, Reflect)]
 pub struct PhysicsMaterial {
     max_velocity: f32,
+    min_velocity: f32,
     velocity_smoothing: f32,
 }
 impl Default for PhysicsMaterial {
     fn default() -> Self {
         Self {
             max_velocity: 10.0,
+            min_velocity: 0.5,
             velocity_smoothing: 0.,
         }
     }

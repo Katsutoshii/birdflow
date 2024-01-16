@@ -83,7 +83,10 @@ fn main() {
         .add_systems(Startup, startup)
         .add_systems(
             FixedUpdate,
-            window::resize_window.in_set(SystemStage::Spawn),
+            (
+                window::resize_window.in_set(SystemStage::Spawn),
+                window::lock_cursor_position,
+            ),
         )
         .run();
 }

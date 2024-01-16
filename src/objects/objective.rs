@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{prelude::*, reflect::AccessError};
 
 pub struct ObjectivePlugin;
 impl Plugin for ObjectivePlugin {
@@ -60,6 +60,9 @@ pub enum Objective {
     /// Entity wants to move to a given position.
     #[allow(dead_code)]
     MoveToPosition(Vec2),
+    // Entity will attack nearest enemy in surrounding grid
+    #[allow(dead_code)]
+    AttackNearest(),
 }
 impl Objective {
     pub fn update(
@@ -125,6 +128,7 @@ impl Objective {
                 navigation_grid.flow_acceleration5(transform.translation.xy(), entity)
                     + config.slow_force(velocity, transform.translation.xy(), target_cell_position)
             }
+            Objective::AttackNearest() => Acceleration(Vec2::ONE * 1000.0),
             Objective::None => Acceleration(Vec2::ZERO),
         }
     }

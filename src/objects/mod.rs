@@ -1,5 +1,6 @@
 use crate::prelude::*;
 use bevy::prelude::*;
+use rand::prelude::*;
 
 pub use self::{
     config::{Config, Configs, InteractionConfig},
@@ -62,17 +63,25 @@ impl Default for Object {
 impl Object {
     /// Update objects velocity and objectives.
     pub fn update_velocity(
-        mut objects: Query<(Entity, &Self, &Velocity, &mut Acceleration, &Transform)>,
-        other_objects: Query<(&Self, &Velocity, &Transform)>,
+        mut objects: Query<(
+            Entity,
+            &Self,
+            &Velocity,
+            &mut Acceleration,
+            &Transform,
+            &Team,
+        )>,
+        other_objects: Query<(&Self, &Velocity, &Transform, &Team)>,
         obstacles: Res<Grid2<Obstacle>>,
         grid: Res<Grid2<EntitySet>>,
         configs: Res<Configs>,
     ) {
         objects.par_iter_mut().for_each(
-            |(entity, zooid, &velocity, mut acceleration, transform)| {
+            |(entity, zooid, &velocity, mut acceleration, transform, team)| {
                 let config = configs.get(zooid);
                 *acceleration += zooid.acceleration(
                     entity,
+                    team,
                     velocity,
                     transform,
                     &other_objects,
@@ -89,25 +98,30 @@ impl Object {
     pub fn acceleration(
         &self,
         entity: Entity,
+        team: &Team,
         velocity: Velocity,
         transform: &Transform,
-        entities: &Query<(&Object, &Velocity, &Transform)>,
+        entities: &Query<(&Object, &Velocity, &Transform, &Team)>,
         grid: &Grid2<EntitySet>,
         obstacles: &Grid2<Obstacle>,
         config: &Config,
     ) -> Acceleration {
         let mut acceleration = Acceleration(Vec2::ZERO);
-
+        let should_attack = thread_rng().gen_range(0.0..1.0) < 1.0 / 60.0;
         // Forces from other entities
         let position = transform.translation.truncate();
         let other_entities = grid.get_entities_in_radius(position, config);
+        let mut attack_vector: Option<Vec2> = None;
         for other_entity in &other_entities {
             if entity == *other_entity {
                 continue;
             }
 
-            let (other, &other_velocity, other_transform) =
+            let (other, &other_velocity, other_transform, other_team) =
                 entities.get(*other_entity).expect("Invalid grid entity.");
+
+            let other_position = other_transform.translation.truncate();
+            let delta = other_position - position;
             acceleration += self.other_acceleration(
                 transform,
                 velocity,
@@ -117,10 +131,20 @@ impl Object {
                 config,
                 other_entities.len(),
             ) * (1.0 / (other_entities.len() as f32 + 1.));
+            if should_attack && other_team != team {
+                if let Some(closest_delta) = attack_vector {
+                    if closest_delta.length() > delta.length() {
+                        attack_vector = Some(delta);
+                    }
+                } else {
+                    attack_vector = Some(delta);
+                }
+            }
         }
-
         acceleration += obstacles.obstacles_acceleration(position, velocity, acceleration) * 3.;
-
+        if let Some(target) = attack_vector {
+            acceleration += Acceleration(target.normalize() * 1000.0);
+        }
         acceleration
     }
 

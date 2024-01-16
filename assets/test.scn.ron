@@ -18,18 +18,22 @@
       {
         Default: PhysicsMaterial(
           max_velocity: 10.0,
+          min_velocity: 3.0,
           velocity_smoothing: 0.0,
         ),
         Zooid: PhysicsMaterial(
           max_velocity: 7.0,
+          min_velocity: 3.0,
           velocity_smoothing: 0.5,
         ),
         SlowZooid: PhysicsMaterial(
           max_velocity: 5.0,
+          min_velocity: 0.0,
           velocity_smoothing: 0.5,
         ),
         Food: PhysicsMaterial(
           max_velocity: 1.0,
+          min_velocity: 0.0,
           velocity_smoothing: 0.5,
         ),
       }
@@ -39,10 +43,9 @@
         x: 1600.,
         y: 900.,
       ),
-      player_team: Blue,
+      player_team: Red,
       visibility_radius: 5,
       fog_radius: 4,
-      cursor_sensitivity: 1.0,
       worker: (
         physics_material: Zooid,
         neighbor_radius: 300.0,

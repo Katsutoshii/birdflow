@@ -13,7 +13,7 @@ impl Plugin for CursorPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CursorAssets>()
             // .add_systems(Startup, Cursor::startup.after(MainCamera::startup))
-            .add_systems(FixedUpdate, Cursor::update.in_set(SystemStage::Compute));
+            .add_systems(PreUpdate, Cursor::update.in_set(SystemStage::Compute));
     }
 }
 
@@ -24,7 +24,7 @@ impl Cursor {
         mut cursor: Query<&mut Transform, With<Self>>,
         mut mouse_motion: EventReader<MouseMotion>,
         window: Query<&Window, With<PrimaryWindow>>,
-        configs: Res<Configs>,
+        //configs: Res<Configs>,
     ) {
         let window = window.single();
         let scale_factor = window.scale_factor() as f32;
@@ -35,8 +35,8 @@ impl Cursor {
 
         let mut cursor_transform = cursor.single_mut();
         for &MouseMotion { mut delta } in mouse_motion.read() {
-            delta *= configs.cursor_sensitivity * scale_factor * Vec2 { x: 1., y: -1. };
-            cursor_transform.translation += delta.extend(0.);
+            delta *= Vec2 { x: 1., y: -1. };
+            cursor_transform.translation += delta.extend(0.) / scale_factor / 2.;
         }
         cursor_transform.translation = cursor_transform
             .translation

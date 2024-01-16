@@ -34,6 +34,13 @@ pub fn custom_plugin() -> WindowPlugin {
     }
 }
 
+pub fn lock_cursor_position(mut window: Query<&mut Window, With<PrimaryWindow>>) {
+    let mut window = window.single_mut();
+    let width = window.width();
+    let height = window.height();
+    window.set_cursor_position(Some(Vec2::new(width / 2., height / 2.)));
+}
+
 pub fn resize_window(mut query: Query<&mut Window, With<PrimaryWindow>>, configs: Res<Configs>) {
     if configs.is_changed() {
         let mut window = query.single_mut();
