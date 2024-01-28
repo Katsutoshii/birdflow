@@ -46,7 +46,7 @@ impl Plugin for GridPlugin {
 }
 #[cfg(test)]
 mod tests {
-    use crate::grid::Grid2;
+    use crate::GridSpec;
 
     #[test]
     fn grid_radius() {
@@ -54,7 +54,7 @@ mod tests {
             let (row, col) = (1, 1);
             let (other_row, other_col) = (2, 2);
             let radius = 2;
-            assert!(Grid2::<()>::in_radius(
+            assert!(GridSpec::in_radius(
                 (row, col),
                 (other_row, other_col),
                 radius
@@ -64,7 +64,7 @@ mod tests {
             let (row, col) = (1, 1);
             let (other_row, other_col) = (4, 4);
             let radius = 2;
-            assert!(!Grid2::<()>::in_radius(
+            assert!(!GridSpec::in_radius(
                 (row, col),
                 (other_row, other_col),
                 radius

@@ -1,3 +1,5 @@
+use std::ops::RangeInclusive;
+
 use crate::prelude::*;
 use bevy::{prelude::*, render::render_resource::ShaderType};
 
@@ -125,5 +127,59 @@ impl GridSpec {
             (row - 1, col), // Down
             (row, col - 1), // Left
         ]
+    }
+
+    /// Get all cells in a given bounding box.
+    pub fn get_in_aabb(&self, aabb: &Aabb2) -> Vec<RowCol> {
+        let mut results = Vec::default();
+
+        let (min_row, min_col) = self.to_rowcol(aabb.min);
+        let (max_row, max_col) = self.to_rowcol(aabb.max);
+        for row in min_row..=max_row {
+            for col in min_col..=max_col {
+                results.push((row, col))
+            }
+        }
+        results
+    }
+
+    /// Get in radius.
+    pub fn get_in_radius(&self, position: Vec2, radius: f32) -> Vec<RowCol> {
+        self.get_in_radius_discrete(self.to_rowcol(position), self.discretize(radius))
+    }
+
+    /// Get in radius, with discrete cell position inputs.
+    pub fn get_in_radius_discrete(&self, rowcol: RowCol, radius: u16) -> Vec<RowCol> {
+        let (row, col) = rowcol;
+
+        let mut results = Vec::default();
+        for other_row in self.cell_range(row, radius) {
+            for other_col in self.cell_range(col, radius) {
+                let other_rowcol = (other_row, other_col);
+                if !Self::in_radius(rowcol, other_rowcol, radius) {
+                    continue;
+                }
+                results.push(other_rowcol)
+            }
+        }
+        results
+    }
+
+    /// Returns true if a cell is within the given radius to another cell.
+    pub fn in_radius(rowcol: RowCol, other_rowcol: RowCol, radius: u16) -> bool {
+        let (row, col) = rowcol;
+        let (other_row, other_col) = other_rowcol;
+        let row_dist = other_row as i16 - row as i16;
+        let col_dist = other_col as i16 - col as i16;
+        row_dist * row_dist + col_dist * col_dist < radius as i16 * radius as i16
+    }
+
+    /// Returns a range starting at `center - radius` ending at `center + radius`.
+    fn cell_range(&self, center: u16, radius: u16) -> RangeInclusive<u16> {
+        let (min, max) = (
+            (center as i16 - radius as i16).max(0) as u16,
+            (center + radius).min(self.rows),
+        );
+        min..=max
     }
 }

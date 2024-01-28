@@ -148,7 +148,7 @@ impl Grid2<TeamVisibility> {
             if let Some(grid_visibility) = self.get_mut(other_rowcol) {
                 *grid_visibility.get_mut(team) += 1;
                 if team == configs.player_team
-                    && Grid2::<()>::in_radius(cell, other_rowcol, configs.fog_radius)
+                    && GridSpec::in_radius(cell, other_rowcol, configs.fog_radius)
                 {
                     updates.push(VisibilityUpdate {
                         team,
