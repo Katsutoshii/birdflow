@@ -1,17 +1,13 @@
 use crate::prelude::*;
 use bevy::prelude::*;
-use rand::prelude::*;
 
 pub use self::{
     config::{Config, Configs, InteractionConfig},
     objective::Objective,
 };
 use self::{
-    food::FoodPlugin,
-    objective::ObjectivePlugin,
-    waypoint::WaypointPlugin,
-    zooid_head::ZooidHeadPlugin,
-    zooid_worker::{ZooidWorker, ZooidWorkerPlugin},
+    food::FoodPlugin, object::ObjectPlugin, objective::ObjectivePlugin,
+    zooid_head::ZooidHeadPlugin, zooid_worker::ZooidWorkerPlugin,
 };
 
 /// Plugin for running zooids simulation.
@@ -23,216 +19,26 @@ impl Plugin for ObjectsPlugin {
             ZooidHeadPlugin,
             ZooidWorkerPlugin,
             FoodPlugin,
-            WaypointPlugin,
+            ObjectPlugin,
         ))
         .register_type::<Vec2>()
-        .register_type::<Object>()
         .register_type::<Configs>()
         .register_type::<Config>()
         .register_type::<Team>()
         .register_type::<InteractionConfig>()
         .init_resource::<ZooidAssets>()
-        .configure_sets(FixedUpdate, SystemStage::get_config())
-        .add_systems(
-            FixedUpdate,
-            (Object::update_velocity.in_set(SystemStage::Compute),),
-        );
+        .configure_sets(FixedUpdate, SystemStage::get_config());
     }
 }
 
 mod config;
 mod food;
+mod object;
 mod objective;
-mod waypoint;
 mod zooid_head;
 mod zooid_worker;
 
-/// Entities that can interact with each other.
-#[derive(Component, Reflect, Clone)]
-#[reflect(Component)]
-pub enum Object {
-    Worker(ZooidWorker),
-    Head,
-    Food,
-}
-impl Default for Object {
-    fn default() -> Self {
-        Self::Worker(ZooidWorker::default())
-    }
-}
-impl Object {
-    /// Update objects velocity and objectives.
-    pub fn update_velocity(
-        mut objects: Query<(
-            Entity,
-            &Self,
-            &Velocity,
-            &mut Acceleration,
-            &Transform,
-            &Team,
-        )>,
-        other_objects: Query<(&Self, &Velocity, &Transform, &Team)>,
-        obstacles: Res<Grid2<Obstacle>>,
-        grid: Res<Grid2<EntitySet>>,
-        configs: Res<Configs>,
-    ) {
-        objects.par_iter_mut().for_each(
-            |(entity, zooid, &velocity, mut acceleration, transform, team)| {
-                let config = configs.get(zooid);
-                *acceleration += zooid.acceleration(
-                    entity,
-                    team,
-                    velocity,
-                    transform,
-                    &other_objects,
-                    &grid,
-                    &obstacles,
-                    config,
-                );
-            },
-        )
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// Compute acceleration for this timestemp.
-    pub fn acceleration(
-        &self,
-        entity: Entity,
-        team: &Team,
-        velocity: Velocity,
-        transform: &Transform,
-        entities: &Query<(&Object, &Velocity, &Transform, &Team)>,
-        grid: &Grid2<EntitySet>,
-        obstacles: &Grid2<Obstacle>,
-        config: &Config,
-    ) -> Acceleration {
-        let mut acceleration = Acceleration(Vec2::ZERO);
-        let should_attack = thread_rng().gen_range(0.0..1.0) < 1.0 / 60.0;
-        // Forces from other entities
-        let position = transform.translation.truncate();
-        let other_entities = grid.get_entities_in_radius(position, config);
-        let mut attack_vector: Option<Vec2> = None;
-        for other_entity in &other_entities {
-            if entity == *other_entity {
-                continue;
-            }
-
-            let (other, &other_velocity, other_transform, other_team) =
-                entities.get(*other_entity).expect("Invalid grid entity.");
-
-            let other_position = other_transform.translation.truncate();
-            let delta = other_position - position;
-            acceleration += self.other_acceleration(
-                transform,
-                velocity,
-                other,
-                other_transform,
-                other_velocity,
-                config,
-                other_entities.len(),
-            ) * (1.0 / (other_entities.len() as f32 + 1.));
-            if should_attack && other_team != team {
-                if let Some(closest_delta) = attack_vector {
-                    if closest_delta.length() > delta.length() {
-                        attack_vector = Some(delta);
-                    }
-                } else {
-                    attack_vector = Some(delta);
-                }
-            }
-        }
-        acceleration += obstacles.obstacles_acceleration(position, velocity, acceleration) * 3.;
-        if let Some(target) = attack_vector {
-            acceleration += Acceleration(target.normalize() * 1000.0);
-        }
-        acceleration
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn other_acceleration(
-        &self,
-        transform: &Transform,
-        velocity: Velocity,
-        other: &Self,
-        other_transform: &Transform,
-        other_velocity: Velocity,
-        config: &Config,
-        num_others: usize,
-    ) -> Acceleration {
-        let mut acceleration = Acceleration(Vec2::ZERO);
-        let interaction = config.get_interaction(other);
-
-        let position_delta =
-            transform.translation.truncate() - other_transform.translation.truncate(); // Towards self, away from other.
-        let distance_squared = position_delta.length_squared();
-        if distance_squared > config.neighbor_radius * config.neighbor_radius {
-            return acceleration;
-        }
-
-        // Separation
-        acceleration +=
-            Self::separation_acceleration(position_delta, distance_squared, velocity, interaction);
-
-        // Alignment
-        acceleration += Self::alignment_acceleration(
-            distance_squared,
-            velocity,
-            other_velocity,
-            num_others,
-            interaction,
-        );
-        acceleration
-    }
-
-    /// Compute acceleration from separation.
-    /// The direction is towards self away from each nearby bird.
-    /// The magnitude is computed by
-    /// $ magnitude = sep * (-x^2 / r^2 + 1)$
-    fn separation_acceleration(
-        position_delta: Vec2,
-        distance_squared: f32,
-        velocity: Velocity,
-        interaction: &InteractionConfig,
-    ) -> Acceleration {
-        let radius = interaction.separation_radius;
-        let radius_squared = radius * radius;
-
-        let slow_force = interaction.slow_factor
-            * if distance_squared < radius_squared {
-                Vec2::ZERO
-            } else {
-                -1.0 * velocity.0
-            };
-
-        let magnitude =
-            interaction.separation_acceleration * (-distance_squared / (radius_squared) + 1.);
-        Acceleration(
-            position_delta.normalize_or_zero()
-                * magnitude.clamp(
-                    -interaction.cohesion_acceleration,
-                    interaction.separation_acceleration,
-                )
-                + slow_force,
-        )
-    }
-
-    /// ALignment acceleration.
-    /// For now we just nudge the birds in the direction of all the other birds.
-    /// We normalize by number of other birds to prevent a large flock
-    /// from being unable to turn.
-    fn alignment_acceleration(
-        distance_squared: f32,
-        velocity: Velocity,
-        other_velocity: Velocity,
-        other_count: usize,
-        config: &InteractionConfig,
-    ) -> Acceleration {
-        Acceleration(
-            (other_velocity.0 - velocity.0) * config.alignment_factor
-                / (distance_squared.max(0.1) * other_count as f32),
-        )
-    }
-}
+pub use object::Object;
 
 /// Enum to specify the team of the given object.
 #[derive(Component, Default, Debug, PartialEq, Eq, Reflect, Clone, Copy, Hash)]
@@ -246,9 +52,7 @@ pub enum Team {
 }
 impl Team {
     /// Number of teams.
-    pub const fn count() -> usize {
-        3
-    }
+    pub const COUNT: usize = 3;
 }
 
 #[derive(Default, Clone)]

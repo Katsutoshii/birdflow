@@ -35,10 +35,16 @@ impl Plugin for InputActionPlugin {
 pub enum InputState {
     #[default]
     None,
-    Start,
+    Pressed,
     Held,
-    End,
+    Released,
 }
+
+pub enum RawInput {
+    MouseButton(MouseButton),
+    KeyCode(KeyCode),
+}
+
 /// Describes an action input by the user.
 #[derive(Default, PartialEq, Clone, Copy, Debug, Hash)]
 pub enum InputAction {
@@ -47,17 +53,57 @@ pub enum InputAction {
     Primary,
     Secondary,
     CameraPan,
+    SpawnHead,
+    SpawnZooid,
+    SpawnRed,
+    SpawnBlue,
 }
-impl From<InputAction> for MouseButton {
+impl InputAction {
+    const NUM_ACTIONS: usize = 7;
+    const ACTIONS: [Self; Self::NUM_ACTIONS] = [
+        Self::Primary,
+        Self::Secondary,
+        Self::CameraPan,
+        Self::SpawnHead,
+        Self::SpawnZooid,
+        Self::SpawnRed,
+        Self::SpawnBlue,
+    ];
+    pub fn mouse_buttons() -> Vec<MouseButton> {
+        let mut result = Vec::new();
+        for action in Self::ACTIONS {
+            if let RawInput::MouseButton(mouse_button) = RawInput::from(action) {
+                result.push(mouse_button);
+            }
+        }
+        result
+    }
+    pub fn key_codes() -> Vec<KeyCode> {
+        let mut result = Vec::new();
+        for action in Self::ACTIONS {
+            if let RawInput::KeyCode(key_code) = RawInput::from(action) {
+                result.push(key_code);
+            }
+        }
+        result
+    }
+}
+impl From<InputAction> for RawInput {
     fn from(value: InputAction) -> Self {
         match value {
-            InputAction::Primary => MouseButton::Left,
-            InputAction::Secondary => MouseButton::Right,
-            InputAction::CameraPan => MouseButton::Middle,
-            _ => MouseButton::Other(0),
+            InputAction::None => unreachable!(),
+            InputAction::Primary => Self::MouseButton(MouseButton::Left),
+            InputAction::Secondary => Self::MouseButton(MouseButton::Right),
+            InputAction::CameraPan => Self::MouseButton(MouseButton::Middle),
+            InputAction::SpawnHead => Self::KeyCode(KeyCode::Return),
+            InputAction::SpawnRed => Self::KeyCode(KeyCode::Minus),
+            InputAction::SpawnBlue => Self::KeyCode(KeyCode::Equals),
+            InputAction::SpawnZooid => Self::KeyCode(KeyCode::Z),
         }
     }
 }
+impl InputAction {}
+
 #[derive(Event, Default, PartialEq, Clone, Copy, Debug)]
 pub struct InputEvent {
     pub action: InputAction,
@@ -65,46 +111,74 @@ pub struct InputEvent {
     pub ray: Ray3d,
 }
 impl InputEvent {
-    fn process_input(input: &Input<MouseButton>, action: InputAction, ray: Ray3d) -> Option<Self> {
-        let mouse_button = MouseButton::from(action);
-        let state = if input.pressed(mouse_button) {
-            if input.just_pressed(mouse_button) {
-                InputState::Start
-            } else {
-                InputState::Held
+    fn process_input(
+        input: &Input<MouseButton>,
+        keyboard_input: &Input<KeyCode>,
+        action: InputAction,
+        ray: Ray3d,
+    ) -> Option<Self> {
+        match RawInput::from(action) {
+            RawInput::MouseButton(mouse_button) => {
+                let state = if input.pressed(mouse_button) {
+                    if input.just_pressed(mouse_button) {
+                        InputState::Pressed
+                    } else {
+                        InputState::Held
+                    }
+                } else if input.just_released(mouse_button) {
+                    InputState::Released
+                } else {
+                    InputState::None
+                };
+                if state != InputState::None {
+                    Some(Self { action, state, ray })
+                } else {
+                    None
+                }
             }
-        } else if input.just_released(mouse_button) {
-            InputState::End
-        } else {
-            InputState::None
-        };
-        if state != InputState::None {
-            Some(Self { action, state, ray })
-        } else {
-            None
+            RawInput::KeyCode(key_code) => {
+                let state = if keyboard_input.pressed(key_code) {
+                    if keyboard_input.just_pressed(key_code) {
+                        InputState::Pressed
+                    } else {
+                        InputState::Held
+                    }
+                } else if keyboard_input.just_released(key_code) {
+                    InputState::Released
+                } else {
+                    InputState::None
+                };
+                if state != InputState::None {
+                    Some(Self { action, state, ray })
+                } else {
+                    None
+                }
+            }
         }
     }
+
     pub fn update(
         mouse_input: Res<Input<MouseButton>>,
+        keyboard_input: Res<Input<KeyCode>>,
         cursor: Query<&GlobalTransform, With<Cursor>>,
         mut event_writer: EventWriter<Self>,
     ) {
         let cursor = cursor.single();
-        let mouse_buttons = [
-            MouseButton::from(InputAction::Primary),
-            MouseButton::from(InputAction::Secondary),
-        ];
-        if !mouse_input.any_pressed(mouse_buttons) && !mouse_input.any_just_released(mouse_buttons)
+        let mouse_buttons = InputAction::mouse_buttons();
+        let key_codes = InputAction::key_codes();
+        if !mouse_input.any_pressed(mouse_buttons.iter().cloned())
+            && !mouse_input.any_just_released(mouse_buttons.iter().cloned())
+            && !keyboard_input.any_pressed(key_codes.iter().cloned())
+            && !keyboard_input.any_just_released(key_codes.iter().cloned())
         {
             return;
         }
 
         let ray = Ray3d::new(cursor.translation(), -Vec3::Z);
-        if let Some(event) = Self::process_input(&mouse_input, InputAction::Primary, ray) {
-            event_writer.send(event);
-        }
-        if let Some(event) = Self::process_input(&mouse_input, InputAction::Secondary, ray) {
-            event_writer.send(event);
+        for action in InputAction::ACTIONS {
+            if let Some(event) = Self::process_input(&mouse_input, &keyboard_input, action, ray) {
+                event_writer.send(event);
+            }
         }
     }
 }
@@ -117,6 +191,15 @@ pub struct ControlEvent {
     pub position: Vec2,
 }
 impl ControlEvent {
+    pub fn is_pressed(&self, action: ControlAction) -> bool {
+        self.action == action && self.state == InputState::Pressed
+    }
+    pub fn is_released(&self, action: ControlAction) -> bool {
+        self.action == action && self.state == InputState::Released
+    }
+    pub fn is_held(&self, action: ControlAction) -> bool {
+        self.action == action && self.state == InputState::Held
+    }
     fn get_control(
         event: &InputEvent,
         raycast_event: &RaycastEvent,
@@ -140,6 +223,26 @@ impl ControlEvent {
                 position: grid_spec
                     .local_to_world_position(raycast_event.position * Vec2 { x: 1., y: -1. }),
             }),
+            (_, InputAction::SpawnHead) => Some(Self {
+                action: ControlAction::SpawnHead,
+                state: event.state,
+                position: raycast_event.world_position,
+            }),
+            (_, InputAction::SpawnZooid) => Some(Self {
+                action: ControlAction::SpawnZooid,
+                state: event.state,
+                position: raycast_event.world_position,
+            }),
+            (_, InputAction::SpawnRed) => Some(Self {
+                action: ControlAction::SpawnRed,
+                state: event.state,
+                position: raycast_event.world_position,
+            }),
+            (_, InputAction::SpawnBlue) => Some(Self {
+                action: ControlAction::SpawnBlue,
+                state: event.state,
+                position: raycast_event.world_position,
+            }),
             _ => None,
         }
     }
@@ -158,7 +261,7 @@ impl ControlEvent {
                     if control_event.action == ControlAction::Move {
                         match control_event.state {
                             InputState::None => {}
-                            InputState::Start => {
+                            InputState::Pressed => {
                                 timers[ControlAction::Move].tick(time.delta());
                             }
                             InputState::Held => {
@@ -167,7 +270,7 @@ impl ControlEvent {
                                     continue;
                                 }
                             }
-                            InputState::End => {
+                            InputState::Released => {
                                 timers[ControlAction::Move].reset();
                             }
                         }
@@ -187,6 +290,11 @@ pub enum ControlAction {
     Select,
     Move,
     PanCamera,
+
+    SpawnHead,
+    SpawnZooid,
+    SpawnRed,
+    SpawnBlue,
 }
 
 /// Collection of timers to prevent input action spam.

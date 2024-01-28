@@ -1,10 +1,7 @@
 use crate::prelude::*;
 use bevy::{prelude::*, utils::HashMap};
 use derive_more::{Add, AddAssign, Sub, SubAssign};
-use std::{
-    cmp::{max, min},
-    ops::Mul,
-};
+use std::ops::Mul;
 
 /// Plugin to add a waypoint system where the player can click to create a waypoint.
 pub struct PhysicsPlugin;
@@ -34,6 +31,9 @@ impl Plugin for PhysicsPlugin {
     PartialEq,
 )]
 pub struct Velocity(pub Vec2);
+impl Velocity {
+    pub const ZERO: Self = Velocity(Vec2::ZERO);
+}
 impl Mul<f32> for Velocity {
     type Output = Velocity;
     fn mul(self, rhs: f32) -> Self::Output {
@@ -58,6 +58,9 @@ impl Mul<f32> for Velocity {
     PartialEq,
 )]
 pub struct Acceleration(pub Vec2);
+impl Acceleration {
+    pub const ZERO: Self = Acceleration(Vec2::ZERO);
+}
 impl Mul<f32> for Acceleration {
     type Output = Acceleration;
     fn mul(self, rhs: f32) -> Self::Output {

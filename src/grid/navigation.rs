@@ -74,12 +74,12 @@ impl Grid2<EntityFlow> {
             };
             return acceleration * weight;
         }
-        Acceleration(Vec2::ZERO)
+        Acceleration::ZERO
     }
 
     /// Compute acceleration using the weighted sum of the 4 neighboring cells and the current cell.
     pub fn flow_acceleration5(&self, position: Vec2, entity: Entity) -> Acceleration {
-        let mut total_acceleration = Acceleration(Vec2::ZERO);
+        let mut total_acceleration = Acceleration::ZERO;
         let rowcol = self.to_rowcol(position);
 
         total_acceleration += self.flow_acceleration(position, rowcol, entity);

@@ -66,17 +66,18 @@ impl ZooidHead {
         mut commands: Commands,
         assets: Res<ZooidAssets>,
         configs: Res<Configs>,
-        keyboard_input: Res<Input<KeyCode>>,
+        mut control_events: EventReader<ControlEvent>,
     ) {
-        if !keyboard_input.just_pressed(KeyCode::Return) {
-            return;
+        for control_event in control_events.read() {
+            if control_event.is_pressed(ControlAction::SpawnHead) {
+                let team = configs.player_team;
+                commands
+                    .spawn(ZooidHead.bundle(&assets, team))
+                    .with_children(|parent| {
+                        parent.spawn(ZooidHeadBackground.bundle(&assets, team));
+                    });
+            }
         }
-        let team = configs.player_team;
-        commands
-            .spawn(ZooidHead.bundle(&assets, team))
-            .with_children(|parent| {
-                parent.spawn(ZooidHeadBackground.bundle(&assets, team));
-            });
     }
 
     pub fn bundle(self, assets: &ZooidAssets, team: Team) -> impl Bundle {
@@ -113,31 +114,30 @@ impl ZooidHead {
         query: Query<(&Self, Entity, &Transform, &Velocity, &Team)>,
         configs: Res<Configs>,
         assets: Res<ZooidAssets>,
-        keyboard: Res<Input<KeyCode>>,
+        mut control_events: EventReader<ControlEvent>,
     ) {
-        if !keyboard.just_pressed(KeyCode::Z) {
-            return;
-        }
-
         let config = configs.get(&Object::Worker(ZooidWorker::default()));
-
-        for (_head, _head_id, transform, velocity, team) in &query {
-            for i in 1..2 {
-                let zindex = zindex::ZOOIDS_MIN
-                    + (i as f32) * 0.00001 * (zindex::ZOOIDS_MAX - zindex::ZOOIDS_MIN);
-                let velocity: Vec2 = Vec2::Y * config.spawn_velocity + velocity.0;
-                ZooidWorkerBundler {
-                    worker: ZooidWorker { theta: 0.0 },
-                    team: *team,
-                    mesh: assets.mesh.clone(),
-                    team_materials: assets.get_team_material(*team),
-                    translation: transform.translation.xy().extend(0.0)
-                        + velocity.extend(0.)
-                        + Vec3::Z * zindex,
-                    objective: Objective::default(),
-                    velocity,
+        for control_event in control_events.read() {
+            if control_event.is_pressed(ControlAction::SpawnZooid) {
+                for (_head, _head_id, transform, velocity, team) in &query {
+                    let num_zooids = 1;
+                    for i in 1..=num_zooids {
+                        let zindex = zindex::ZOOIDS_MIN
+                            + (i as f32) * 0.00001 * (zindex::ZOOIDS_MAX - zindex::ZOOIDS_MIN);
+                        let velocity: Vec2 = Vec2::Y * config.spawn_velocity + velocity.0;
+                        ZooidWorkerBundler {
+                            team: *team,
+                            mesh: assets.mesh.clone(),
+                            team_materials: assets.get_team_material(*team),
+                            translation: transform.translation.xy().extend(0.0)
+                                + velocity.extend(0.)
+                                + Vec3::Z * zindex,
+                            velocity,
+                            ..default()
+                        }
+                        .spawn(&mut commands);
+                    }
                 }
-                .spawn(&mut commands);
             }
         }
     }

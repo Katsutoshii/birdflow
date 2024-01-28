@@ -64,7 +64,7 @@ impl Selector {
             let (mut selector, mut transform, mut visibility) = query.single_mut();
 
             match state {
-                InputState::Start => {
+                InputState::Pressed => {
                     // Reset other selections.
                     for (_object, _transform, _team, mut selected, _mesh) in &mut objects {
                         if let Selected::Selected { child_entity } = selected.as_ref() {
@@ -105,7 +105,7 @@ impl Selector {
                         }
                     }
                 }
-                InputState::End => {
+                InputState::Released => {
                     *visibility = Visibility::Hidden;
                 }
                 _ => {}

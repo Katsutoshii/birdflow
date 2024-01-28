@@ -47,7 +47,7 @@ pub struct VisibilityUpdateEvent {
 /// Stores visibility per team.
 #[derive(Clone, Default)]
 pub struct TeamVisibility {
-    teams: [u32; Team::count()],
+    teams: [u32; Team::COUNT],
 }
 impl TeamVisibility {
     pub fn get(&self, team: Team) -> u32 {

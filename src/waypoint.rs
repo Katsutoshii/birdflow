@@ -3,8 +3,6 @@ use std::f32::consts::PI;
 use crate::{grid::NavigationCostEvent, prelude::*};
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle, utils::hashbrown::HashSet};
 
-use super::objective::Objective;
-
 /// Plugin to add a waypoint system where the player can click to create a waypoint.
 pub struct WaypointPlugin;
 impl Plugin for WaypointPlugin {

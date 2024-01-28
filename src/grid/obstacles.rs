@@ -70,7 +70,7 @@ impl Grid2<Obstacle> {
         velocity: Velocity,
     ) -> Acceleration {
         if self[cell] == Obstacle::Empty {
-            return Acceleration(Vec2::ZERO);
+            return Acceleration::ZERO;
         }
         let obstacle_position = self.to_world_position(cell);
         let d = obstacle_position - position;
@@ -83,7 +83,7 @@ impl Grid2<Obstacle> {
             let projection = d * (d_dot_d / v_dot_d);
             Acceleration(-magnitude * projection)
         } else {
-            Acceleration(Vec2::ZERO)
+            Acceleration::ZERO
         }
     }
 
@@ -98,7 +98,7 @@ impl Grid2<Obstacle> {
     ) -> Acceleration {
         // Apply one step of integration to anticipate movement from this step.
         let next_velocity = Velocity(velocity.0 + acceleration.0);
-        let mut acceleration = Acceleration(Vec2::ZERO);
+        let mut acceleration = Acceleration::ZERO;
 
         for (row, col) in self.get_in_radius(position, self.width * 2.) {
             acceleration += self.obstacle_acceleration(position, (row, col), next_velocity)

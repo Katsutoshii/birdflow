@@ -12,6 +12,7 @@ pub mod physics;
 pub mod raycast;
 pub mod scene;
 pub mod selector;
+pub mod waypoint;
 pub mod window;
 pub mod zindex;
 
@@ -75,6 +76,7 @@ fn main() {
             objects::ObjectsPlugin,
             scene::LoadableScenePlugin,
             selector::SelectorPlugin,
+            waypoint::WaypointPlugin,
             raycast::RaycastPlugin,
             camera::CameraPlugin,
             physics::PhysicsPlugin,
@@ -83,10 +85,7 @@ fn main() {
         .add_systems(Startup, startup)
         .add_systems(
             FixedUpdate,
-            (
-                window::resize_window.in_set(SystemStage::Spawn),
-                window::lock_cursor_position,
-            ),
+            (window::resize_window.in_set(SystemStage::Spawn),),
         )
         .run();
 }

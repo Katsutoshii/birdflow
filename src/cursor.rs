@@ -5,15 +5,12 @@ use bevy::{
     input::mouse::MouseMotion, prelude::*, sprite::MaterialMesh2dBundle, window::PrimaryWindow,
 };
 
-// use super::objective::Objective;
-
 /// Plugin to manage a virtual cursor.
 pub struct CursorPlugin;
 impl Plugin for CursorPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<CursorAssets>()
-            // .add_systems(Startup, Cursor::startup.after(MainCamera::startup))
-            .add_systems(PreUpdate, Cursor::update.in_set(SystemStage::Compute));
+            .add_systems(Update, Cursor::update.in_set(SystemStage::Compute));
     }
 }
 
@@ -23,11 +20,10 @@ impl Cursor {
     pub fn update(
         mut cursor: Query<&mut Transform, With<Self>>,
         mut mouse_motion: EventReader<MouseMotion>,
-        window: Query<&Window, With<PrimaryWindow>>,
+        mut window: Query<&mut Window, With<PrimaryWindow>>,
         //configs: Res<Configs>,
     ) {
-        let window = window.single();
-        let scale_factor = window.scale_factor() as f32;
+        let mut window = window.single_mut();
         let window_size = Vec2 {
             x: window.physical_width() as f32,
             y: window.physical_height() as f32,
@@ -36,13 +32,19 @@ impl Cursor {
         let mut cursor_transform = cursor.single_mut();
         for &MouseMotion { mut delta } in mouse_motion.read() {
             delta *= Vec2 { x: 1., y: -1. };
-            cursor_transform.translation += delta.extend(0.) / scale_factor / 2.;
+            cursor_transform.translation += delta.extend(0.);
         }
         cursor_transform.translation = cursor_transform
             .translation
             .xy()
             .clamp(-0.5 * window_size, 0.5 * window_size)
             .extend(cursor_transform.translation.z);
+
+        let center = Vec2 {
+            x: window.width(),
+            y: window.height(),
+        } / 2.;
+        window.set_cursor_position(Some(center))
     }
 
     pub fn bundle(self, assets: &CursorAssets, translation: Vec3) -> impl Bundle {

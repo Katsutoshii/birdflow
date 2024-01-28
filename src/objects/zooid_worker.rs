@@ -2,14 +2,17 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
 use crate::prelude::*;
 
-use super::{Object, Team, TeamMaterials};
+use super::{Object, Team, TeamMaterials, ZooidAssets};
 
 pub struct ZooidWorkerPlugin;
 impl Plugin for ZooidWorkerPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             FixedUpdate,
-            (ZooidWorkerBackground::update.in_set(SystemStage::Compute),),
+            (
+                ZooidWorkerBackground::update.in_set(SystemStage::Compute),
+                ZooidWorker::debug_spawn.in_set(SystemStage::Spawn),
+            ),
         );
     }
 }
@@ -23,6 +26,33 @@ pub struct ZooidWorker {
 impl Default for ZooidWorker {
     fn default() -> Self {
         Self { theta: 0.0 }
+    }
+}
+impl ZooidWorker {
+    pub fn debug_spawn(
+        mut commands: Commands,
+        mut control_events: EventReader<ControlEvent>,
+        assets: Res<ZooidAssets>,
+    ) {
+        for control_event in control_events.read() {
+            let team: Option<Team> = if control_event.is_pressed(ControlAction::SpawnBlue) {
+                Some(Team::Blue)
+            } else if control_event.is_pressed(ControlAction::SpawnRed) {
+                Some(Team::Red)
+            } else {
+                None
+            };
+            if let Some(team) = team {
+                ZooidWorkerBundler {
+                    team,
+                    mesh: assets.mesh.clone(),
+                    team_materials: assets.get_team_material(team),
+                    translation: control_event.position.extend(zindex::ZOOIDS_MIN),
+                    ..default()
+                }
+                .spawn(&mut commands)
+            }
+        }
     }
 }
 

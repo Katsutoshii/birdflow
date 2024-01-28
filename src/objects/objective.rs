@@ -1,5 +1,8 @@
+use std::time::Duration;
+
 use crate::prelude::*;
-use bevy::{prelude::*, reflect::AccessError};
+use bevy::prelude::*;
+use rand::Rng;
 
 pub struct ObjectivePlugin;
 impl Plugin for ObjectivePlugin {
@@ -49,6 +52,13 @@ impl ObjectiveConfig {
     }
 }
 
+#[derive(Component, Debug, Clone)]
+// Entity will attack nearest enemy in surrounding grid
+pub struct AttackEntity {
+    pub entity: Entity,
+    pub cooldown: Timer,
+}
+
 /// Represents the objective of the owning entity.
 #[derive(Component, Default, Debug, Clone)]
 pub enum Objective {
@@ -60,31 +70,33 @@ pub enum Objective {
     /// Entity wants to move to a given position.
     #[allow(dead_code)]
     MoveToPosition(Vec2),
-    // Entity will attack nearest enemy in surrounding grid
     #[allow(dead_code)]
-    AttackNearest(),
+    AttackEntity(AttackEntity),
 }
 impl Objective {
+    /// Update acceleration from the current objective.
     pub fn update(
-        mut query: Query<(&Self, &Object, &Transform, &Velocity, &mut Acceleration)>,
+        mut query: Query<(&mut Self, &Object, &Transform, &Velocity, &mut Acceleration)>,
         transforms: Query<&Transform>,
         configs: Res<Configs>,
         navigation_grid: Res<Grid2<EntityFlow>>,
+        time: Res<Time>,
     ) {
-        for (follower, object, transform, velocity, mut acceleration) in &mut query {
+        for (mut objective, object, transform, velocity, mut acceleration) in &mut query {
             let config = configs.get(object);
-            *acceleration += follower.acceleration(
+            *acceleration += objective.acceleration(
                 &transforms,
                 transform,
                 *velocity,
                 &config.waypoint,
                 &navigation_grid,
+                &time,
             );
         }
     }
 
+    /// Returns acceleration towards a given position.
     fn acceleration_to_position(
-        &self,
         velocity: Velocity,
         position: Vec2,
         target_position: Vec2,
@@ -101,35 +113,84 @@ impl Objective {
         ) + config.slow_force(velocity, position, target_position)
     }
 
-    // Compute acceleration for this objective.
+    // Returns acceleration for following an entity.
+    pub fn accelerate_to_entity(
+        entity: Entity,
+        transform: &Transform,
+        transforms: &Query<&Transform>,
+        config: &ObjectiveConfig,
+        velocity: Velocity,
+        navigation_grid: &Grid2<EntityFlow>,
+    ) -> Acceleration {
+        let target_transform = transforms.get(entity).unwrap();
+        let target_cell = navigation_grid
+            .spec
+            .to_rowcol(target_transform.translation.xy());
+        let target_cell_position = navigation_grid.spec.to_world_position(target_cell);
+        navigation_grid.flow_acceleration5(transform.translation.xy(), entity)
+            + config.slow_force(velocity, transform.translation.xy(), target_cell_position)
+    }
+
+    // Returns acceleration for this objective.
     pub fn acceleration(
-        &self,
+        &mut self,
         transforms: &Query<&Transform>,
         transform: &Transform,
         velocity: Velocity,
         config: &ObjectiveConfig,
         navigation_grid: &Grid2<EntityFlow>,
+        time: &Time,
     ) -> Acceleration {
-        match *self {
-            Objective::MoveToPosition(target_position) => self.acceleration_to_position(
+        match self {
+            Self::MoveToPosition(target_position) => Self::acceleration_to_position(
                 velocity,
                 transform.translation.xy(),
-                target_position,
+                *target_position,
                 config,
             ),
-            Objective::FollowEntity(entity) => {
-                let target_transform = transforms.get(entity).unwrap();
-
-                let target_cell = navigation_grid
-                    .spec
-                    .to_rowcol(target_transform.translation.xy());
-                let target_cell_position = navigation_grid.spec.to_world_position(target_cell);
-
-                navigation_grid.flow_acceleration5(transform.translation.xy(), entity)
-                    + config.slow_force(velocity, transform.translation.xy(), target_cell_position)
+            Self::FollowEntity(entity) => Self::accelerate_to_entity(
+                *entity,
+                transform,
+                transforms,
+                config,
+                velocity,
+                navigation_grid,
+            ),
+            Self::AttackEntity(AttackEntity { entity, cooldown }) => {
+                let rand_factor = rand::thread_rng().gen_range(0.8..1.2);
+                let duration = Duration::from_secs_f64(time.delta_seconds_f64() * rand_factor);
+                cooldown.tick(duration);
+                if cooldown.finished() {
+                    info!("Attack! {:?}", entity);
+                    let target_transform = transforms.get(*entity).unwrap();
+                    let delta = target_transform.translation.xy() - transform.translation.xy();
+                    Acceleration(delta.normalize() * 1000.0)
+                } else {
+                    Self::accelerate_to_entity(
+                        *entity,
+                        transform,
+                        transforms,
+                        config,
+                        velocity,
+                        navigation_grid,
+                    )
+                }
             }
-            Objective::AttackNearest() => Acceleration(Vec2::ONE * 1000.0),
-            Objective::None => Acceleration(Vec2::ZERO),
+            Self::None => Acceleration::ZERO,
+        }
+    }
+
+    /// Given an objective, get the next one (if there should be a next one, else None).
+    pub fn next(&self, closest_enemy_entity: Option<Entity>) -> Option<Self> {
+        match *self {
+            Objective::None | Objective::FollowEntity(_) => closest_enemy_entity.map(|entity| {
+                let mut cooldown = Timer::from_seconds(1., TimerMode::Repeating);
+                // Advance the timer.
+                cooldown.tick(Duration::from_secs(1));
+                Objective::AttackEntity(AttackEntity { entity, cooldown })
+            }),
+            Objective::MoveToPosition(_) => None,
+            Objective::AttackEntity(_) => None,
         }
     }
 }
