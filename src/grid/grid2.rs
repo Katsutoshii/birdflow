@@ -149,31 +149,4 @@ impl<T: Sized + Default + Clone + Send + Sync + 'static> Grid2<T> {
         );
         min..=max
     }
-
-    /// Returns the 8 neighboring cells to the given cell rowcol.
-    /// Diagonals have distance sqrt(2).
-    pub fn neighbors8(&self, rowcol: RowCol) -> [(RowCol, f32); 8] {
-        let (row, col) = rowcol;
-        [
-            ((row + 1, col - 1), 2f32.sqrt()), // Up left
-            ((row + 1, col), 1.),              // Up
-            ((row + 1, col + 1), 2f32.sqrt()), // Up right
-            ((row, col + 1), 1.),              // Right
-            ((row - 1, col + 1), 2f32.sqrt()), // Down right
-            ((row - 1, col), 1.),              // Down
-            ((row - 1, col - 1), 2f32.sqrt()), // Down left
-            ((row, col - 1), 1.),              // Left
-        ]
-    }
-
-    /// Returns the 4 neighboring cells to the given cell rowcol.
-    pub fn neighbors4(&self, rowcol: RowCol) -> [RowCol; 4] {
-        let (row, col) = rowcol;
-        [
-            (row + 1, col), // Up
-            (row, col + 1), // Right
-            (row - 1, col), // Down
-            (row, col - 1), // Left
-        ]
-    }
 }
