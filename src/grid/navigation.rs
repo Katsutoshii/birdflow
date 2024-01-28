@@ -4,7 +4,7 @@ use std::{
     collections::{BTreeSet, BinaryHeap},
 };
 
-use crate::{grid::Grid2, prelude::*, Obstacle, RowCol, RowColDistance};
+use crate::prelude::*;
 use bevy::{prelude::*, utils::HashMap};
 
 /// Plugin for flow-based navigation.
@@ -12,7 +12,12 @@ pub struct NavigationPlugin;
 impl Plugin for NavigationPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(Grid2Plugin::<EntityFlow>::default())
-            .add_event::<NavigationCostEvent>();
+            .add_event::<NavigationCostEvent>()
+            .add_event::<CreateWaypointEvent>()
+            .add_systems(
+                FixedUpdate,
+                Grid2::<EntityFlow>::create_waypoints.after(Waypoint::update),
+            );
     }
 }
 
@@ -94,20 +99,34 @@ impl Grid2<EntityFlow> {
         Acceleration(total_acceleration.normalize_or_zero())
     }
 
+    /// Consumes CreateWaypointEvent events and populates the navigation grid.
+    pub fn create_waypoints(
+        mut grid: ResMut<Self>,
+        mut event_reader: EventReader<CreateWaypointEvent>,
+        mut event_writer: EventWriter<NavigationCostEvent>,
+        obstacles: Res<Grid2<Obstacle>>,
+    ) {
+        for event in event_reader.read() {
+            grid.add_waypoint(event, &obstacles, &mut event_writer);
+        }
+    }
     /// Add a waypoint.
     /// Create flows from all points to the waypoint.
     pub fn add_waypoint(
         &mut self,
-        entity: Entity,
-        waypoint_rowcol: RowCol,
-        traveler_rowcols: &[RowCol],
+        event: &CreateWaypointEvent,
         obstacles: &Grid2<Obstacle>,
         event_writer: &mut EventWriter<NavigationCostEvent>,
     ) {
-        if traveler_rowcols.is_empty() {
-            return;
+        let mut sources = Vec::with_capacity(event.sources.len());
+        for &source in &event.sources {
+            let rowcol = self.spec.to_rowcol(source);
+            for neighbor_rowcol in self.get_in_radius_discrete(rowcol, 2) {
+                sources.push(neighbor_rowcol);
+            }
         }
-        let costs = self.a_star(traveler_rowcols, waypoint_rowcol, obstacles);
+        let destination = self.to_rowcol(event.destination);
+        let costs = self.a_star(&sources, destination, obstacles);
         // Compute flow direction.
         for (&rowcol, &cost) in &costs {
             let mut min_neighbor_rowcol = rowcol;
@@ -122,12 +141,12 @@ impl Grid2<EntityFlow> {
                 }
             }
             self[rowcol].insert(
-                entity,
+                event.entity,
                 Acceleration(rowcol.signed_delta8(min_neighbor_rowcol)),
             );
 
             event_writer.send(NavigationCostEvent {
-                entity,
+                entity: event.entity,
                 rowcol,
                 cost,
             });
@@ -213,4 +232,11 @@ impl Grid2<EntityFlow> {
         }
         costs
     }
+}
+
+#[derive(Event, Clone)]
+pub struct CreateWaypointEvent {
+    pub entity: Entity,
+    pub destination: Vec2,
+    pub sources: Vec<Vec2>,
 }

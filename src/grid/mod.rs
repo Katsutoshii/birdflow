@@ -15,7 +15,7 @@ pub use grid2::{Grid2, RowCol, RowColDistance};
 mod shader_plane;
 pub use shader_plane::ShaderPlaneMaterial;
 mod navigation;
-pub use navigation::{EntityFlow, NavigationCostEvent};
+pub use navigation::{CreateWaypointEvent, EntityFlow, NavigationCostEvent};
 mod minimap;
 pub use minimap::MinimapPlugin;
 mod navigation_visualizer;

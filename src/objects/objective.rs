@@ -157,11 +157,9 @@ impl Objective {
                 navigation_grid,
             ),
             Self::AttackEntity(AttackEntity { entity, cooldown }) => {
-                let rand_factor = rand::thread_rng().gen_range(0.8..1.2);
-                let duration = Duration::from_secs_f64(time.delta_seconds_f64() * rand_factor);
-                cooldown.tick(duration);
+                cooldown.tick(time.delta());
                 if cooldown.finished() {
-                    info!("Attack! {:?}", entity);
+                    cooldown.set_duration(Self::attack_cooldown());
                     let target_transform = transforms.get(*entity).unwrap();
                     let delta = target_transform.translation.xy() - transform.translation.xy();
                     Acceleration(delta.normalize() * 1000.0)
@@ -180,17 +178,30 @@ impl Objective {
         }
     }
 
+    // Gets a random attack cooldown.
+    pub fn attack_cooldown() -> Duration {
+        Duration::from_millis(rand::thread_rng().gen_range(800..1200))
+    }
+
+    // Gets a random attack cooldown.
+    pub fn attack_delay() -> Duration {
+        Duration::from_millis(rand::thread_rng().gen_range(0..100))
+    }
+
     /// Given an objective, get the next one (if there should be a next one, else None).
     pub fn next(&self, closest_enemy_entity: Option<Entity>) -> Option<Self> {
         match *self {
-            Objective::None | Objective::FollowEntity(_) => closest_enemy_entity.map(|entity| {
-                let mut cooldown = Timer::from_seconds(1., TimerMode::Repeating);
-                // Advance the timer.
-                cooldown.tick(Duration::from_secs(1));
-                Objective::AttackEntity(AttackEntity { entity, cooldown })
+            Self::None | Self::FollowEntity(_) => closest_enemy_entity.map(|entity| {
+                Self::AttackEntity(AttackEntity {
+                    entity,
+                    cooldown: Timer::from_seconds(
+                        Self::attack_delay().as_secs_f32(),
+                        TimerMode::Repeating,
+                    ),
+                })
             }),
-            Objective::MoveToPosition(_) => None,
-            Objective::AttackEntity(_) => None,
+            Self::MoveToPosition(_) => None,
+            Self::AttackEntity(_) => None,
         }
     }
 }

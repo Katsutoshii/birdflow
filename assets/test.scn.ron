@@ -64,7 +64,7 @@
         head: (
           separation_radius: 100.0,
           separation_acceleration: 0.7,
-          cohesion_acceleration: 0.2,
+          cohesion_acceleration: 0.5,
           alignment_factor: 0.0,
           slow_factor: 0.1
         ),

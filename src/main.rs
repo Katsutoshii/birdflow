@@ -1,4 +1,4 @@
-use bevy::{ecs::schedule::SystemSetConfigs, prelude::*};
+use bevy::prelude::*;
 use bevy_editor_pls::prelude::*;
 
 pub mod aabb;
@@ -12,6 +12,7 @@ pub mod physics;
 pub mod raycast;
 pub mod scene;
 pub mod selector;
+pub mod stages;
 pub mod waypoint;
 pub mod window;
 pub mod zindex;
@@ -31,35 +32,13 @@ pub mod prelude {
         physics::{Acceleration, PhysicsBundle, PhysicsMaterial, PhysicsMaterialType, Velocity},
         raycast::{RaycastEvent, RaycastTarget},
         selector::Selected,
-        window, zindex, SystemStage,
+        stages::SystemStage,
+        waypoint::Waypoint,
+        window, zindex,
     };
 }
 
 use prelude::*;
-
-/// Stage of computation
-#[derive(Debug, Hash, PartialEq, Eq, Clone, SystemSet)]
-pub enum SystemStage {
-    Spawn,
-    PreCompute,
-    Compute,
-    Apply,
-    PostApply,
-    Despawn,
-}
-impl SystemStage {
-    pub fn get_config() -> SystemSetConfigs {
-        (
-            Self::Spawn,
-            Self::PreCompute,
-            Self::Compute,
-            Self::Apply,
-            Self::PostApply,
-            Self::Despawn,
-        )
-            .chain()
-    }
-}
 
 fn main() {
     App::new()
