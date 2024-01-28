@@ -5,18 +5,28 @@ use std::{
 };
 
 use crate::prelude::*;
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{
+    prelude::*,
+    utils::{Entry, HashMap, HashSet},
+};
+
+use super::SparseGrid2;
 
 /// Plugin for flow-based navigation.
 pub struct NavigationPlugin;
 impl Plugin for NavigationPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(Grid2Plugin::<EntityFlow>::default())
-            .add_event::<NavigationCostEvent>()
+        app.add_event::<NavigationCostEvent>()
             .add_event::<CreateWaypointEvent>()
+            .add_event::<DeleteWaypointEvent>()
+            .insert_resource(EntityFlowGrid2::default())
             .add_systems(
                 FixedUpdate,
-                Grid2::<EntityFlow>::create_waypoints.after(Waypoint::update),
+                (
+                    EntityFlowGrid2::resize_on_change,
+                    EntityFlowGrid2::create_waypoints.after(Waypoint::update),
+                    EntityFlowGrid2::delete_waypoints.after(Waypoint::cleanup),
+                ),
             );
     }
 }
@@ -59,19 +69,13 @@ impl PartialOrd for AStarState {
     }
 }
 
-/// Flow vector per entity.
+/// Sparse storage for flow vectors.
 #[derive(Default, DerefMut, Deref, Clone)]
-pub struct EntityFlow(pub HashMap<Entity, Acceleration>);
-
-impl Grid2<EntityFlow> {
+pub struct SparseFlowGrid2(SparseGrid2<Acceleration>);
+impl SparseFlowGrid2 {
     /// Compute the weighted acceleration for flow from a single cell.
-    pub fn flow_acceleration(
-        &self,
-        position: Vec2,
-        rowcol: RowCol,
-        entity: Entity,
-    ) -> Acceleration {
-        if let Some(&acceleration) = self[rowcol].get(&entity) {
+    pub fn flow_acceleration(&self, position: Vec2, rowcol: RowCol) -> Acceleration {
+        if let Some(&acceleration) = self.get(rowcol) {
             // Weight each neighboring acceleration by width - distance.
             let weight = {
                 let cell_center = self.to_world_position(rowcol);
@@ -82,34 +86,23 @@ impl Grid2<EntityFlow> {
         Acceleration::ZERO
     }
 
-    /// Compute acceleration using the weighted sum of the 4 neighboring cells and the current cell.
-    pub fn flow_acceleration5(&self, position: Vec2, entity: Entity) -> Acceleration {
+    pub fn flow_acceleration5(&self, position: Vec2) -> Acceleration {
         let mut total_acceleration = Acceleration::ZERO;
+
         let rowcol = self.to_rowcol(position);
 
-        total_acceleration += self.flow_acceleration(position, rowcol, entity);
+        total_acceleration += self.flow_acceleration(position, rowcol);
 
         // Add accelerations from neighboring cells.
         for (neighbor_rowcol, _) in self.neighbors8(rowcol) {
             if self.is_boundary(neighbor_rowcol) {
                 continue;
             }
-            total_acceleration += self.flow_acceleration(position, neighbor_rowcol, entity);
+            total_acceleration += self.flow_acceleration(position, neighbor_rowcol);
         }
         Acceleration(total_acceleration.normalize_or_zero())
     }
 
-    /// Consumes CreateWaypointEvent events and populates the navigation grid.
-    pub fn create_waypoints(
-        mut grid: ResMut<Self>,
-        mut event_reader: EventReader<CreateWaypointEvent>,
-        mut event_writer: EventWriter<NavigationCostEvent>,
-        obstacles: Res<Grid2<Obstacle>>,
-    ) {
-        for event in event_reader.read() {
-            grid.add_waypoint(event, &obstacles, &mut event_writer);
-        }
-    }
     /// Add a waypoint.
     /// Create flows from all points to the waypoint.
     pub fn add_waypoint(
@@ -140,8 +133,8 @@ impl Grid2<EntityFlow> {
                     }
                 }
             }
-            self[rowcol].insert(
-                event.entity,
+            self.cells.insert(
+                rowcol,
                 Acceleration(rowcol.signed_delta8(min_neighbor_rowcol)),
             );
 
@@ -161,6 +154,7 @@ impl Grid2<EntityFlow> {
         destination: RowCol,
         obstacles: &Grid2<Obstacle>,
     ) -> HashMap<RowCol, f32> {
+        dbg!(&self.spec);
         // Initial setup.
         let mut costs: HashMap<RowCol, f32> = HashMap::new();
         let mut heap: BinaryHeap<AStarState> = BinaryHeap::new();
@@ -234,9 +228,102 @@ impl Grid2<EntityFlow> {
     }
 }
 
-#[derive(Event, Clone)]
+#[derive(Default, Resource, DerefMut, Deref)]
+pub struct EntityFlowGrid2(HashMap<Entity, SparseFlowGrid2>);
+
+/// Stores a flow grid per targeted entity.
+impl EntityFlowGrid2 {
+    // Resize all grids when spec is updated.
+    pub fn resize_on_change(spec: Res<GridSpec>, mut grid: ResMut<Self>) {
+        if spec.is_changed() {
+            for (_entity, flow_grid) in grid.iter_mut() {
+                flow_grid.resize_with(spec.clone());
+            }
+        }
+    }
+
+    /// Compute acceleration using the weighted sum of the 4 neighboring cells and the current cell.
+    pub fn flow_acceleration5(&self, position: Vec2, entity: Entity) -> Acceleration {
+        if let Some(flow_grid) = self.get(&entity) {
+            flow_grid.flow_acceleration5(position)
+        } else {
+            Acceleration::ZERO
+        }
+    }
+
+    /// Consumes CreateWaypointEvent events and populates the navigation grid.
+    pub fn create_waypoints(
+        mut grid: ResMut<Self>,
+        mut event_reader: EventReader<CreateWaypointEvent>,
+        mut event_writer: EventWriter<NavigationCostEvent>,
+        spec: Res<GridSpec>,
+        obstacles: Res<Grid2<Obstacle>>,
+    ) {
+        for event in event_reader.read() {
+            dbg!(&event);
+            let flow_grid = match grid.entry(event.entity) {
+                Entry::Occupied(o) => o.into_mut(),
+                Entry::Vacant(v) => v.insert(SparseFlowGrid2(SparseGrid2 {
+                    spec: spec.clone(),
+                    ..default()
+                })),
+            };
+            flow_grid.add_waypoint(event, &obstacles, &mut event_writer);
+        }
+    }
+
+    // pub fn cleanup(
+    //     objectives: Query<&Objective, Without<Waypoint>>,
+    //     waypoints: Query<Entity, With<Waypoint>>,
+    //     grid: Res<Self>,
+    //     mut commands: Commands,
+    //     mut event_writer: EventWriter<DeleteWaypointEvent>,
+    // ) {
+    //     let mut followed_entities = HashSet::new();
+    //     for objective in objectives.iter() {
+    //         if let Some(entity) = objective.get_followed_entity() {
+    //             followed_entities.insert(entity);
+    //         }
+    //     }
+    //     for entity in waypoints.iter() {
+    //         if !followed_entities.contains(&entity) {
+    //             commands.entity(entity).despawn();
+    //             event_writer.send(DeleteWaypointEvent { entity })
+    //         }
+    //     }
+    // }
+
+    /// Consumes CreateWaypointEvent events and populates the navigation grid.
+    pub fn delete_waypoints(
+        mut grid: ResMut<Self>,
+        mut event_reader: EventReader<DeleteWaypointEvent>,
+        mut event_writer: EventWriter<NavigationCostEvent>,
+    ) {
+        for event in event_reader.read() {
+            dbg!(&event);
+            let flow_grid = grid.get(&event.entity).expect("Missing grid");
+            for (rowcol, _acceleration) in flow_grid.cells.iter() {
+                event_writer.send(NavigationCostEvent {
+                    entity: event.entity,
+                    rowcol: *rowcol,
+                    cost: 0.,
+                })
+            }
+            grid.remove(&event.entity);
+        }
+    }
+}
+
+/// Event to request waypoint creation.
+#[derive(Event, Clone, Debug)]
 pub struct CreateWaypointEvent {
     pub entity: Entity,
     pub destination: Vec2,
     pub sources: Vec<Vec2>,
+}
+
+/// Event to request waypoint creation.
+#[derive(Event, Clone, Debug)]
+pub struct DeleteWaypointEvent {
+    pub entity: Entity,
 }

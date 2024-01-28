@@ -60,16 +60,16 @@ impl NavigationShaderMaterial {
         mut input_actions: EventReader<ControlEvent>,
     ) {
         let material = shader_assets.get_mut(&assets.shader_material).unwrap();
-        for &ControlEvent {
-            action,
-            state: _,
-            position: _,
-        } in input_actions.read()
-        {
-            if action == ControlAction::Move {
-                material.grid = vec![0.; material.grid.len()];
-            }
-        }
+        // for &ControlEvent {
+        //     action,
+        //     state: _,
+        //     position: _,
+        // } in input_actions.read()
+        // {
+        //     if action == ControlAction::Move {
+        //         material.grid = vec![0.; material.grid.len()];
+        //     }
+        // }
         for &NavigationCostEvent {
             entity: _,
             rowcol,

@@ -1,6 +1,9 @@
 use std::f32::consts::PI;
 
-use crate::{grid::CreateWaypointEvent, prelude::*};
+use crate::{
+    grid::{CreateWaypointEvent, DeleteWaypointEvent},
+    prelude::*,
+};
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle, utils::hashbrown::HashSet};
 
 /// Plugin to add a waypoint system where the player can click to create a waypoint.
@@ -36,6 +39,7 @@ impl Waypoint {
         waypoints: Query<Entity, With<Waypoint>>,
         mut commands: Commands,
         mut input_actions: EventReader<ControlEvent>,
+        mut event_writer: EventWriter<DeleteWaypointEvent>,
     ) {
         for &ControlEvent {
             action,
@@ -49,13 +53,14 @@ impl Waypoint {
 
             let mut followed_entities = HashSet::new();
             for objective in objectives.iter() {
-                if let Objective::FollowEntity(entity) = objective {
+                if let Some(entity) = objective.get_followed_entity() {
                     followed_entities.insert(entity);
                 }
             }
-            for waypoint_entity in waypoints.iter() {
-                if !followed_entities.contains(&waypoint_entity) {
-                    commands.entity(waypoint_entity).despawn();
+            for entity in waypoints.iter() {
+                if !followed_entities.contains(&entity) {
+                    commands.entity(entity).despawn();
+                    event_writer.send(DeleteWaypointEvent { entity })
                 }
             }
         }
@@ -87,14 +92,17 @@ impl Waypoint {
             for (selected, mut objective, transform) in selection.iter_mut() {
                 if selected.is_selected() {
                     *objective = Objective::FollowEntity(entity);
+                    dbg!(&objective);
                     sources.push(transform.translation.xy());
                 }
             }
-            event_writer.send(CreateWaypointEvent {
-                entity,
-                sources,
-                destination: position,
-            })
+            if !sources.is_empty() {
+                event_writer.send(CreateWaypointEvent {
+                    entity,
+                    sources,
+                    destination: position,
+                })
+            }
         }
     }
 

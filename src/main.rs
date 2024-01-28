@@ -23,8 +23,8 @@ pub mod prelude {
         camera::MainCamera,
         cursor::Cursor,
         grid::{
-            EntityFlow, EntityGridEvent, EntitySet, Grid2, Grid2Plugin, GridEntity, GridSize,
-            GridSpec, Obstacle, RowCol, RowColDistance,
+            CreateWaypointEvent, EntityFlowGrid2, EntityGridEvent, EntitySet, Grid2, Grid2Plugin,
+            GridEntity, GridSize, GridSpec, Obstacle, RowCol, RowColDistance,
         },
         inputs::{ControlAction, ControlEvent, InputState},
         meshes,

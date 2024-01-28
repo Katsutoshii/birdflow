@@ -2,7 +2,7 @@ use crate::prelude::*;
 use bevy::prelude::*;
 
 mod spec;
-pub use spec::{GridSize, GridSpec};
+pub use spec::{GridSize, GridSpec, RowCol, RowColDistance};
 mod fog;
 pub use fog::FogPlugin;
 mod entity;
@@ -11,11 +11,15 @@ pub use entity::{EntityGridEvent, EntitySet, GridEntity};
 mod obstacles;
 pub use obstacles::{Obstacle, ObstaclesPlugin};
 mod grid2;
-pub use grid2::{Grid2, RowCol, RowColDistance};
+pub use grid2::Grid2;
+mod sparse_grid2;
+pub use sparse_grid2::SparseGrid2;
 mod shader_plane;
 pub use shader_plane::ShaderPlaneMaterial;
 mod navigation;
-pub use navigation::{CreateWaypointEvent, EntityFlow, NavigationCostEvent};
+pub use navigation::{
+    CreateWaypointEvent, DeleteWaypointEvent, EntityFlowGrid2, NavigationCostEvent,
+};
 mod minimap;
 pub use minimap::MinimapPlugin;
 mod navigation_visualizer;

@@ -79,7 +79,7 @@ impl Objective {
         mut query: Query<(&mut Self, &Object, &Transform, &Velocity, &mut Acceleration)>,
         transforms: Query<&Transform>,
         configs: Res<Configs>,
-        navigation_grid: Res<Grid2<EntityFlow>>,
+        navigation_grid: Res<EntityFlowGrid2>,
         time: Res<Time>,
     ) {
         for (mut objective, object, transform, velocity, mut acceleration) in &mut query {
@@ -120,14 +120,15 @@ impl Objective {
         transforms: &Query<&Transform>,
         config: &ObjectiveConfig,
         velocity: Velocity,
-        navigation_grid: &Grid2<EntityFlow>,
+        flow_grid: &EntityFlowGrid2,
     ) -> Acceleration {
         let target_transform = transforms.get(entity).unwrap();
-        let target_cell = navigation_grid
-            .spec
-            .to_rowcol(target_transform.translation.xy());
-        let target_cell_position = navigation_grid.spec.to_world_position(target_cell);
-        navigation_grid.flow_acceleration5(transform.translation.xy(), entity)
+        let flow_grid = flow_grid
+            .get(&entity)
+            .expect("Missing flow grid for entity.");
+        let target_cell = flow_grid.to_rowcol(target_transform.translation.xy());
+        let target_cell_position = flow_grid.to_world_position(target_cell);
+        flow_grid.flow_acceleration5(transform.translation.xy())
             + config.slow_force(velocity, transform.translation.xy(), target_cell_position)
     }
 
@@ -138,7 +139,7 @@ impl Objective {
         transform: &Transform,
         velocity: Velocity,
         config: &ObjectiveConfig,
-        navigation_grid: &Grid2<EntityFlow>,
+        navigation_grid: &EntityFlowGrid2,
         time: &Time,
     ) -> Acceleration {
         match self {
@@ -178,6 +179,16 @@ impl Objective {
         }
     }
 
+    pub fn get_followed_entity(&self) -> Option<Entity> {
+        match self {
+            Self::AttackEntity(AttackEntity {
+                entity,
+                cooldown: _,
+            }) => Some(*entity),
+            Self::FollowEntity(entity) => Some(*entity),
+            _ => None,
+        }
+    }
     // Gets a random attack cooldown.
     pub fn attack_cooldown() -> Duration {
         Duration::from_millis(rand::thread_rng().gen_range(800..1200))
