@@ -122,7 +122,11 @@ impl Objective {
         velocity: Velocity,
         navigation_grid: &Grid2<EntityFlow>,
     ) -> Acceleration {
-        let target_transform = transforms.get(entity).unwrap();
+        let target_transform = transforms.get(entity);
+        let target_transform = match target_transform {
+            Ok(transform) => transform,
+            Err(_) => return Acceleration::ZERO,
+        };
         let target_cell = navigation_grid
             .spec
             .to_rowcol(target_transform.translation.xy());
@@ -160,7 +164,11 @@ impl Objective {
                 cooldown.tick(time.delta());
                 if cooldown.finished() {
                     cooldown.set_duration(Self::attack_cooldown());
-                    let target_transform = transforms.get(*entity).unwrap();
+                    let target_transform = transforms.get(*entity);
+                    let target_transform = match target_transform {
+                        Ok(transform) => transform,
+                        Err(_) => return Acceleration::ZERO,
+                    };
                     let delta = target_transform.translation.xy() - transform.translation.xy();
                     Acceleration(delta.normalize() * 1000.0)
                 } else {

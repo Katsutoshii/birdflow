@@ -90,11 +90,13 @@ impl Waypoint {
                     sources.push(transform.translation.xy());
                 }
             }
-            event_writer.send(CreateWaypointEvent {
-                entity,
-                sources,
-                destination: position,
-            })
+            if !sources.is_empty() {
+                event_writer.send(CreateWaypointEvent {
+                    entity,
+                    sources,
+                    destination: position,
+                })
+            }
         }
     }
 
