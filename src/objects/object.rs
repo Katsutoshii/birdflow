@@ -1,3 +1,5 @@
+use std::sync::Mutex;
+
 use crate::prelude::*;
 use bevy::prelude::*;
 
@@ -41,24 +43,31 @@ impl Object {
         obstacles: Res<Grid2<Obstacle>>,
         grid: Res<Grid2<EntitySet>>,
         configs: Res<Configs>,
+        mut waypoint_event_writer: EventWriter<CreateWaypointEvent>,
     ) {
+        let writer_mutex: Mutex<&mut EventWriter<CreateWaypointEvent>> =
+            Mutex::new(&mut waypoint_event_writer);
         objects.par_iter_mut().for_each(
             |(entity, zooid, &velocity, mut acceleration, mut objective, transform, team)| {
                 let config = configs.get(zooid);
-                let (neighbor_acceleration, new_objective) = zooid.process_neighbors(
-                    entity,
-                    team,
-                    velocity,
-                    transform,
-                    &other_objects,
-                    &grid,
-                    &obstacles,
-                    config,
-                    &objective,
-                );
+                let (neighbor_acceleration, new_objective, waypoint_event) = zooid
+                    .process_neighbors(
+                        entity,
+                        team,
+                        velocity,
+                        transform,
+                        &other_objects,
+                        &grid,
+                        &obstacles,
+                        config,
+                        &objective,
+                    );
                 *acceleration += neighbor_acceleration;
                 if let Some(new_objective) = new_objective {
                     *objective = new_objective;
+                }
+                if let Some(waypoint_event) = waypoint_event {
+                    writer_mutex.lock().unwrap().send(waypoint_event);
                 }
             },
         )
@@ -77,14 +86,14 @@ impl Object {
         obstacles: &Grid2<Obstacle>,
         config: &Config,
         objective: &Objective,
-    ) -> (Acceleration, Option<Objective>) {
+    ) -> (Acceleration, Option<Objective>, Option<CreateWaypointEvent>) {
         let mut acceleration = Acceleration::ZERO;
         // Forces from other entities
-        let position = transform.translation.truncate();
+        let position = transform.translation.xy();
         let other_entities = grid.get_entities_in_radius(position, config);
 
-        let mut closest_enemy_entity: Option<Entity> = None;
         let mut closest_enemy_distance_squared = f32::INFINITY;
+        let mut enemy_waypoint_event: Option<CreateWaypointEvent> = None;
 
         for other_entity in &other_entities {
             if entity == *other_entity {
@@ -94,7 +103,7 @@ impl Object {
             let (other, &other_velocity, other_transform, other_team) =
                 entities.get(*other_entity).expect("Invalid grid entity.");
 
-            let other_position = other_transform.translation.truncate();
+            let other_position = other_transform.translation.xy();
             let delta = other_position - position;
             acceleration += self.other_acceleration(
                 transform,
@@ -110,13 +119,21 @@ impl Object {
                 let distance_squared = delta.length_squared();
                 if distance_squared < closest_enemy_distance_squared {
                     closest_enemy_distance_squared = distance_squared;
-                    closest_enemy_entity = Some(*other_entity);
+                    enemy_waypoint_event = Some(CreateWaypointEvent {
+                        entity: *other_entity,
+                        destination: other_position,
+                        sources: vec![position],
+                    })
                 }
             }
         }
         acceleration += obstacles.obstacles_acceleration(position, velocity, acceleration) * 3.;
 
-        (acceleration, objective.next(closest_enemy_entity))
+        (
+            acceleration,
+            objective.next(&enemy_waypoint_event),
+            enemy_waypoint_event,
+        )
     }
 
     #[allow(clippy::too_many_arguments)]

@@ -133,7 +133,10 @@ impl Objective {
             flow_grid.flow_acceleration5(transform.translation.xy())
                 + config.slow_force(velocity, transform.translation.xy(), target_cell_position)
         } else {
-            error!("Missing entity: {:?}", entity);
+            warn!(
+                "Missing entity. This is okay if it's only for one frame. Entity: {:?}",
+                entity
+            );
             Acceleration::ZERO
         }
     }
@@ -210,11 +213,11 @@ impl Objective {
     }
 
     /// Given an objective, get the next one (if there should be a next one, else None).
-    pub fn next(&self, closest_enemy_entity: Option<Entity>) -> Option<Self> {
+    pub fn next(&self, event: &Option<CreateWaypointEvent>) -> Option<Self> {
         match *self {
-            Self::None | Self::FollowEntity(_) => closest_enemy_entity.map(|entity| {
+            Self::None | Self::FollowEntity(_) => event.as_ref().map(|event| {
                 Self::AttackEntity(AttackEntity {
-                    entity,
+                    entity: event.entity,
                     cooldown: Timer::from_seconds(
                         Self::attack_delay().as_secs_f32(),
                         TimerMode::Repeating,
