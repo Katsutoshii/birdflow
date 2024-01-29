@@ -169,7 +169,7 @@ impl ZooidHead {
             }
         }
         for (_, _, _, mut objective) in &mut objects {
-            if let Objective::FollowEntity(entity) = *objective {
+            if let Objective::FollowEntity(_) = *objective {
                 *objective = Objective::None;
             }
         }

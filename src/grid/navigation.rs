@@ -7,7 +7,7 @@ use std::{
 use crate::prelude::*;
 use bevy::{
     prelude::*,
-    utils::{Entry, HashMap, HashSet},
+    utils::{Entry, HashMap},
 };
 
 use super::SparseGrid2;
@@ -260,7 +260,6 @@ impl EntityFlowGrid2 {
         obstacles: Res<Grid2<Obstacle>>,
     ) {
         for event in event_reader.read() {
-            dbg!(&event);
             let flow_grid = match grid.entry(event.entity) {
                 Entry::Occupied(o) => o.into_mut(),
                 Entry::Vacant(v) => v.insert(SparseFlowGrid2(SparseGrid2 {

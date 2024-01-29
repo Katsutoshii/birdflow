@@ -57,7 +57,7 @@ impl NavigationShaderMaterial {
         mut events: EventReader<NavigationCostEvent>,
         assets: Res<ShaderPlaneAssets<Self>>,
         mut shader_assets: ResMut<Assets<Self>>,
-        mut input_actions: EventReader<ControlEvent>,
+        // mut input_actions: EventReader<ControlEvent>,
     ) {
         let material = shader_assets.get_mut(&assets.shader_material).unwrap();
         // for &ControlEvent {
