@@ -258,16 +258,12 @@ impl EntityFlowGrid2 {
         obstacles: Res<Grid2<Obstacle>>,
     ) {
         for event in event_reader.read() {
-            dbg!(&event);
             let flow_grid = match grid.entry(event.entity) {
                 Entry::Occupied(o) => o.into_mut(),
-                Entry::Vacant(v) => {
-                    info!("VACANT!");
-                    v.insert(SparseFlowGrid2(SparseGrid2 {
-                        spec: spec.clone(),
-                        ..default()
-                    }))
-                }
+                Entry::Vacant(v) => v.insert(SparseFlowGrid2(SparseGrid2 {
+                    spec: spec.clone(),
+                    ..default()
+                })),
             };
             flow_grid.add_waypoint(event, &obstacles, &mut event_writer);
         }
