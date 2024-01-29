@@ -90,7 +90,9 @@ impl Grid2<EntitySet> {
         let mut other_entities: HashSet<Entity> = HashSet::default();
         let positions = self.get_in_radius(position, config.neighbor_radius);
         for rowcol in positions {
-            other_entities.extend(&self[rowcol]);
+            if self.in_bounds(rowcol) {
+                other_entities.extend(&self[rowcol]);
+            }
         }
         other_entities
     }

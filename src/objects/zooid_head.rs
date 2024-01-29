@@ -1,3 +1,4 @@
+use bevy::utils::HashSet;
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
 use crate::grid::CreateWaypointEvent;
@@ -151,7 +152,7 @@ impl ZooidHead {
 
     /// System to despawn all zooids.
     pub fn despawn_zooids(
-        objects: Query<(Entity, &GridEntity, &Object)>,
+        mut objects: Query<(Entity, &GridEntity, &Object, &mut Objective)>,
         mut commands: Commands,
         mut grid: ResMut<Grid2<EntitySet>>,
         keyboard_input: Res<Input<KeyCode>>,
@@ -159,10 +160,17 @@ impl ZooidHead {
         if !keyboard_input.just_pressed(KeyCode::D) {
             return;
         }
-        for (entity, grid_entity, object) in &objects {
+        let mut entities = HashSet::<Entity>::new();
+        for (entity, grid_entity, object, _) in &mut objects {
             grid.remove(entity, grid_entity);
             if let Object::Worker(_) = object {
                 commands.entity(entity).despawn_recursive();
+                entities.insert(entity);
+            }
+        }
+        for (_, _, _, mut objective) in &mut objects {
+            if let Objective::FollowEntity(entity) = *objective {
+                *objective = Objective::None;
             }
         }
     }

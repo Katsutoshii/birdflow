@@ -69,6 +69,9 @@ impl Grid2<Obstacle> {
         cell: RowCol,
         velocity: Velocity,
     ) -> Acceleration {
+        if !self.in_bounds(cell) {
+            return Acceleration::ZERO;
+        }
         if self[cell] == Obstacle::Empty {
             return Acceleration::ZERO;
         }
