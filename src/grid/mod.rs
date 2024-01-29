@@ -17,9 +17,7 @@ pub use sparse_grid2::SparseGrid2;
 mod shader_plane;
 pub use shader_plane::ShaderPlaneMaterial;
 mod navigation;
-pub use navigation::{
-    CreateWaypointEvent, DeleteWaypointEvent, EntityFlowGrid2, NavigationCostEvent,
-};
+pub use navigation::{CreateWaypointEvent, EntityFlowGrid2, NavigationCostEvent};
 mod minimap;
 pub use minimap::MinimapPlugin;
 mod navigation_visualizer;

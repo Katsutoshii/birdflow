@@ -1,9 +1,6 @@
 use std::f32::consts::PI;
 
-use crate::{
-    grid::{CreateWaypointEvent, DeleteWaypointEvent},
-    prelude::*,
-};
+use crate::{grid::CreateWaypointEvent, prelude::*};
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle, utils::hashbrown::HashSet};
 
 /// Plugin to add a waypoint system where the player can click to create a waypoint.
@@ -39,7 +36,6 @@ impl Waypoint {
         waypoints: Query<Entity, With<Waypoint>>,
         mut commands: Commands,
         mut input_actions: EventReader<ControlEvent>,
-        mut event_writer: EventWriter<DeleteWaypointEvent>,
     ) {
         for &ControlEvent {
             action,
@@ -60,7 +56,6 @@ impl Waypoint {
             for entity in waypoints.iter() {
                 if !followed_entities.contains(&entity) {
                     commands.entity(entity).despawn();
-                    event_writer.send(DeleteWaypointEvent { entity })
                 }
             }
         }

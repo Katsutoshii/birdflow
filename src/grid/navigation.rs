@@ -7,7 +7,7 @@ use std::{
 use crate::prelude::*;
 use bevy::{
     prelude::*,
-    utils::{Entry, HashMap},
+    utils::{Entry, HashMap, HashSet},
 };
 
 use super::SparseGrid2;
@@ -18,14 +18,13 @@ impl Plugin for NavigationPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<NavigationCostEvent>()
             .add_event::<CreateWaypointEvent>()
-            .add_event::<DeleteWaypointEvent>()
             .insert_resource(EntityFlowGrid2::default())
             .add_systems(
                 FixedUpdate,
                 (
                     EntityFlowGrid2::resize_on_change,
                     EntityFlowGrid2::create_waypoints.after(Waypoint::update),
-                    EntityFlowGrid2::delete_waypoints.after(Waypoint::cleanup),
+                    EntityFlowGrid2::delete_waypoints.before(EntityFlowGrid2::create_waypoints),
                 ),
             );
     }
@@ -154,7 +153,6 @@ impl SparseFlowGrid2 {
         destination: RowCol,
         obstacles: &Grid2<Obstacle>,
     ) -> HashMap<RowCol, f32> {
-        dbg!(&self.spec);
         // Initial setup.
         let mut costs: HashMap<RowCol, f32> = HashMap::new();
         let mut heap: BinaryHeap<AStarState> = BinaryHeap::new();
@@ -260,55 +258,39 @@ impl EntityFlowGrid2 {
         obstacles: Res<Grid2<Obstacle>>,
     ) {
         for event in event_reader.read() {
+            dbg!(&event);
             let flow_grid = match grid.entry(event.entity) {
                 Entry::Occupied(o) => o.into_mut(),
-                Entry::Vacant(v) => v.insert(SparseFlowGrid2(SparseGrid2 {
-                    spec: spec.clone(),
-                    ..default()
-                })),
+                Entry::Vacant(v) => {
+                    info!("VACANT!");
+                    v.insert(SparseFlowGrid2(SparseGrid2 {
+                        spec: spec.clone(),
+                        ..default()
+                    }))
+                }
             };
             flow_grid.add_waypoint(event, &obstacles, &mut event_writer);
         }
     }
 
-    // pub fn cleanup(
-    //     objectives: Query<&Objective, Without<Waypoint>>,
-    //     waypoints: Query<Entity, With<Waypoint>>,
-    //     grid: Res<Self>,
-    //     mut commands: Commands,
-    //     mut event_writer: EventWriter<DeleteWaypointEvent>,
-    // ) {
-    //     let mut followed_entities = HashSet::new();
-    //     for objective in objectives.iter() {
-    //         if let Some(entity) = objective.get_followed_entity() {
-    //             followed_entities.insert(entity);
-    //         }
-    //     }
-    //     for entity in waypoints.iter() {
-    //         if !followed_entities.contains(&entity) {
-    //             commands.entity(entity).despawn();
-    //             event_writer.send(DeleteWaypointEvent { entity })
-    //         }
-    //     }
-    // }
-
     /// Consumes CreateWaypointEvent events and populates the navigation grid.
     pub fn delete_waypoints(
+        objectives: Query<&Objective, Without<Waypoint>>,
         mut grid: ResMut<Self>,
-        mut event_reader: EventReader<DeleteWaypointEvent>,
-        mut event_writer: EventWriter<NavigationCostEvent>,
     ) {
-        for event in event_reader.read() {
-            dbg!(&event);
-            let flow_grid = grid.get(&event.entity).expect("Missing grid");
-            for (rowcol, _acceleration) in flow_grid.cells.iter() {
-                event_writer.send(NavigationCostEvent {
-                    entity: event.entity,
-                    rowcol: *rowcol,
-                    cost: 0.,
-                })
+        let mut followed_entities = HashSet::new();
+        for objective in objectives.iter() {
+            if let Some(entity) = objective.get_followed_entity() {
+                followed_entities.insert(entity);
             }
-            grid.remove(&event.entity);
+        }
+        let entities_to_remove: Vec<Entity> = grid
+            .keys()
+            .filter(|&entity| !followed_entities.contains(entity))
+            .copied()
+            .collect();
+        for entity in entities_to_remove {
+            grid.remove(&entity);
         }
     }
 }
@@ -319,10 +301,4 @@ pub struct CreateWaypointEvent {
     pub entity: Entity,
     pub destination: Vec2,
     pub sources: Vec<Vec2>,
-}
-
-/// Event to request waypoint creation.
-#[derive(Event, Clone, Debug)]
-pub struct DeleteWaypointEvent {
-    pub entity: Entity,
 }

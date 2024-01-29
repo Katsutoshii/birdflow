@@ -127,13 +127,15 @@ impl Objective {
             Ok(transform) => transform,
             Err(_) => return Acceleration::ZERO,
         };
-        let flow_grid = flow_grid
-            .get(&entity)
-            .expect("Missing flow grid for entity.");
-        let target_cell = flow_grid.to_rowcol(target_transform.translation.xy());
-        let target_cell_position = flow_grid.to_world_position(target_cell);
-        flow_grid.flow_acceleration5(transform.translation.xy())
-            + config.slow_force(velocity, transform.translation.xy(), target_cell_position)
+        if let Some(flow_grid) = flow_grid.get(&entity) {
+            let target_cell = flow_grid.to_rowcol(target_transform.translation.xy());
+            let target_cell_position = flow_grid.to_world_position(target_cell);
+            flow_grid.flow_acceleration5(transform.translation.xy())
+                + config.slow_force(velocity, transform.translation.xy(), target_cell_position)
+        } else {
+            error!("Missing entity: {:?}", entity);
+            Acceleration::ZERO
+        }
     }
 
     // Returns acceleration for this objective.
