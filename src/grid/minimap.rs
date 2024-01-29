@@ -21,7 +21,9 @@ impl Plugin for MinimapPlugin {
         app.add_plugins(ShaderPlanePlugin::<MinimapShaderMaterial>::default())
             .add_systems(
                 FixedUpdate,
-                MinimapShaderMaterial::update.after(GridEntity::update),
+                MinimapShaderMaterial::update
+                    .after(CameraController::update)
+                    .after(GridEntity::update),
             );
     }
 }
@@ -33,9 +35,11 @@ pub struct MinimapShaderMaterial {
     color: Color,
     #[uniform(1)]
     size: GridSize,
-    #[storage(2, read_only)]
-    grid: Vec<u32>,
+    #[uniform(2)]
+    camera_position: Vec2,
     #[storage(3, read_only)]
+    grid: Vec<u32>,
+    #[storage(4, read_only)]
     visibility_grid: Vec<f32>,
 }
 impl Default for MinimapShaderMaterial {
@@ -43,6 +47,7 @@ impl Default for MinimapShaderMaterial {
         Self {
             color: Color::TEAL,
             size: GridSize::default(),
+            camera_position: Vec2::ZERO,
             grid: Vec::default(),
             visibility_grid: Vec::default(),
         }
@@ -107,6 +112,7 @@ impl MinimapShaderMaterial {
         mut shader_assets: ResMut<Assets<Self>>,
         mut grid_events: EventReader<EntityGridEvent>,
         mut visibility_updates: EventReader<VisibilityUpdateEvent>,
+        mut camera_moves: EventReader<CameraMoveEvent>,
     ) {
         let material = shader_assets.get_mut(&assets.shader_material).unwrap();
 
@@ -138,6 +144,14 @@ impl MinimapShaderMaterial {
                     material.visibility_grid[spec.flat_index(rowcol)] = 0.;
                 }
             }
+        }
+
+        if let Some(event) = camera_moves.read().next() {
+            let rowcol = spec.to_rowcol(event.position);
+            material.camera_position = Vec2 {
+                x: rowcol.1 as f32,
+                y: rowcol.0 as f32,
+            };
         }
     }
 }

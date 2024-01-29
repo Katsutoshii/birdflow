@@ -87,7 +87,6 @@ impl Waypoint {
             for (selected, mut objective, transform) in selection.iter_mut() {
                 if selected.is_selected() {
                     *objective = Objective::FollowEntity(entity);
-                    dbg!(&objective);
                     sources.push(transform.translation.xy());
                 }
             }

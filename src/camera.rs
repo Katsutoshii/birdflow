@@ -8,6 +8,7 @@ pub struct CameraPlugin;
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(ClearColor(Color::BLACK))
+            .add_event::<CameraMoveEvent>()
             .add_systems(Startup, MainCamera::startup)
             .add_systems(
                 FixedUpdate,
@@ -19,6 +20,11 @@ impl Plugin for CameraPlugin {
                 ),
             );
     }
+}
+
+#[derive(Event)]
+pub struct CameraMoveEvent {
+    pub position: Vec2,
 }
 
 /// Used to help identify our main camera
@@ -110,9 +116,9 @@ impl CameraController {
         mut controller_query: Query<(&mut Self, &mut Transform), With<MainCamera>>,
         cursor: Query<&GlobalTransform, (With<Cursor>, Without<MainCamera>)>,
         mouse_input: Res<Input<MouseButton>>,
+        mut event_writer: EventWriter<CameraMoveEvent>,
     ) {
         let (mut controller, mut camera_transform) = controller_query.single_mut();
-
         let cursor = cursor.single();
         let cursor_position = cursor.translation().xy();
 
@@ -132,7 +138,10 @@ impl CameraController {
 
         controller
             .world2d_bounds
-            .clamp3(&mut camera_transform.translation)
+            .clamp3(&mut camera_transform.translation);
+        event_writer.send(CameraMoveEvent {
+            position: camera_transform.translation.xy(),
+        });
     }
 
     pub fn update(
@@ -141,6 +150,7 @@ impl CameraController {
         cursor: Query<&Transform, (Without<MainCamera>, With<Cursor>)>,
         window_query: Query<&Window, With<PrimaryWindow>>,
         input: Res<Input<KeyCode>>,
+        mut event_writer: EventWriter<CameraMoveEvent>,
     ) {
         let dt = time.delta_seconds();
         let window = window_query.single();
@@ -183,7 +193,10 @@ impl CameraController {
             controller.velocity.extend(0.) * dt * controller.sensitivity;
         controller
             .world2d_bounds
-            .clamp3(&mut camera_transform.translation)
+            .clamp3(&mut camera_transform.translation);
+        event_writer.send(CameraMoveEvent {
+            position: camera_transform.translation.xy(),
+        });
     }
 
     pub fn pan_to_position(

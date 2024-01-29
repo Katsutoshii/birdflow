@@ -20,7 +20,7 @@ pub mod zindex;
 pub mod prelude {
     pub use crate::{
         aabb::Aabb2,
-        camera::MainCamera,
+        camera::{CameraController, CameraMoveEvent, MainCamera},
         cursor::Cursor,
         grid::{
             CreateWaypointEvent, EntityFlowGrid2, EntityGridEvent, EntitySet, Grid2, Grid2Plugin,
