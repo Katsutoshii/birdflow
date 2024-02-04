@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
 
 use crate::cursor::CursorAssets;
-use crate::prelude::*;
+use crate::{grid, prelude::*};
 
 pub struct CameraPlugin;
 impl Plugin for CameraPlugin {
@@ -84,9 +84,8 @@ impl CameraController {
         if let Some(world2d_size) =
             Self::get_world2d_size(camera, camera_transform, window.single())
         {
+            // controller.world2d_bounds = grid_spec.world2d_bounds_buffered(world2d_size * 0.5);
             controller.world2d_bounds = grid_spec.world2d_bounds();
-            controller.world2d_bounds.min += world2d_size * 0.5;
-            controller.world2d_bounds.max -= world2d_size * 0.5;
         }
     }
 
@@ -146,8 +145,9 @@ impl CameraController {
 
     pub fn update(
         time: Res<Time>,
+        spec: Res<GridSpec>,
         mut controller_query: Query<(&mut Self, &mut Transform), With<MainCamera>>,
-        cursor: Query<&Transform, (Without<MainCamera>, With<Cursor>)>,
+        cursor: Query<(&Transform, &GlobalTransform), (Without<MainCamera>, With<Cursor>)>,
         window_query: Query<&Window, With<PrimaryWindow>>,
         input: Res<Input<KeyCode>>,
         mut event_writer: EventWriter<CameraMoveEvent>,
@@ -156,10 +156,11 @@ impl CameraController {
         let window = window_query.single();
         let (mut controller, mut camera_transform) = controller_query.single_mut();
 
-        let cursor = cursor.single();
-        let cursor_position = cursor.translation.xy();
+        let (cursor_transform, cursor_global_transform) = cursor.single();
+        let cursor_position = cursor_transform.translation.xy();
         if input.just_pressed(KeyCode::Space) {
             dbg!(cursor_position);
+            dbg!(spec.to_rowcol(cursor_global_transform.translation().xy()));
         }
 
         let mut acceleration = Vec2::ZERO;

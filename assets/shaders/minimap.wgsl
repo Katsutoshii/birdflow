@@ -15,9 +15,11 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
     let row = u32(g.y);
     let col = u32(g.x);
 
+    let viewport_dimensions = vec2<f32>(16., 9.);
+
     var camera_brightness = vec4<f32>(0.);
     let camera_check = abs(g - camera_position);
-    if camera_check.x < 15. && camera_check.y < 10. {
+    if camera_check.x < viewport_dimensions.x && camera_check.y < viewport_dimensions.y {
         camera_brightness = vec4<f32>(0.02);
     }
 

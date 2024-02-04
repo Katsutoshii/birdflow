@@ -110,19 +110,32 @@ impl SparseFlowGrid2 {
         obstacles: &Grid2<Obstacle>,
         event_writer: &mut EventWriter<NavigationCostEvent>,
     ) {
+        let destination = self.to_rowcol(event.destination);
+        if self.is_boundary(destination) {
+            return;
+        }
+
         let mut sources = Vec::with_capacity(event.sources.len());
         for &source in &event.sources {
             let rowcol = self.spec.to_rowcol(source);
             for neighbor_rowcol in self.get_in_radius_discrete(rowcol, 2) {
+                if self.is_boundary(rowcol) {
+                    continue;
+                }
+                if obstacles[rowcol] != Obstacle::Empty {
+                    continue;
+                }
                 sources.push(neighbor_rowcol);
             }
         }
-        let destination = self.to_rowcol(event.destination);
+
         let costs = self.a_star(&sources, destination, obstacles);
+
         // Compute flow direction.
         for (&rowcol, &cost) in &costs {
             let mut min_neighbor_rowcol = rowcol;
             let mut min_neighbor_cost = cost;
+            assert!(!self.is_boundary(rowcol));
 
             for (neighbor_rowcol, _) in self.neighbors8(rowcol) {
                 if let Some(&neighbor_cost) = costs.get(&neighbor_rowcol) {
@@ -156,12 +169,12 @@ impl SparseFlowGrid2 {
         // Initial setup.
         let mut costs: HashMap<RowCol, f32> = HashMap::new();
         let mut heap: BinaryHeap<AStarState> = BinaryHeap::new();
-        let mut goals: BTreeSet<RowCol> = sources
-            .iter()
-            .filter(|&&rowcol| obstacles[rowcol] == Obstacle::Empty)
-            .copied()
-            .collect();
-        let mut current_goal = *goals.first().unwrap();
+        let mut goals: BTreeSet<RowCol> = sources.iter().copied().collect();
+        let mut current_goal = if let Some(&goal) = goals.first() {
+            goal
+        } else {
+            return costs;
+        };
 
         let min_grid_dist = 1.;
         let max_grid_dist = 30.;
@@ -196,13 +209,13 @@ impl SparseFlowGrid2 {
 
             // If the current goal has been reached, clear the heap and move on to the next goal.
             if goals.remove(&rowcol) {
-                if goals.is_empty() {
+                current_goal = if let Some(&goal) = goals.first() {
+                    goal
+                } else {
                     break;
-                }
-                if rowcol == current_goal {
-                    current_goal = *goals.first().unwrap();
-                }
+                };
             }
+
             // For each node we can reach, see if we can find a way with
             // a lower cost going through this node
             for (neighbor_rowcol, neighbor_cost) in self.neighbors8(rowcol) {

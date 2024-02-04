@@ -105,7 +105,15 @@ impl GridSpec {
     pub fn world2d_bounds(&self) -> Aabb2 {
         Aabb2 {
             min: -self.offset(),
-            max: self.offset(),
+            max: self.offset() - Vec2::ONE * 0.00001,
+        }
+    }
+
+    /// Compute the (min, max) position for the grid with an extra buffer.
+    pub fn world2d_bounds_buffered(&self, buffer: Vec2) -> Aabb2 {
+        Aabb2 {
+            min: -self.offset() + buffer,
+            max: self.offset() - buffer - Vec2::ONE * 0.00001,
         }
     }
 
