@@ -1,8 +1,8 @@
 (
   resources: {
     "birdflow::grid::spec::GridSpec": (
-      rows: 256,
-      cols: 256,
+      rows: 32,
+      cols: 32,
       width: 64.0,
       visualize: false,
     ),
@@ -50,6 +50,8 @@
         physics_material: Zooid,
         neighbor_radius: 300.0,
         spawn_velocity: 10.0,
+        hit_radius: 4.0,
+        death_speed: 1.0,
         waypoint: (
           max_acceleration: 3.5,
           repell_radius: 20.0,

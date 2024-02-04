@@ -94,9 +94,11 @@ impl Grid2<TeamVisibility> {
                     .removals
                     .extend(grid.remove_visibility(prev_cell, team, &configs))
             }
-            updates
-                .additions
-                .extend(grid.add_visibility(cell, team, &configs));
+            if let Some(cell) = cell {
+                updates
+                    .additions
+                    .extend(grid.add_visibility(cell, team, &configs));
+            }
         }
 
         visibility_events.send(updates);

@@ -202,28 +202,27 @@ impl Objective {
             _ => None,
         }
     }
-    // Gets a random attack cooldown.
+    /// Gets a random attack cooldown.
     pub fn attack_cooldown() -> Duration {
-        Duration::from_millis(rand::thread_rng().gen_range(800..1200))
+        Duration::from_millis(rand::thread_rng().gen_range(0..1200))
     }
 
-    // Gets a random attack cooldown.
+    /// Gets a random attack delay.
     pub fn attack_delay() -> Duration {
-        Duration::from_millis(rand::thread_rng().gen_range(0..100))
+        Duration::from_millis(rand::thread_rng().gen_range(0..300))
     }
 
     /// Given an objective, get the next one (if there should be a next one, else None).
     pub fn next(&self, event: &Option<CreateWaypointEvent>) -> Option<Self> {
         match *self {
-            Self::None | Self::FollowEntity(_) => event.as_ref().map(|event| {
+            Self::None | Self::FollowEntity(_) => event.as_ref().map(|event| 
                 Self::AttackEntity(AttackEntity {
                     entity: event.entity,
                     cooldown: Timer::from_seconds(
                         Self::attack_delay().as_secs_f32(),
                         TimerMode::Repeating,
                     ),
-                })
-            }),
+                })),
             Self::MoveToPosition(_) => None,
             Self::AttackEntity(_) => None,
         }

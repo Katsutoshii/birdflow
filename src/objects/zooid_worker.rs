@@ -98,6 +98,7 @@ impl ZooidWorkerBundler {
                 ..default()
             },
             Selected::default(),
+            Health::default(),
             Name::new("Zooid"),
         )
     }
