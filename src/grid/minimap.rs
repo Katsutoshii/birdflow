@@ -37,9 +37,11 @@ pub struct MinimapShaderMaterial {
     size: GridSize,
     #[uniform(2)]
     camera_position: Vec2,
-    #[storage(3, read_only)]
-    grid: Vec<u32>,
+    #[uniform(3)]
+    viewport_size: Vec2,
     #[storage(4, read_only)]
+    grid: Vec<u32>,
+    #[storage(5, read_only)]
     visibility_grid: Vec<f32>,
 }
 impl Default for MinimapShaderMaterial {
@@ -48,6 +50,7 @@ impl Default for MinimapShaderMaterial {
             color: Color::TEAL,
             size: GridSize::default(),
             camera_position: Vec2::ZERO,
+            viewport_size: Vec2 { x: 16., y: 9. },
             grid: Vec::default(),
             visibility_grid: Vec::default(),
         }

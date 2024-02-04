@@ -5,8 +5,9 @@
 @group(1) @binding(0) var<uniform> color: vec4<f32>;
 @group(1) @binding(1) var<uniform> size: GridSize;
 @group(1) @binding(2) var<uniform> camera_position: vec2<f32>;
-@group(1) @binding(3) var<storage> grid: array<u32>;
-@group(1) @binding(4) var<storage> visibility_grid: array<f32>;
+@group(1) @binding(3) var<uniform> viewport_size: vec2<f32>;
+@group(1) @binding(4) var<storage> grid: array<u32>;
+@group(1) @binding(5) var<storage> visibility_grid: array<f32>;
 
 @fragment
 fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
@@ -17,7 +18,7 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
 
     var camera_brightness = vec4<f32>(0.);
     let camera_check = abs(g - camera_position);
-    if camera_check.x < 15. && camera_check.y < 10. {
+    if camera_check.x < viewport_size.x && camera_check.y < viewport_size.y {
         camera_brightness = vec4<f32>(0.02);
     }
 
