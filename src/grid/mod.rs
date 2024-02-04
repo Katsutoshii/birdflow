@@ -15,11 +15,11 @@ pub use grid2::Grid2;
 mod sparse_grid2;
 pub use sparse_grid2::SparseGrid2;
 mod shader_plane;
-pub use shader_plane::ShaderPlaneMaterial;
+pub use shader_plane::{ShaderPlaneAssets, ShaderPlaneMaterial};
 mod navigation;
 pub use navigation::{CreateWaypointEvent, EntityFlowGrid2, NavigationCostEvent};
 mod minimap;
-pub use minimap::MinimapPlugin;
+pub use minimap::{MinimapPlugin, MinimapShaderMaterial};
 mod navigation_visualizer;
 
 pub use self::{

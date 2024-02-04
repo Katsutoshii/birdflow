@@ -146,7 +146,7 @@ impl MinimapShaderMaterial {
             }
         }
 
-        if let Some(event) = camera_moves.read().next() {
+        for event in camera_moves.read() {
             let rowcol = spec.to_rowcol(event.position);
             material.camera_position = Vec2 {
                 x: rowcol.1 as f32,
