@@ -22,7 +22,7 @@ impl GridEntity {
             if let Some(event) =
                 grid.update_entity(entity, grid_entity.cell, transform.translation.xy())
             {
-                grid_entity.cell = Some(event.cell);
+                grid_entity.cell = event.cell;
                 event_writer.send(event);
             }
         }
@@ -35,7 +35,7 @@ pub struct EntityGridEvent {
     pub entity: Entity,
     pub prev_cell: Option<RowCol>,
     pub prev_cell_empty: bool,
-    pub cell: RowCol,
+    pub cell: Option<RowCol>,
 }
 impl Default for EntityGridEvent {
     fn default() -> Self {
@@ -43,7 +43,7 @@ impl Default for EntityGridEvent {
             entity: Entity::PLACEHOLDER,
             prev_cell: None,
             prev_cell_empty: false,
-            cell: (0, 0),
+            cell: Some((0, 0)),
         }
     }
 }
@@ -80,7 +80,7 @@ impl Grid2<EntitySet> {
                 entity,
                 prev_cell,
                 prev_cell_empty,
-                cell: rowcol,
+                cell: Some(rowcol),
             });
         }
         None

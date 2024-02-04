@@ -109,6 +109,14 @@ impl GridSpec {
         }
     }
 
+        /// Compute the (min, max) position for the grid.
+    pub fn world2d_bounds_eps(&self) -> Aabb2 {
+        Aabb2 {
+            min: -self.offset() + self.width,
+            max: self.offset() - self.width,
+        }
+    }
+
     pub fn scale(&self) -> Vec2 {
         Vec2 {
             x: self.width * self.cols as f32,

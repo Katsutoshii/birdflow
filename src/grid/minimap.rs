@@ -22,7 +22,7 @@ impl Plugin for MinimapPlugin {
             .add_systems(
                 FixedUpdate,
                 MinimapShaderMaterial::update
-                    .after(CameraController::update)
+                    .before(CameraController::update)
                     .after(GridEntity::update),
             );
     }
@@ -131,8 +131,10 @@ impl MinimapShaderMaterial {
                     material.grid[spec.flat_index(rowcol)] = 0;
                 }
             }
-            if spec.in_bounds(rowcol) {
-                material.grid[spec.flat_index(rowcol)] = 1;
+            if let Some(rowcol) = rowcol {
+                if spec.in_bounds(rowcol) {
+                    material.grid[spec.flat_index(rowcol)] = 1;
+                }
             }
         }
 

@@ -27,7 +27,7 @@ pub mod prelude {
         },
         inputs::{ControlAction, ControlEvent, InputState},
         meshes,
-        objects::{Config, Configs, Object, Objective, Team},
+        objects::{Config, Configs, Object, Objective, Team, Health},
         physics::{Acceleration, PhysicsBundle, PhysicsMaterial, PhysicsMaterialType, Velocity},
         raycast::{RaycastEvent, RaycastTarget},
         selector::Selected,

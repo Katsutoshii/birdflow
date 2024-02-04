@@ -9,8 +9,13 @@ use super::{zooid_worker::ZooidWorker, InteractionConfig};
 pub struct ObjectPlugin;
 impl Plugin for ObjectPlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<Object>()
-            .add_systems(FixedUpdate, (Object::update.in_set(SystemStage::Compute),));
+        app.register_type::<Object>().add_systems(
+            FixedUpdate,
+            (
+                Object::update.in_set(SystemStage::Compute),
+                Object::death.in_set(SystemStage::Despawn),
+            ),
+        );
     }
 }
 
@@ -22,13 +27,30 @@ pub enum Object {
     Head,
     Food,
 }
+
+#[derive(Component)]
+pub struct Health {
+    pub health: i32,
+    pub hit_timer: Timer,
+}
+
+impl Default for Health {
+    fn default() -> Self {
+        Self {
+            health: 2,
+            hit_timer: Timer::from_seconds(0.5, TimerMode::Once),
+        }
+    }
+}
+
 impl Default for Object {
     fn default() -> Self {
         Self::Worker(ZooidWorker::default())
     }
 }
 impl Object {
-    /// Update objects acceleration and objectives.
+    /// Update objects acceleration and objectives.\
+    #[allow(clippy::type_complexity)]
     pub fn update(
         mut objects: Query<(
             Entity,
@@ -36,6 +58,7 @@ impl Object {
             &Velocity,
             &mut Acceleration,
             &mut Objective,
+            &mut Health,
             &Transform,
             &Team,
         )>,
@@ -44,11 +67,21 @@ impl Object {
         grid: Res<Grid2<EntitySet>>,
         configs: Res<Configs>,
         mut waypoint_event_writer: EventWriter<CreateWaypointEvent>,
+        time: Res<Time>,
     ) {
         let writer_mutex: Mutex<&mut EventWriter<CreateWaypointEvent>> =
             Mutex::new(&mut waypoint_event_writer);
         objects.par_iter_mut().for_each(
-            |(entity, zooid, &velocity, mut acceleration, mut objective, transform, team)| {
+            |(
+                entity,
+                zooid,
+                &velocity,
+                mut acceleration,
+                mut objective,
+                mut health,
+                transform,
+                team,
+            )| {
                 let config = configs.get(zooid);
                 let (neighbor_acceleration, new_objective, waypoint_event) = zooid
                     .process_neighbors(
@@ -59,18 +92,33 @@ impl Object {
                         &other_objects,
                         &grid,
                         &obstacles,
+                        &mut health,
                         config,
                         &objective,
+                        &time,
                     );
                 *acceleration += neighbor_acceleration;
                 if let Some(new_objective) = new_objective {
                     *objective = new_objective;
                 }
-                if let Some(waypoint_event) = waypoint_event {
-                    writer_mutex.lock().unwrap().send(waypoint_event);
-                }
+                // if let Some(waypoint_event) = waypoint_event {
+                //     writer_mutex.lock().unwrap().send(waypoint_event);
+                // }
             },
         )
+    }
+
+    pub fn death(
+        mut objects: Query<(Entity, &GridEntity, &Health)>,
+        mut commands: Commands,
+        mut grid: ResMut<Grid2<EntitySet>>,
+    ) {
+        for (entity, grid_entity, health) in &mut objects {
+            if health.health <= 0 {
+                grid.remove(entity, grid_entity);
+                commands.entity(entity).despawn_recursive();
+            }
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -84,8 +132,10 @@ impl Object {
         entities: &Query<(&Object, &Velocity, &Transform, &Team)>,
         grid: &Grid2<EntitySet>,
         obstacles: &Grid2<Obstacle>,
+        health: &mut Health,
         config: &Config,
         objective: &Objective,
+        time: &Time,
     ) -> (Acceleration, Option<Objective>, Option<CreateWaypointEvent>) {
         let mut acceleration = Acceleration::ZERO;
         // Forces from other entities
@@ -105,18 +155,17 @@ impl Object {
 
             let other_position = other_transform.translation.xy();
             let delta = other_position - position;
-            // Only get interaction forces from objects on the same team.
-            if other_team == team {
-                acceleration += self.other_acceleration(
-                    transform,
-                    velocity,
-                    other,
-                    other_transform,
-                    other_velocity,
-                    config,
-                    other_entities.len(),
-                ) * (1.0 / (other_entities.len() as f32));
-            }
+            acceleration += self.other_acceleration(
+                transform,
+                velocity,
+                team,
+                other,
+                other_transform,
+                other_velocity,
+                other_team,
+                config,
+                other_entities.len(),
+            ) * (1.0 / (other_entities.len() as f32));
 
             if other_team != team {
                 let distance_squared = delta.length_squared();
@@ -127,6 +176,16 @@ impl Object {
                         destination: other_position,
                         sources: vec![position],
                     })
+                }
+                health.hit_timer.tick(time.delta());
+                if distance_squared < config.hit_radius.powi(2)
+                    && health.hit_timer.finished()
+                    && velocity.length_squared() > config.death_speed.powi(2)
+                {
+                    dbg!("Hit!");
+                    health.health -= 1;
+                    dbg!(health.health);
+                    health.hit_timer = Timer::from_seconds(1.0, TimerMode::Once);
                 }
             }
         }
@@ -144,9 +203,11 @@ impl Object {
         &self,
         transform: &Transform,
         velocity: Velocity,
+        team: &Team,
         other: &Self,
         other_transform: &Transform,
         other_velocity: Velocity,
+        other_team: &Team,
         config: &Config,
         num_others: usize,
     ) -> Acceleration {
@@ -160,18 +221,24 @@ impl Object {
             return acceleration;
         }
 
-        // Separation
-        acceleration +=
-            Self::separation_acceleration(position_delta, distance_squared, velocity, interaction);
+        if team == other_team {
+            // Separation
+            acceleration += Self::separation_acceleration(
+                position_delta,
+                distance_squared,
+                velocity,
+                interaction,
+            );
+            // Alignment
+            acceleration += Self::alignment_acceleration(
+                distance_squared,
+                velocity,
+                other_velocity,
+                num_others,
+                interaction,
+            );
+        }
 
-        // Alignment
-        acceleration += Self::alignment_acceleration(
-            distance_squared,
-            velocity,
-            other_velocity,
-            num_others,
-            interaction,
-        );
         acceleration
     }
 

@@ -95,7 +95,7 @@ pub fn update(
         transform.translation += velocity.0.extend(0.);
 
         grid_spec
-            .world2d_bounds()
+            .world2d_bounds_eps()
             .clamp3(&mut transform.translation);
 
         acceleration.0 = Vec2::ZERO;

@@ -61,6 +61,8 @@ pub struct Config {
     pub alignment_factor: f32,
     pub spawn_velocity: f32,
     pub waypoint: ObjectiveConfig,
+    pub hit_radius: f32,
+    pub death_speed: f32,
 
     // Interactions
     pub worker: InteractionConfig,
@@ -74,6 +76,8 @@ impl Default for Config {
             neighbor_radius: 10.0,
             alignment_factor: 0.1,
             spawn_velocity: 2.0,
+            hit_radius: 10.0,
+            death_speed: 9.0,
             waypoint: ObjectiveConfig::default(),
             worker: InteractionConfig::default(),
             head: InteractionConfig::default(),

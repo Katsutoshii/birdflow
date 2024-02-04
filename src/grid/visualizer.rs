@@ -88,7 +88,9 @@ impl GridVisualizerShaderMaterial {
                     material.grid[grid_spec.flat_index(prev_cell)] = 0;
                 }
             }
-            material.grid[grid_spec.flat_index(cell)] = 1;
+            if let Some(cell) = cell {
+                material.grid[grid_spec.flat_index(cell)] = 1;
+            }
         }
     }
 }

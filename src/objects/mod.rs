@@ -38,8 +38,7 @@ mod objective;
 mod zooid_head;
 mod zooid_worker;
 
-pub use object::Object;
-
+pub use object::{Object, Health};
 /// Enum to specify the team of the given object.
 #[derive(Component, Default, Debug, PartialEq, Eq, Reflect, Clone, Copy, Hash)]
 #[reflect(Component)]

@@ -91,7 +91,9 @@ impl SparseFlowGrid2 {
         let rowcol = self.to_rowcol(position);
 
         total_acceleration += self.flow_acceleration(position, rowcol);
-
+        if self.is_boundary(rowcol) {
+            return Acceleration::ZERO;
+        }
         // Add accelerations from neighboring cells.
         for (neighbor_rowcol, _) in self.neighbors8(rowcol) {
             if self.is_boundary(neighbor_rowcol) {
@@ -123,7 +125,6 @@ impl SparseFlowGrid2 {
         for (&rowcol, &cost) in &costs {
             let mut min_neighbor_rowcol = rowcol;
             let mut min_neighbor_cost = cost;
-
             for (neighbor_rowcol, _) in self.neighbors8(rowcol) {
                 if let Some(&neighbor_cost) = costs.get(&neighbor_rowcol) {
                     if neighbor_cost < min_neighbor_cost {
@@ -158,7 +159,7 @@ impl SparseFlowGrid2 {
         let mut heap: BinaryHeap<AStarState> = BinaryHeap::new();
         let mut goals: BTreeSet<RowCol> = sources
             .iter()
-            .filter(|&&rowcol| obstacles[rowcol] == Obstacle::Empty)
+            .filter(|&&rowcol| self.in_bounds(rowcol) && obstacles[rowcol] == Obstacle::Empty)
             .copied()
             .collect();
         let mut current_goal = *goals.first().unwrap();
@@ -173,6 +174,9 @@ impl SparseFlowGrid2 {
         let final_dist = max_dist.clamp(min_grid_dist, max_grid_dist);
         let heuristic_factor = max_heuristic * final_dist / max_grid_dist;
         // We're at `start`, with a zero cost
+        if self.is_boundary(destination) {
+            return costs;
+        }
         heap.push(AStarState {
             cost: 0.,
             rowcol: destination,
@@ -210,7 +214,6 @@ impl SparseFlowGrid2 {
                 if self.is_boundary(neighbor_rowcol) {
                     continue;
                 }
-
                 if obstacles[neighbor_rowcol] != Obstacle::Empty {
                     continue;
                 }
