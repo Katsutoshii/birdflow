@@ -67,10 +67,7 @@ pub enum Objective {
     None,
     /// Entity wants to follow the transform of another entity.
     FollowEntity(Entity),
-    /// Entity wants to move to a given position.
-    #[allow(dead_code)]
-    MoveToPosition(Vec2),
-    #[allow(dead_code)]
+    /// Attack Entity
     AttackEntity(AttackEntity),
 }
 impl Objective {
@@ -93,24 +90,6 @@ impl Objective {
                 &time,
             );
         }
-    }
-
-    /// Returns acceleration towards a given position.
-    fn acceleration_to_position(
-        velocity: Velocity,
-        position: Vec2,
-        target_position: Vec2,
-        config: &ObjectiveConfig,
-    ) -> Acceleration {
-        let position_delta = target_position - position;
-        let radius = config.repell_radius;
-        let max_magnitude = config.max_acceleration;
-        let dist_squared = position_delta.length_squared();
-        let radius_squared = radius * radius;
-        let magnitude = max_magnitude * (dist_squared / (radius_squared) - 1.);
-        Acceleration(
-            position_delta.normalize_or_zero() * magnitude.clamp(-max_magnitude, max_magnitude),
-        ) + config.slow_force(velocity, position, target_position)
     }
 
     // Returns acceleration for following an entity.
@@ -152,12 +131,6 @@ impl Objective {
         time: &Time,
     ) -> Acceleration {
         match self {
-            Self::MoveToPosition(target_position) => Self::acceleration_to_position(
-                velocity,
-                transform.translation.xy(),
-                *target_position,
-                config,
-            ),
             Self::FollowEntity(entity) => Self::accelerate_to_entity(
                 *entity,
                 transform,
@@ -215,16 +188,16 @@ impl Objective {
     /// Given an objective, get the next one (if there should be a next one, else None).
     pub fn next(&self, event: &Option<CreateWaypointEvent>) -> Option<Self> {
         match *self {
-            Self::None | Self::FollowEntity(_) => event.as_ref().map(|event| 
+            Self::None | Self::FollowEntity(_) => event.as_ref().map(|event| {
                 Self::AttackEntity(AttackEntity {
                     entity: event.entity,
                     cooldown: Timer::from_seconds(
                         Self::attack_delay().as_secs_f32(),
                         TimerMode::Repeating,
                     ),
-                })),
-            Self::MoveToPosition(_) => None,
-            Self::AttackEntity(_) => None,
+                })
+            }),
+            Self::AttackEntity(_) => Some(Self::None),
         }
     }
 }
