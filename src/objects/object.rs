@@ -105,7 +105,7 @@ impl Object {
 
             let other_position = other_transform.translation.xy();
             let delta = other_position - position;
-            // Only leave
+            // Only get interaction forces from objects on the same team.
             if other_team == team {
                 acceleration += self.other_acceleration(
                     transform,
