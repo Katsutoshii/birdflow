@@ -155,19 +155,17 @@ impl Object {
 
             let other_position = other_transform.translation.xy();
             let delta = other_position - position;
-            acceleration += self.other_acceleration(
-                transform,
-                velocity,
-                team,
-                other,
-                other_transform,
-                other_velocity,
-                other_team,
-                config,
-                other_entities.len(),
-            ) * (1.0 / (other_entities.len() as f32));
-
-            if other_team != team {
+            if team == other_team {
+                acceleration += self.other_acceleration(
+                    transform,
+                    velocity,
+                    other,
+                    other_transform,
+                    other_velocity,
+                    config,
+                    other_entities.len(),
+                ) * (1.0 / (other_entities.len() as f32));
+            } else {
                 let distance_squared = delta.length_squared();
                 if distance_squared < closest_enemy_distance_squared {
                     closest_enemy_distance_squared = distance_squared;
@@ -203,42 +201,31 @@ impl Object {
         &self,
         transform: &Transform,
         velocity: Velocity,
-        team: &Team,
         other: &Self,
         other_transform: &Transform,
         other_velocity: Velocity,
-        other_team: &Team,
         config: &Config,
         num_others: usize,
     ) -> Acceleration {
         let mut acceleration = Acceleration::ZERO;
         let interaction = config.get_interaction(other);
-
         let position_delta =
             transform.translation.truncate() - other_transform.translation.truncate(); // Towards self, away from other.
         let distance_squared = position_delta.length_squared();
         if distance_squared > config.neighbor_radius * config.neighbor_radius {
             return acceleration;
         }
-
-        if team == other_team {
-            // Separation
-            acceleration += Self::separation_acceleration(
-                position_delta,
-                distance_squared,
-                velocity,
-                interaction,
-            );
-            // Alignment
-            acceleration += Self::alignment_acceleration(
-                distance_squared,
-                velocity,
-                other_velocity,
-                num_others,
-                interaction,
-            );
-        }
-
+        // Separation
+        acceleration +=
+            Self::separation_acceleration(position_delta, distance_squared, velocity, interaction);
+        // Alignment
+        acceleration += Self::alignment_acceleration(
+            distance_squared,
+            velocity,
+            other_velocity,
+            num_others,
+            interaction,
+        );
         acceleration
     }
 
