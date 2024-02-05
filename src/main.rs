@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy_editor_pls::prelude::*;
 
 pub mod aabb;
 pub mod camera;
@@ -50,7 +49,6 @@ fn main() {
                 })
                 .set(window::custom_plugin()),
             inputs::InputActionPlugin,
-            EditorPlugin::default(),
             grid::GridPlugin,
             objects::ObjectsPlugin,
             scene::LoadableScenePlugin,
