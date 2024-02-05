@@ -1,8 +1,8 @@
 (
   resources: {
     "birdflow::grid::spec::GridSpec": (
-      rows: 32,
-      cols: 32,
+      rows: 256,
+      cols: 256,
       width: 64.0,
       visualize: false,
     ),

@@ -180,9 +180,7 @@ impl Object {
                     && health.hit_timer.finished()
                     && velocity.length_squared() > config.death_speed.powi(2)
                 {
-                    dbg!("Hit!");
                     health.health -= 1;
-                    dbg!(health.health);
                     health.hit_timer = Timer::from_seconds(1.0, TimerMode::Once);
                 }
             }

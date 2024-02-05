@@ -159,10 +159,6 @@ impl CameraController {
 
         let cursor = cursor.single();
         let cursor_position = cursor.translation.xy();
-        if input.just_pressed(KeyCode::Space) {
-            dbg!(cursor_position);
-        }
-
         let mut acceleration = Vec2::ZERO;
         controller.velocity = Vec2::ZERO;
         let window_size = Vec2 {
