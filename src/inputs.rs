@@ -139,10 +139,8 @@ impl InputEvent {
             RawInput::KeyCode(key_code) => {
                 let state = if keyboard_input.pressed(key_code) {
                     if keyboard_input.just_pressed(key_code) {
-                        if key_code == KeyCode::Return {}
                         InputState::Pressed
                     } else {
-                        if key_code == KeyCode::Return {}
                         InputState::Held
                     }
                 } else if keyboard_input.just_released(key_code) {

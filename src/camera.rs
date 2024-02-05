@@ -150,7 +150,6 @@ impl CameraController {
         mut controller_query: Query<(&mut Self, &mut Transform), With<MainCamera>>,
         cursor: Query<&Transform, (Without<MainCamera>, With<Cursor>)>,
         window_query: Query<&Window, With<PrimaryWindow>>,
-        input: Res<Input<KeyCode>>,
         mut event_writer: EventWriter<CameraMoveEvent>,
     ) {
         let dt = time.delta_seconds();

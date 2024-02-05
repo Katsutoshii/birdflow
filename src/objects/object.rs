@@ -101,9 +101,9 @@ impl Object {
                 if let Some(new_objective) = new_objective {
                     *objective = new_objective;
                 }
-                // if let Some(waypoint_event) = waypoint_event {
-                //     writer_mutex.lock().unwrap().send(waypoint_event);
-                // }
+                if let Some(waypoint_event) = waypoint_event {
+                    writer_mutex.lock().unwrap().send(waypoint_event);
+                }
             },
         )
     }
