@@ -1,9 +1,10 @@
 use std::sync::Mutex;
 
+use super::{zooid_worker::ZooidWorker, InteractionConfig};
+use crate::effects;
 use crate::prelude::*;
 use bevy::prelude::*;
-
-use super::{zooid_worker::ZooidWorker, InteractionConfig};
+use bevy_hanabi::prelude::*;
 
 /// Plugin for running zooids simulation.
 pub struct ObjectPlugin;
@@ -109,14 +110,24 @@ impl Object {
     }
 
     pub fn death(
-        mut objects: Query<(Entity, &GridEntity, &Health)>,
+        mut objects: Query<(Entity, &GridEntity, &Health, &Transform, &Team)>,
         mut commands: Commands,
+        mut effects: ResMut<Assets<EffectAsset>>,
         mut grid: ResMut<Grid2<EntitySet>>,
     ) {
-        for (entity, grid_entity, health) in &mut objects {
+        for (entity, grid_entity, health, transform, team) in &mut objects {
             if health.health <= 0 {
+                let effect = effects.add(effects::firework_effect(team));
                 grid.remove(entity, grid_entity);
                 commands.entity(entity).despawn_recursive();
+                commands.spawn((
+                    Name::new("firework"),
+                    ParticleEffectBundle {
+                        effect: ParticleEffect::new(effect),
+                        transform: *transform,
+                        ..Default::default()
+                    },
+                ));
             }
         }
     }

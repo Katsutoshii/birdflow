@@ -1,0 +1,74 @@
+use crate::prelude::*;
+use bevy::prelude::*;
+use bevy_hanabi::prelude::*;
+
+fn color_gradient_from_team(team: &Team) -> Gradient<Vec4> {
+    let mut color_gradient = Gradient::new();
+    match *team {
+        Team::Blue | Team::None => {
+            color_gradient.add_key(0.0, std::convert::Into::<Vec4>::into(Color::TEAL) * 1.3);
+            color_gradient.add_key(0.1, Color::TEAL.into());
+            color_gradient.add_key(0.9, std::convert::Into::<Vec4>::into(Color::TEAL) * 0.5);
+            color_gradient.add_key(1.0, Vec4::new(0.0, 0.0, 2.0, 0.0));
+        }
+        Team::Red => {
+            color_gradient.add_key(0.0, std::convert::Into::<Vec4>::into(Color::TOMATO) * 1.3);
+            color_gradient.add_key(0.1, Color::TOMATO.into());
+            color_gradient.add_key(0.7, std::convert::Into::<Vec4>::into(Color::TOMATO) * 0.5);
+            color_gradient.add_key(1.0, Vec4::new(2.0, 0.0, 0.0, 0.0));
+        }
+    };
+    color_gradient
+}
+
+pub fn firework_effect(team: &Team) -> EffectAsset {
+    let color_gradient = color_gradient_from_team(team);
+
+    let mut size_gradient1 = Gradient::new();
+    size_gradient1.add_key(0.0, Vec2::splat(10.0));
+    size_gradient1.add_key(0.3, Vec2::splat(7.0));
+    size_gradient1.add_key(1.0, Vec2::splat(0.0));
+
+    let writer = ExprWriter::new();
+
+    // Give a bit of variation by randomizing the age per particle. This will
+    // control the starting color and starting size of particles.
+    let age = writer.lit(0.).uniform(writer.lit(0.2)).expr();
+    let init_age = SetAttributeModifier::new(Attribute::AGE, age);
+
+    // Give a bit of variation by randomizing the lifetime per particle
+    let lifetime = writer.lit(0.5).uniform(writer.lit(0.7)).expr();
+    let init_lifetime = SetAttributeModifier::new(Attribute::LIFETIME, lifetime);
+
+    // Add drag to make particles slow down a bit after the initial explosion
+    let drag = writer.lit(5.).expr();
+    let update_drag = LinearDragModifier::new(drag);
+
+    let init_pos = SetPositionSphereModifier {
+        center: writer.lit(Vec3::ZERO).expr(),
+        radius: writer.lit(2.).expr(),
+        dimension: ShapeDimension::Volume,
+    };
+
+    // Give a bit of variation by randomizing the initial speed
+    let init_vel = SetVelocitySphereModifier {
+        center: writer.lit(Vec3::ZERO).expr(),
+        speed: (writer.rand(ScalarType::Float) * writer.lit(20.) + writer.lit(60.)).expr(),
+    };
+
+    let effect = EffectAsset::new(1000, Spawner::once(20.0.into(), true), writer.finish())
+        .with_name("firework")
+        .init(init_pos)
+        .init(init_vel)
+        .init(init_age)
+        .init(init_lifetime)
+        .update(update_drag)
+        .render(ColorOverLifetimeModifier {
+            gradient: color_gradient,
+        })
+        .render(SizeOverLifetimeModifier {
+            gradient: size_gradient1,
+            screen_space_size: false,
+        });
+    return effect;
+}
