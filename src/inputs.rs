@@ -21,7 +21,7 @@ impl Plugin for InputActionPlugin {
             .add_event::<ControlEvent>()
             .add_event::<InputEvent>()
             .add_systems(
-                FixedUpdate,
+                Update,
                 (
                     InputEvent::update.in_set(SystemStage::Spawn),
                     ControlEvent::update.after(InputEvent::update),
@@ -139,8 +139,14 @@ impl InputEvent {
             RawInput::KeyCode(key_code) => {
                 let state = if keyboard_input.pressed(key_code) {
                     if keyboard_input.just_pressed(key_code) {
+                        if key_code == KeyCode::Return {
+                            dbg!("Pressed!");
+                        }
                         InputState::Pressed
                     } else {
+                        if key_code == KeyCode::Return {
+                            dbg!("HODL!");
+                        }
                         InputState::Held
                     }
                 } else if keyboard_input.just_released(key_code) {
@@ -164,16 +170,6 @@ impl InputEvent {
         mut event_writer: EventWriter<Self>,
     ) {
         let cursor = cursor.single();
-        let mouse_buttons = InputAction::mouse_buttons();
-        let key_codes = InputAction::key_codes();
-        if !mouse_input.any_pressed(mouse_buttons.iter().cloned())
-            && !mouse_input.any_just_released(mouse_buttons.iter().cloned())
-            && !keyboard_input.any_pressed(key_codes.iter().cloned())
-            && !keyboard_input.any_just_released(key_codes.iter().cloned())
-        {
-            return;
-        }
-
         let ray = Ray3d::new(cursor.translation(), -Vec3::Z);
         for action in InputAction::ACTIONS {
             if let Some(event) = Self::process_input(&mouse_input, &keyboard_input, action, ray) {
@@ -194,11 +190,11 @@ impl ControlEvent {
     pub fn is_pressed(&self, action: ControlAction) -> bool {
         self.action == action && self.state == InputState::Pressed
     }
-    pub fn is_released(&self, action: ControlAction) -> bool {
-        self.action == action && self.state == InputState::Released
-    }
     pub fn is_held(&self, action: ControlAction) -> bool {
         self.action == action && self.state == InputState::Held
+    }
+    pub fn is_released(&self, action: ControlAction) -> bool {
+        self.action == action && self.state == InputState::Released
     }
     fn get_control(
         event: &InputEvent,
@@ -223,11 +219,16 @@ impl ControlEvent {
                 position: grid_spec
                     .local_to_world_position(raycast_event.position * Vec2 { x: 1., y: -1. }),
             }),
-            (_, InputAction::SpawnHead) => Some(Self {
-                action: ControlAction::SpawnHead,
-                state: event.state,
-                position: raycast_event.world_position,
-            }),
+            (_, InputAction::SpawnHead) => {
+                if event.state == InputState::Pressed {
+                    info!("SpawnHead");
+                }
+                Some(Self {
+                    action: ControlAction::SpawnHead,
+                    state: event.state,
+                    position: raycast_event.world_position,
+                })
+            }
             (_, InputAction::SpawnZooid) => Some(Self {
                 action: ControlAction::SpawnZooid,
                 state: event.state,
@@ -251,10 +252,15 @@ impl ControlEvent {
         mesh_assets: Res<Assets<Mesh>>,
         mut input_events: EventReader<InputEvent>,
         mut event_writer: EventWriter<Self>,
-        grid_spec: Res<GridSpec>,
+        grid_spec: Option<Res<GridSpec>>,
         mut timers: Local<ControlTimers>,
         time: Res<Time>,
     ) {
+        let grid_spec = if let Some(grid_spec) = grid_spec {
+            grid_spec
+        } else {
+            return;
+        };
         for event in input_events.read() {
             if let Some(raycast_event) = raycast(event.ray, meshes.iter(), &mesh_assets) {
                 if let Some(control_event) = Self::get_control(event, &raycast_event, &grid_spec) {
