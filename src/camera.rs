@@ -36,6 +36,7 @@ impl MainCamera {
             .spawn((
                 Camera2dBundle::default(),
                 CameraController::default(),
+                InheritedVisibility::default(),
                 MainCamera,
             ))
             .id();

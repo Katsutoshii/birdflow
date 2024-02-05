@@ -105,15 +105,18 @@ impl Object {
 
             let other_position = other_transform.translation.xy();
             let delta = other_position - position;
-            acceleration += self.other_acceleration(
-                transform,
-                velocity,
-                other,
-                other_transform,
-                other_velocity,
-                config,
-                other_entities.len(),
-            ) * (1.0 / (other_entities.len() as f32));
+            // Only leave
+            if other_team == team {
+                acceleration += self.other_acceleration(
+                    transform,
+                    velocity,
+                    other,
+                    other_transform,
+                    other_velocity,
+                    config,
+                    other_entities.len(),
+                ) * (1.0 / (other_entities.len() as f32));
+            }
 
             if other_team != team {
                 let distance_squared = delta.length_squared();
