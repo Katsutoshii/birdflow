@@ -3,7 +3,7 @@ use bevy::prelude::*;
 
 pub use self::{
     config::{Config, Configs, InteractionConfig},
-    objective::Objective,
+    objective::{Objective, Objectives},
 };
 use self::{
     food::FoodPlugin, object::ObjectPlugin, objective::ObjectivePlugin,
@@ -38,7 +38,7 @@ mod objective;
 mod zooid_head;
 mod zooid_worker;
 
-pub use object::{Object, Health};
+pub use object::{Health, Object};
 /// Enum to specify the team of the given object.
 #[derive(Component, Default, Debug, PartialEq, Eq, Reflect, Clone, Copy, Hash)]
 #[reflect(Component)]

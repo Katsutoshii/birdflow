@@ -274,13 +274,15 @@ impl EntityFlowGrid2 {
 
     /// Consumes CreateWaypointEvent events and populates the navigation grid.
     pub fn delete_waypoints(
-        objectives: Query<&Objective, Without<Waypoint>>,
+        all_objectives: Query<&Objectives, Without<Waypoint>>,
         mut grid: ResMut<Self>,
     ) {
         let mut followed_entities = HashSet::new();
-        for objective in objectives.iter() {
-            if let Some(entity) = objective.get_followed_entity() {
-                followed_entities.insert(entity);
+        for objectives in all_objectives.iter() {
+            if let Some(objective) = objectives.last() {
+                if let Some(entity) = objective.get_followed_entity() {
+                    followed_entities.insert(entity);
+                }
             }
         }
         let entities_to_remove: Vec<Entity> = grid

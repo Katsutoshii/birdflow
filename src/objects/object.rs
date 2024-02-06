@@ -58,7 +58,7 @@ impl Object {
             &Self,
             &Velocity,
             &mut Acceleration,
-            &mut Objective,
+            &mut Objectives,
             &mut Health,
             &Transform,
             &Team,
@@ -78,31 +78,27 @@ impl Object {
                 zooid,
                 &velocity,
                 mut acceleration,
-                mut objective,
+                mut objectives,
                 mut health,
                 transform,
                 team,
             )| {
                 let config = configs.get(zooid);
-                let (neighbor_acceleration, new_objective, waypoint_event) = zooid
-                    .process_neighbors(
-                        entity,
-                        team,
-                        velocity,
-                        transform,
-                        &other_objects,
-                        &grid,
-                        &obstacles,
-                        &mut health,
-                        config,
-                        &objective,
-                        &time,
-                    );
+                let (neighbor_acceleration, waypoint_event) = zooid.process_neighbors(
+                    entity,
+                    team,
+                    velocity,
+                    transform,
+                    &other_objects,
+                    &grid,
+                    &obstacles,
+                    &mut health,
+                    config,
+                    &time,
+                );
                 *acceleration += neighbor_acceleration;
-                if let Some(new_objective) = new_objective {
-                    *objective = new_objective;
-                }
                 if let Some(waypoint_event) = waypoint_event {
+                    objectives.update_new_enemy(&waypoint_event);
                     writer_mutex.lock().unwrap().send(waypoint_event);
                 }
             },
@@ -145,9 +141,8 @@ impl Object {
         obstacles: &Grid2<Obstacle>,
         health: &mut Health,
         config: &Config,
-        objective: &Objective,
         time: &Time,
-    ) -> (Acceleration, Option<Objective>, Option<CreateWaypointEvent>) {
+    ) -> (Acceleration, Option<CreateWaypointEvent>) {
         let mut acceleration = Acceleration::ZERO;
         // Forces from other entities
         let position = transform.translation.xy();
@@ -198,11 +193,7 @@ impl Object {
         }
         acceleration += obstacles.obstacles_acceleration(position, velocity, acceleration) * 3.;
 
-        (
-            acceleration,
-            objective.next(&enemy_waypoint_event),
-            enemy_waypoint_event,
-        )
+        (acceleration, enemy_waypoint_event)
     }
 
     #[allow(clippy::too_many_arguments)]

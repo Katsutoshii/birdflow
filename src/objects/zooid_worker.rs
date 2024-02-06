@@ -64,7 +64,7 @@ pub struct ZooidWorkerBundler {
     pub mesh: Handle<Mesh>,
     pub team_materials: TeamMaterials,
     pub translation: Vec3,
-    pub objective: Objective,
+    pub objectives: Objectives,
     pub velocity: Vec2,
 }
 impl ZooidWorkerBundler {
@@ -88,7 +88,7 @@ impl ZooidWorkerBundler {
                 material: PhysicsMaterialType::Zooid,
                 ..default()
             },
-            self.objective,
+            self.objectives,
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: self.mesh.into(),
                 transform: Transform::default()

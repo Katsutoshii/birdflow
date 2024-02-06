@@ -9,7 +9,7 @@ impl Plugin for ObjectivePlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<ObjectiveConfig>().add_systems(
             FixedUpdate,
-            Objective::update.in_set(SystemStage::PreCompute),
+            Objectives::update.in_set(SystemStage::PreCompute),
         );
     }
 }
@@ -52,25 +52,18 @@ impl ObjectiveConfig {
     }
 }
 
-#[derive(Component, Debug, Clone)]
+#[derive(Debug, Clone)]
 // Entity will attack nearest enemy in surrounding grid
 pub struct AttackEntity {
     pub entity: Entity,
     pub cooldown: Timer,
 }
 
+// A stack of objectives.
 /// Represents the objective of the owning entity.
-#[derive(Component, Default, Debug, Clone)]
-pub enum Objective {
-    /// Entity has no objective.
-    #[default]
-    None,
-    /// Entity wants to follow the transform of another entity.
-    FollowEntity(Entity),
-    /// Attack Entity
-    AttackEntity(AttackEntity),
-}
-impl Objective {
+#[derive(Component, Default, Debug, Clone, DerefMut, Deref)]
+pub struct Objectives(pub Vec<Objective>);
+impl Objectives {
     /// Update acceleration from the current objective.
     pub fn update(
         mut query: Query<(&mut Self, &Object, &Transform, &Velocity, &mut Acceleration)>,
@@ -79,19 +72,51 @@ impl Objective {
         navigation_grid: Res<EntityFlowGrid2>,
         time: Res<Time>,
     ) {
-        for (mut objective, object, transform, velocity, mut acceleration) in &mut query {
+        for (mut objectives, object, transform, velocity, mut acceleration) in &mut query {
             let config = configs.get(object);
-            *acceleration += objective.acceleration(
-                &transforms,
-                transform,
-                *velocity,
-                &config.waypoint,
-                &navigation_grid,
-                &time,
-            );
+            objectives.remove_invalid(&transforms);
+            if let Some(objective) = objectives.last_mut() {
+                *acceleration += objective.acceleration(
+                    &transforms,
+                    transform,
+                    *velocity,
+                    &config.waypoint,
+                    &navigation_grid,
+                    &time,
+                );
+            }
         }
     }
 
+    // When we are near a new  nearest enemy, if we are doing nothing or following an entity, then we should target the new enemy.
+    pub fn update_new_enemy(&mut self, event: &CreateWaypointEvent) {
+        if let Some(objective) = self.last() {
+            if objective.can_attack() {
+                self.push(Objective::attack(event));
+            }
+        } else {
+            self.push(Objective::attack(event));
+        }
+    }
+
+    pub fn remove_invalid(&mut self, transforms: &Query<&Transform>) {
+        while let Some(objective) = self.last() {
+            if !objective.is_valid(transforms) {
+                self.pop();
+            }
+        }
+    }
+}
+
+/// Represents the objective of the owning entity.
+#[derive(Debug, Clone)]
+pub enum Objective {
+    /// Entity wants to follow the transform of another entity.
+    FollowEntity(Entity),
+    /// Attack Entity
+    AttackEntity(AttackEntity),
+}
+impl Objective {
     // Returns acceleration for following an entity.
     pub fn accelerate_to_entity(
         entity: Entity,
@@ -118,6 +143,22 @@ impl Objective {
             );
             Acceleration::ZERO
         }
+    }
+
+    // Returns true iff the objective contains valid entity references.
+    pub fn is_valid(&self, transforms: &Query<&Transform>) -> bool {
+        match self {
+            Self::FollowEntity(entity)
+            | Self::AttackEntity(AttackEntity {
+                entity,
+                cooldown: _,
+            }) => transforms.get(*entity).is_ok(),
+        }
+    }
+
+    /// Returns true iff the objective can follow up into an attack
+    pub fn can_attack(&self) -> bool {
+        matches!(self, Self::FollowEntity(_))
     }
 
     // Returns acceleration for this objective.
@@ -161,7 +202,6 @@ impl Objective {
                     )
                 }
             }
-            Self::None => Acceleration::ZERO,
         }
     }
 
@@ -172,7 +212,6 @@ impl Objective {
                 cooldown: _,
             }) => Some(*entity),
             Self::FollowEntity(entity) => Some(*entity),
-            _ => None,
         }
     }
     /// Gets a random attack cooldown.
@@ -186,18 +225,10 @@ impl Objective {
     }
 
     /// Given an objective, get the next one (if there should be a next one, else None).
-    pub fn next(&self, event: &Option<CreateWaypointEvent>) -> Option<Self> {
-        match *self {
-            Self::None | Self::FollowEntity(_) => event.as_ref().map(|event| {
-                Self::AttackEntity(AttackEntity {
-                    entity: event.entity,
-                    cooldown: Timer::from_seconds(
-                        Self::attack_delay().as_secs_f32(),
-                        TimerMode::Repeating,
-                    ),
-                })
-            }),
-            Self::AttackEntity(_) => Some(Self::None),
-        }
+    pub fn attack(event: &CreateWaypointEvent) -> Self {
+        Self::AttackEntity(AttackEntity {
+            entity: event.entity,
+            cooldown: Timer::from_seconds(Self::attack_delay().as_secs_f32(), TimerMode::Repeating),
+        })
     }
 }

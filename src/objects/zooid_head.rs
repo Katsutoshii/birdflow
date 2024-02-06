@@ -81,7 +81,7 @@ impl ZooidHead {
                 entity_commands.with_children(|parent| {
                     parent.spawn(ZooidHeadBackground.bundle(&assets, team));
                 });
-                entity_commands.insert(Objective::FollowEntity(entity));
+                entity_commands.insert(Objectives(vec![Objective::FollowEntity(entity)]));
                 event_writer.send(CreateWaypointEvent {
                     entity,
                     destination: position,
@@ -109,7 +109,7 @@ impl ZooidHead {
                 material: PhysicsMaterialType::SlowZooid,
                 ..default()
             },
-            Objective::default(),
+            Objectives::default(),
             Selected::default(),
             Name::new("ZooidHead"),
         )
@@ -118,7 +118,7 @@ impl ZooidHead {
     /// System to spawn zooids on Z key.
     pub fn spawn_zooids(
         mut commands: Commands,
-        query: Query<(&Self, Entity, &Transform, &Velocity, &Objective, &Team)>,
+        query: Query<(&Self, Entity, &Transform, &Velocity, &Objectives, &Team)>,
         configs: Res<Configs>,
         assets: Res<ZooidAssets>,
         mut control_events: EventReader<ControlEvent>,
@@ -126,7 +126,7 @@ impl ZooidHead {
         let config = configs.get(&Object::Worker(ZooidWorker::default()));
         for control_event in control_events.read() {
             if control_event.is_pressed(ControlAction::SpawnZooid) {
-                for (_head, _head_id, transform, velocity, objective, team) in &query {
+                for (_head, head_id, transform, velocity, objectives, team) in &query {
                     let num_zooids = 1;
                     for i in 1..=num_zooids {
                         let zindex = zindex::ZOOIDS_MIN
@@ -140,7 +140,7 @@ impl ZooidHead {
                                 + velocity.extend(0.)
                                 + Vec3::Z * zindex,
                             velocity,
-                            objective: objective.clone(),
+                            objectives: Objectives(vec![Objective::FollowEntity(head_id)]),
                             ..default()
                         }
                         .spawn(&mut commands);
@@ -152,7 +152,7 @@ impl ZooidHead {
 
     /// System to despawn all zooids.
     pub fn despawn_zooids(
-        mut objects: Query<(Entity, &GridEntity, &Object, &mut Objective)>,
+        mut objects: Query<(Entity, &GridEntity, &Object, &mut Objectives)>,
         mut commands: Commands,
         mut grid: ResMut<Grid2<EntitySet>>,
         keyboard_input: Res<Input<KeyCode>>,
@@ -168,9 +168,9 @@ impl ZooidHead {
                 entities.insert(entity);
             }
         }
-        for (_, _, _, mut objective) in &mut objects {
-            if let Objective::FollowEntity(_) = *objective {
-                *objective = Objective::None;
+        for (_, _, _, mut objectives) in &mut objects {
+            if let Some(Objective::FollowEntity(_)) = objectives.last() {
+                objectives.pop();
             }
         }
     }
