@@ -50,12 +50,13 @@
         physics_material: Zooid,
         neighbor_radius: 300.0,
         spawn_velocity: 10.0,
-        hit_radius: 4.0,
-        death_speed: 1.0,
+        hit_radius: 12.0,
+        death_speed: 5.,
         waypoint: (
           max_acceleration: 3.5,
           repell_radius: 20.0,
-          slow_factor: 0.0
+          slow_factor: 0.0,
+          attack_radius: 64.0,
         ),
         worker: (
           separation_radius: 100.0,

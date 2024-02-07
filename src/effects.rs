@@ -67,7 +67,7 @@ pub fn firework_effect(team: Team, n: f32) -> EffectAsset {
         speed: (writer.rand(ScalarType::Float) * writer.lit(20.) + writer.lit(60.)).expr(),
     };
 
-    EffectAsset::new(1000, Spawner::once(n.into(), true), writer.finish())
+    EffectAsset::new(n as u32, Spawner::once(n.into(), true), writer.finish())
         .with_name("firework")
         .init(init_pos)
         .init(init_vel)
@@ -93,7 +93,7 @@ impl FromWorld for EffectAssets {
         let mut assets = world.get_resource_mut::<Assets<EffectAsset>>().unwrap();
         Self {
             fireworks: Team::ALL.map(|team| assets.add(firework_effect(team, 20.))),
-            small_fireworks: Team::ALL.map(|team| assets.add(firework_effect(team, 10.))),
+            small_fireworks: Team::ALL.map(|team| assets.add(firework_effect(team, 5.))),
         }
     }
 }

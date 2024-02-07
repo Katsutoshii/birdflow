@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use self::effects::FireworkSpec;
+use self::effects::{EffectCommands, FireworkSpec};
 
 use super::{zooid_worker::ZooidWorker, InteractionConfig};
 use crate::prelude::*;
@@ -10,13 +10,21 @@ use bevy::prelude::*;
 pub struct ObjectPlugin;
 impl Plugin for ObjectPlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<Object>().add_systems(
-            FixedUpdate,
-            (
-                Object::update.in_set(SystemStage::Compute),
-                Object::death.in_set(SystemStage::Despawn),
-            ),
-        );
+        app.add_event::<DamageEvent>()
+            .register_type::<Object>()
+            .add_systems(
+                FixedUpdate,
+                (
+                    Object::update.in_set(SystemStage::Compute),
+                    Health::update
+                        .in_set(SystemStage::Compute)
+                        .after(Object::update),
+                    DamageEvent::update
+                        .in_set(SystemStage::Compute)
+                        .after(Health::update),
+                    Object::death.in_set(SystemStage::Despawn),
+                ),
+            );
     }
 }
 
@@ -28,8 +36,57 @@ pub struct Health {
 impl Default for Health {
     fn default() -> Self {
         Self {
-            health: 2,
+            health: 3,
             hit_timer: Timer::from_seconds(0.5, TimerMode::Once),
+        }
+    }
+}
+impl Health {
+    pub fn damageable(&self) -> bool {
+        self.hit_timer.finished()
+    }
+    pub fn damage(&mut self, amount: i32) {
+        self.health -= amount;
+        self.hit_timer = Timer::from_seconds(0.5, TimerMode::Once);
+    }
+    pub fn update(mut query: Query<&mut Health>, time: Res<Time>) {
+        for mut health in query.iter_mut() {
+            health.hit_timer.tick(time.delta());
+        }
+    }
+}
+
+#[derive(Event)]
+pub struct DamageEvent {
+    pub damager: Entity,
+    pub damaged: Entity,
+    pub amount: i32,
+    pub velocity: Velocity,
+}
+impl DamageEvent {
+    pub fn update(
+        mut query: Query<(&mut Acceleration, &mut Health, &Team, &Transform)>,
+        mut events: EventReader<DamageEvent>,
+        mut effect_commands: EffectCommands,
+    ) {
+        for event in events.read() {
+            // Knock back the damager
+            if let Ok((mut acceleration, _health, _team, _transform)) = query.get_mut(event.damager)
+            {
+                *acceleration -= Acceleration(event.velocity.0 * 3.);
+            }
+            // Reduce health and set off firework for the damaged.
+            if let Ok((mut acceleration, mut health, team, transform)) =
+                query.get_mut(event.damaged)
+            {
+                health.damage(event.amount);
+                effect_commands.make_fireworks(FireworkSpec {
+                    size: effects::EffectSize::Small,
+                    team: *team,
+                    transform: *transform,
+                });
+                *acceleration += Acceleration(event.velocity.0 * 3.);
+            }
         }
     }
 }
@@ -38,8 +95,8 @@ impl Default for Health {
 pub struct ProcessNeighborsResult {
     acceleration: Acceleration,
     new_objective: Option<Objective>,
-    create_waypoint: Option<CreateWaypointEvent>,
-    firework_spec: Option<FireworkSpec>,
+    create_waypoint_event: Option<CreateWaypointEvent>,
+    damage_event: Option<DamageEvent>,
 }
 
 /// Entities that can interact with each other.
@@ -71,16 +128,14 @@ impl Object {
             &Team,
         )>,
         other_objects: Query<(&Self, &Velocity, &Transform, &Team)>,
-        obstacles: Res<Grid2<Obstacle>>,
         grid: Res<Grid2<EntitySet>>,
         configs: Res<Configs>,
-        mut waypoint_event_writer: EventWriter<CreateWaypointEvent>,
-        time: Res<Time>,
-        mut effect_commands: EffectCommands,
+        mut create_waypoint_events: EventWriter<CreateWaypointEvent>,
+        mut damage_events: EventWriter<DamageEvent>,
     ) {
-        let writer_mutex: Mutex<&mut EventWriter<CreateWaypointEvent>> =
-            Mutex::new(&mut waypoint_event_writer);
-        let effects_mutex: Mutex<&mut EffectCommands> = Mutex::new(&mut effect_commands);
+        let create_waypoint_events: Mutex<&mut EventWriter<CreateWaypointEvent>> =
+            Mutex::new(&mut create_waypoint_events);
+        let damage_events: Mutex<&mut EventWriter<DamageEvent>> = Mutex::new(&mut damage_events);
         objects.par_iter_mut().for_each(
             |(
                 entity,
@@ -88,7 +143,7 @@ impl Object {
                 &velocity,
                 mut acceleration,
                 mut objective,
-                mut health,
+                health,
                 transform,
                 team,
             )| {
@@ -100,21 +155,19 @@ impl Object {
                     transform,
                     &other_objects,
                     &grid,
-                    &obstacles,
-                    &mut health,
+                    &health,
                     config,
                     &objective,
-                    &time,
                 );
                 *acceleration += neighbors_result.acceleration;
                 if let Some(new_objective) = neighbors_result.new_objective {
                     *objective = new_objective;
                 }
-                if let Some(waypoint_event) = neighbors_result.create_waypoint {
-                    writer_mutex.lock().unwrap().send(waypoint_event);
+                if let Some(waypoint_event) = neighbors_result.create_waypoint_event {
+                    create_waypoint_events.lock().unwrap().send(waypoint_event);
                 }
-                if let Some(firework_spec) = neighbors_result.firework_spec {
-                    effects_mutex.lock().unwrap().make_fireworks(firework_spec)
+                if let Some(damage_event) = neighbors_result.damage_event {
+                    damage_events.lock().unwrap().send(damage_event);
                 }
             },
         )
@@ -149,11 +202,9 @@ impl Object {
         transform: &Transform,
         entities: &Query<(&Object, &Velocity, &Transform, &Team)>,
         grid: &Grid2<EntitySet>,
-        obstacles: &Grid2<Obstacle>,
-        health: &mut Health,
+        health: &Health,
         config: &Config,
         objective: &Objective,
-        time: &Time,
     ) -> ProcessNeighborsResult {
         let mut acceleration = Acceleration::ZERO;
         // Forces from other entities
@@ -162,7 +213,7 @@ impl Object {
 
         let mut closest_enemy_distance_squared = f32::INFINITY;
         let mut enemy_waypoint_event: Option<CreateWaypointEvent> = None;
-        let mut firework_spec: Option<FireworkSpec> = None;
+        let mut damage_event: Option<DamageEvent> = None;
 
         for other_entity in &other_entities {
             if entity == *other_entity {
@@ -194,28 +245,25 @@ impl Object {
                         sources: vec![position],
                     })
                 }
-                health.hit_timer.tick(time.delta());
-                if distance_squared < config.hit_radius.powi(2)
-                    && health.hit_timer.finished()
-                    && velocity.length_squared() > config.death_speed.powi(2)
+                // If we got hit.
+                if config.is_hit(distance_squared, other_velocity.length_squared())
+                    && health.damageable()
                 {
-                    health.health -= 1;
-                    health.hit_timer = Timer::from_seconds(0.5, TimerMode::Once);
-                    firework_spec = Some(FireworkSpec {
-                        size: effects::EffectSize::Small,
-                        team: *team,
-                        transform: *transform,
-                    })
+                    damage_event = Some(DamageEvent {
+                        damager: *other_entity,
+                        damaged: entity,
+                        amount: 1,
+                        velocity: other_velocity,
+                    });
                 }
             }
         }
-        acceleration += obstacles.obstacles_acceleration(position, velocity, acceleration) * 3.;
 
         ProcessNeighborsResult {
             acceleration,
             new_objective: objective.next(&enemy_waypoint_event),
-            create_waypoint: enemy_waypoint_event,
-            firework_spec,
+            create_waypoint_event: enemy_waypoint_event,
+            damage_event,
         }
     }
 

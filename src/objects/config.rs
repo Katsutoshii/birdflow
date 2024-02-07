@@ -93,4 +93,11 @@ impl Config {
             Object::Food => &self.food,
         }
     }
+
+    /// Returns true if it's a hit.
+    pub fn is_hit(&self, distance_squared: f32, velocity_squared: f32) -> bool {
+        // info!("{}", velocity_squared);
+        (distance_squared < self.hit_radius * self.hit_radius)
+            && (velocity_squared > self.death_speed * self.death_speed)
+    }
 }

@@ -19,6 +19,7 @@ pub struct ObjectiveConfig {
     pub max_acceleration: f32,
     pub repell_radius: f32,
     pub slow_factor: f32,
+    pub attack_radius: f32,
 }
 impl Default for ObjectiveConfig {
     fn default() -> Self {
@@ -26,6 +27,7 @@ impl Default for ObjectiveConfig {
             max_acceleration: 0.0,
             repell_radius: 1.0,
             slow_factor: 0.0,
+            attack_radius: 32.0,
         }
     }
 }
@@ -77,6 +79,7 @@ impl Objective {
         transforms: Query<&Transform>,
         configs: Res<Configs>,
         navigation_grid: Res<EntityFlowGrid2>,
+        obstacles_grid: Res<Grid2<Obstacle>>,
         time: Res<Time>,
     ) {
         for (mut objective, object, transform, velocity, mut acceleration) in &mut query {
@@ -92,6 +95,12 @@ impl Objective {
                 &navigation_grid,
                 &time,
             );
+            let current_acceleration = *acceleration;
+            *acceleration += obstacles_grid.obstacles_acceleration(
+                transform.translation.xy(),
+                *velocity,
+                current_acceleration,
+            ) * 3.;
         }
     }
 
@@ -144,13 +153,15 @@ impl Objective {
             ),
             Self::AttackEntity(AttackEntity { entity, cooldown }) => {
                 cooldown.tick(time.delta());
-                if cooldown.finished() {
+                // Transforms have already been checked in Objective.is_valid().
+                let target_transform =
+                    unsafe { transforms.get_unchecked(*entity).unwrap_unchecked() };
+                let delta = target_transform.translation.xy() - transform.translation.xy();
+                if cooldown.finished()
+                    && delta.length_squared() < config.attack_radius * config.attack_radius
+                {
                     cooldown.set_duration(Self::attack_cooldown());
-                    // Transforms have already been checked in Objective.is_valid().
-                    let target_transform =
-                        unsafe { transforms.get_unchecked(*entity).unwrap_unchecked() };
-                    let delta = target_transform.translation.xy() - transform.translation.xy();
-                    Acceleration(delta.normalize() * 1000.0)
+                    Acceleration(delta.normalize() * 50.0)
                 } else {
                     Self::accelerate_to_entity(
                         *entity,
@@ -159,7 +170,7 @@ impl Objective {
                         config,
                         velocity,
                         navigation_grid,
-                    )
+                    ) + Acceleration(delta.normalize() * 1.)
                 }
             }
             Self::None => {
