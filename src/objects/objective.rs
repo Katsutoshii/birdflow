@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{f32::consts::PI, time::Duration};
 
 use crate::prelude::*;
 use bevy::prelude::*;
@@ -81,6 +81,9 @@ impl Objective {
     ) {
         for (mut objective, object, transform, velocity, mut acceleration) in &mut query {
             let config = configs.get(object);
+            if !objective.is_valid(&transforms) {
+                *objective = Self::None;
+            }
             *acceleration += objective.acceleration(
                 &transforms,
                 transform,
@@ -143,11 +146,9 @@ impl Objective {
                 cooldown.tick(time.delta());
                 if cooldown.finished() {
                     cooldown.set_duration(Self::attack_cooldown());
-                    let target_transform = transforms.get(*entity);
-                    let target_transform = match target_transform {
-                        Ok(transform) => transform,
-                        Err(_) => return Acceleration::ZERO,
-                    };
+                    // Transforms have already been checked in Objective.is_valid().
+                    let target_transform =
+                        unsafe { transforms.get_unchecked(*entity).unwrap_unchecked() };
                     let delta = target_transform.translation.xy() - transform.translation.xy();
                     Acceleration(delta.normalize() * 1000.0)
                 } else {
@@ -161,7 +162,11 @@ impl Objective {
                     )
                 }
             }
-            Self::None => Acceleration::ZERO,
+            Self::None => {
+                // If no objective, slow down and circle about.
+                let half_velocity = velocity.0 / 2.;
+                Acceleration(Mat2::from_angle(PI / 4.) * half_velocity - half_velocity)
+            }
         }
     }
 
@@ -198,6 +203,18 @@ impl Objective {
                 })
             }),
             Self::AttackEntity(_) => Some(Self::None),
+        }
+    }
+
+    /// Returns true iff all entity references are still valid.
+    fn is_valid(&self, transforms: &Query<&Transform>) -> bool {
+        match self {
+            Self::None => true,
+            Self::AttackEntity(AttackEntity {
+                entity,
+                cooldown: _,
+            })
+            | Self::FollowEntity(entity) => transforms.get(*entity).is_ok(),
         }
     }
 }

@@ -1,5 +1,7 @@
 use std::sync::Mutex;
 
+use self::effects::FireworkSpec;
+
 use super::{zooid_worker::ZooidWorker, InteractionConfig};
 use crate::prelude::*;
 use bevy::prelude::*;
@@ -18,21 +20,11 @@ impl Plugin for ObjectPlugin {
     }
 }
 
-/// Entities that can interact with each other.
-#[derive(Component, Reflect, Clone)]
-#[reflect(Component)]
-pub enum Object {
-    Worker(ZooidWorker),
-    Head,
-    Food,
-}
-
 #[derive(Component)]
 pub struct Health {
     pub health: i32,
     pub hit_timer: Timer,
 }
-
 impl Default for Health {
     fn default() -> Self {
         Self {
@@ -42,14 +34,31 @@ impl Default for Health {
     }
 }
 
+/// Stores results from processing neighboring objects.
+pub struct ProcessNeighborsResult {
+    acceleration: Acceleration,
+    new_objective: Option<Objective>,
+    create_waypoint: Option<CreateWaypointEvent>,
+    firework_spec: Option<FireworkSpec>,
+}
+
+/// Entities that can interact with each other.
+#[derive(Component, Reflect, Clone)]
+#[reflect(Component)]
+pub enum Object {
+    Worker(ZooidWorker),
+    Head,
+    Food,
+}
 impl Default for Object {
     fn default() -> Self {
         Self::Worker(ZooidWorker::default())
     }
 }
 impl Object {
-    /// Update objects acceleration and objectives.\
+    /// Update objects acceleration and objectives.
     #[allow(clippy::type_complexity)]
+    #[allow(clippy::too_many_arguments)]
     pub fn update(
         mut objects: Query<(
             Entity,
@@ -67,9 +76,11 @@ impl Object {
         configs: Res<Configs>,
         mut waypoint_event_writer: EventWriter<CreateWaypointEvent>,
         time: Res<Time>,
+        mut effect_commands: EffectCommands,
     ) {
         let writer_mutex: Mutex<&mut EventWriter<CreateWaypointEvent>> =
             Mutex::new(&mut waypoint_event_writer);
+        let effects_mutex: Mutex<&mut EffectCommands> = Mutex::new(&mut effect_commands);
         objects.par_iter_mut().for_each(
             |(
                 entity,
@@ -82,26 +93,29 @@ impl Object {
                 team,
             )| {
                 let config = configs.get(zooid);
-                let (neighbor_acceleration, new_objective, waypoint_event) = zooid
-                    .process_neighbors(
-                        entity,
-                        team,
-                        velocity,
-                        transform,
-                        &other_objects,
-                        &grid,
-                        &obstacles,
-                        &mut health,
-                        config,
-                        &objective,
-                        &time,
-                    );
-                *acceleration += neighbor_acceleration;
-                if let Some(new_objective) = new_objective {
+                let neighbors_result = zooid.process_neighbors(
+                    entity,
+                    team,
+                    velocity,
+                    transform,
+                    &other_objects,
+                    &grid,
+                    &obstacles,
+                    &mut health,
+                    config,
+                    &objective,
+                    &time,
+                );
+                *acceleration += neighbors_result.acceleration;
+                if let Some(new_objective) = neighbors_result.new_objective {
                     *objective = new_objective;
                 }
-                if let Some(waypoint_event) = waypoint_event {
+                if let Some(waypoint_event) = neighbors_result.create_waypoint {
                     writer_mutex.lock().unwrap().send(waypoint_event);
+                }
+                if let Some(firework_spec) = neighbors_result.firework_spec {
+                    info!("Make fireworks!");
+                    effects_mutex.lock().unwrap().make_fireworks(firework_spec)
                 }
             },
         )
@@ -117,7 +131,11 @@ impl Object {
             if health.health <= 0 {
                 grid.remove(entity, grid_entity);
                 commands.entity(entity).despawn_recursive();
-                effect_commands.make_fireworks(transform, *team);
+                effect_commands.make_fireworks(FireworkSpec {
+                    size: effects::EffectSize::Medium,
+                    transform: *transform,
+                    team: *team,
+                });
             }
         }
     }
@@ -137,7 +155,7 @@ impl Object {
         config: &Config,
         objective: &Objective,
         time: &Time,
-    ) -> (Acceleration, Option<Objective>, Option<CreateWaypointEvent>) {
+    ) -> ProcessNeighborsResult {
         let mut acceleration = Acceleration::ZERO;
         // Forces from other entities
         let position = transform.translation.xy();
@@ -145,6 +163,7 @@ impl Object {
 
         let mut closest_enemy_distance_squared = f32::INFINITY;
         let mut enemy_waypoint_event: Option<CreateWaypointEvent> = None;
+        let mut firework_spec: Option<FireworkSpec> = None;
 
         for other_entity in &other_entities {
             if entity == *other_entity {
@@ -182,17 +201,23 @@ impl Object {
                     && velocity.length_squared() > config.death_speed.powi(2)
                 {
                     health.health -= 1;
-                    health.hit_timer = Timer::from_seconds(1.0, TimerMode::Once);
+                    health.hit_timer = Timer::from_seconds(0.5, TimerMode::Once);
+                    firework_spec = Some(FireworkSpec {
+                        size: effects::EffectSize::Small,
+                        team: *team,
+                        transform: *transform,
+                    })
                 }
             }
         }
         acceleration += obstacles.obstacles_acceleration(position, velocity, acceleration) * 3.;
 
-        (
+        ProcessNeighborsResult {
             acceleration,
-            objective.next(&enemy_waypoint_event),
-            enemy_waypoint_event,
-        )
+            new_objective: objective.next(&enemy_waypoint_event),
+            create_waypoint: enemy_waypoint_event,
+            firework_spec,
+        }
     }
 
     #[allow(clippy::too_many_arguments)]

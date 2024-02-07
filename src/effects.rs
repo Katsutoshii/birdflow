@@ -1,3 +1,5 @@
+use std::ops::Index;
+
 use crate::prelude::*;
 use bevy::{ecs::system::SystemParam, prelude::*};
 use bevy_hanabi::prelude::*;
@@ -30,7 +32,7 @@ fn color_gradient_from_team(team: Team) -> Gradient<Vec4> {
     color_gradient
 }
 
-pub fn firework_effect(team: Team) -> EffectAsset {
+pub fn firework_effect(team: Team, n: f32) -> EffectAsset {
     let color_gradient = color_gradient_from_team(team);
 
     let mut size_gradient1 = Gradient::new();
@@ -65,7 +67,7 @@ pub fn firework_effect(team: Team) -> EffectAsset {
         speed: (writer.rand(ScalarType::Float) * writer.lit(20.) + writer.lit(60.)).expr(),
     };
 
-    EffectAsset::new(1000, Spawner::once(20.0.into(), true), writer.finish())
+    EffectAsset::new(1000, Spawner::once(n.into(), true), writer.finish())
         .with_name("firework")
         .init(init_pos)
         .init(init_vel)
@@ -83,20 +85,35 @@ pub fn firework_effect(team: Team) -> EffectAsset {
 
 #[derive(Resource)]
 pub struct EffectAssets {
-    effects: [Handle<EffectAsset>; Team::COUNT],
+    fireworks: [Handle<EffectAsset>; Team::COUNT],
+    small_fireworks: [Handle<EffectAsset>; Team::COUNT],
 }
 impl FromWorld for EffectAssets {
     fn from_world(world: &mut World) -> Self {
         let mut assets = world.get_resource_mut::<Assets<EffectAsset>>().unwrap();
         Self {
-            effects: Team::ALL.map(|team| assets.add(firework_effect(team))),
+            fireworks: Team::ALL.map(|team| assets.add(firework_effect(team, 20.))),
+            small_fireworks: Team::ALL.map(|team| assets.add(firework_effect(team, 10.))),
         }
     }
 }
-impl EffectAssets {
-    fn get(&self, team: Team) -> &Handle<EffectAsset> {
-        &self.effects[team as usize]
+impl Index<Team> for [Handle<EffectAsset>; Team::COUNT] {
+    type Output = Handle<EffectAsset>;
+    fn index(&self, index: Team) -> &Self::Output {
+        &self[index as usize]
     }
+}
+
+/// Represents size of an effect.
+pub enum EffectSize {
+    Small,
+    Medium,
+}
+/// Describes a firework to create.
+pub struct FireworkSpec {
+    pub team: Team,
+    pub transform: Transform,
+    pub size: EffectSize,
 }
 
 /// System param to allow spawning effects.
@@ -106,12 +123,15 @@ pub struct EffectCommands<'w, 's> {
     commands: Commands<'w, 's>,
 }
 impl EffectCommands<'_, '_> {
-    pub fn make_fireworks(&mut self, transform: &Transform, team: Team) {
+    pub fn make_fireworks(&mut self, spec: FireworkSpec) {
         self.commands.spawn((
             Name::new("firework"),
             ParticleEffectBundle {
-                effect: ParticleEffect::new(self.assets.get(team).clone()),
-                transform: *transform,
+                effect: ParticleEffect::new(match spec.size {
+                    EffectSize::Small => self.assets.small_fireworks[spec.team].clone(),
+                    EffectSize::Medium => self.assets.fireworks[spec.team].clone(),
+                }),
+                transform: spec.transform,
                 ..Default::default()
             },
         ));
