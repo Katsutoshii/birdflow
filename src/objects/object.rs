@@ -114,7 +114,6 @@ impl Object {
                     writer_mutex.lock().unwrap().send(waypoint_event);
                 }
                 if let Some(firework_spec) = neighbors_result.firework_spec {
-                    info!("Make fireworks!");
                     effects_mutex.lock().unwrap().make_fireworks(firework_spec)
                 }
             },
