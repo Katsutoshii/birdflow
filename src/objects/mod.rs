@@ -38,7 +38,7 @@ mod objective;
 mod zooid_head;
 mod zooid_worker;
 
-pub use object::{Object, Health};
+pub use object::{Health, Object};
 /// Enum to specify the team of the given object.
 #[derive(Component, Default, Debug, PartialEq, Eq, Reflect, Clone, Copy, Hash)]
 #[reflect(Component)]
@@ -52,6 +52,8 @@ pub enum Team {
 impl Team {
     /// Number of teams.
     pub const COUNT: usize = 3;
+    pub const ALL: [Self; Self::COUNT] = [Self::None, Self::Blue, Self::Red];
+    pub const COLORS: [Color; Self::COUNT] = [Color::SEA_GREEN, Color::TEAL, Color::TOMATO];
 }
 
 #[derive(Default, Clone)]
@@ -88,14 +90,18 @@ impl FromWorld for ZooidAssets {
         let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
         Self {
             mesh,
-            team_materials: vec![
-                // Team::None
-                TeamMaterials::new(Color::SEA_GREEN, &mut materials),
-                // Team::Blue
-                TeamMaterials::new(Color::TEAL, &mut materials),
-                // Team::Red
-                TeamMaterials::new(Color::TOMATO, &mut materials),
-            ],
+            // team_materials: vec![
+            //     // Team::None
+            //     TeamMaterials::new(, &mut materials),
+            //     // Team::Blue
+            //     TeamMaterials::new(Color::TEAL, &mut materials),
+            //     // Team::Red
+            //     TeamMaterials::new(Color::TOMATO, &mut materials),
+            // ],
+            team_materials: Team::COLORS
+                .iter()
+                .map(|color| TeamMaterials::new(*color, &mut materials))
+                .collect(),
         }
     }
 }
