@@ -56,7 +56,7 @@
           max_acceleration: 3.5,
           repell_radius: 20.0,
           slow_factor: 0.0,
-          attack_radius: 64.0,
+          attack_radius: 265.0,
         ),
         worker: (
           separation_radius: 100.0,

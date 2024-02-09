@@ -262,6 +262,7 @@ impl ControlEvent {
                         match control_event.state {
                             InputState::None => {}
                             InputState::Pressed => {
+                                timers[ControlAction::Move].reset();
                                 timers[ControlAction::Move].tick(time.delta());
                             }
                             InputState::Held => {

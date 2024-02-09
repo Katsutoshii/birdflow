@@ -2,7 +2,7 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
 use crate::prelude::*;
 
-use super::{Object, Team, TeamMaterials, ZooidAssets};
+use super::{objective::ObjectiveDebugger, Object, Team, TeamMaterials, ZooidAssets};
 
 pub struct ZooidWorkerPlugin;
 impl Plugin for ZooidWorkerPlugin {
@@ -76,6 +76,7 @@ impl ZooidWorkerBundler {
                     ZooidWorkerBackground
                         .bundle(self.mesh.clone(), self.team_materials.background.clone()),
                 );
+                // parent.spawn(ObjectiveDebugger.bundle());
             });
     }
 

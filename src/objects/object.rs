@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use self::effects::{EffectCommands, FireworkSpec};
+use self::effects::{EffectCommands, EffectSize, FireworkSpec};
 
 use super::{zooid_worker::ZooidWorker, InteractionConfig};
 use crate::prelude::*;
@@ -67,25 +67,25 @@ impl DamageEvent {
     pub fn update(
         mut query: Query<(&mut Acceleration, &mut Health, &Team, &Transform)>,
         mut events: EventReader<DamageEvent>,
-        mut effect_commands: EffectCommands,
+        mut effects: EffectCommands,
     ) {
         for event in events.read() {
             // Knock back the damager
             if let Ok((mut acceleration, _health, _team, _transform)) = query.get_mut(event.damager)
             {
-                *acceleration -= Acceleration(event.velocity.0 * 3.);
+                *acceleration -= Acceleration(event.velocity.0 * 5.);
             }
             // Reduce health and set off firework for the damaged.
-            if let Ok((mut acceleration, mut health, team, transform)) =
+            if let Ok((mut acceleration, mut health, &team, &transform)) =
                 query.get_mut(event.damaged)
             {
                 health.damage(event.amount);
-                effect_commands.make_fireworks(FireworkSpec {
-                    size: effects::EffectSize::Small,
-                    team: *team,
-                    transform: *transform,
+                effects.make_fireworks(FireworkSpec {
+                    size: EffectSize::Small,
+                    team,
+                    transform,
                 });
-                *acceleration += Acceleration(event.velocity.0 * 3.);
+                *acceleration += Acceleration(event.velocity.0 * 2.);
             }
         }
     }
@@ -184,7 +184,7 @@ impl Object {
                 grid.remove(entity, grid_entity);
                 commands.entity(entity).despawn_recursive();
                 effect_commands.make_fireworks(FireworkSpec {
-                    size: effects::EffectSize::Medium,
+                    size: EffectSize::Medium,
                     transform: *transform,
                     team: *team,
                 });
