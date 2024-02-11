@@ -2,6 +2,14 @@
 
 Just messing around with some boids.
 
+## Development
+
+To run for web:
+
+```sh
+cargo run --cfg=web_sys_unstable_apis
+```
+
 ## Creatures
 
 - Zooid

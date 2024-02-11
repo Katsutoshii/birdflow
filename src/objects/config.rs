@@ -56,7 +56,7 @@ impl Configs {
 #[derive(Resource, Reflect)]
 #[reflect(Resource)]
 pub struct Config {
-    physics_material: PhysicsMaterialType,
+    pub physics_material: PhysicsMaterialType,
     pub neighbor_radius: f32,
     pub alignment_factor: f32,
     pub spawn_velocity: f32,

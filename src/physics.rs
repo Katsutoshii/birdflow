@@ -104,7 +104,7 @@ pub fn update(
 
 #[derive(Resource, Clone, Default, Deref, DerefMut, Reflect)]
 #[reflect(Resource)]
-pub struct PhysicsMaterials(HashMap<PhysicsMaterialType, PhysicsMaterial>);
+pub struct PhysicsMaterials(pub HashMap<PhysicsMaterialType, PhysicsMaterial>);
 
 #[derive(Component, Clone, Default, PartialEq, Eq, Hash, Reflect)]
 pub enum PhysicsMaterialType {
@@ -116,9 +116,9 @@ pub enum PhysicsMaterialType {
 }
 #[derive(Clone, Reflect)]
 pub struct PhysicsMaterial {
-    max_velocity: f32,
-    min_velocity: f32,
-    velocity_smoothing: f32,
+    pub max_velocity: f32,
+    pub min_velocity: f32,
+    pub velocity_smoothing: f32,
 }
 impl Default for PhysicsMaterial {
     fn default() -> Self {

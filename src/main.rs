@@ -6,6 +6,8 @@ pub mod cursor;
 pub mod effects;
 pub mod grid;
 pub mod inputs;
+#[macro_use]
+mod maplit;
 pub mod meshes;
 pub mod objects;
 pub mod physics;

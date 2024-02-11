@@ -3,7 +3,7 @@ use bevy::prelude::*;
 
 pub use self::{
     config::{Config, Configs, InteractionConfig},
-    objective::Objective,
+    objective::{Objective, ObjectiveConfig},
 };
 use self::{
     food::FoodPlugin, object::ObjectPlugin, objective::ObjectivePlugin,

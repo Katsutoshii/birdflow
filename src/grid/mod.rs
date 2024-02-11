@@ -9,7 +9,7 @@ mod entity;
 mod visualizer;
 pub use entity::{EntityGridEvent, EntitySet, GridEntity};
 mod obstacles;
-pub use obstacles::{Obstacle, ObstaclesPlugin};
+pub use obstacles::{Obstacle, ObstaclesPlugin, ObstaclesSpec};
 mod grid2;
 pub use grid2::Grid2;
 mod sparse_grid2;
