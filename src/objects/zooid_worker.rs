@@ -2,6 +2,7 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
 use crate::prelude::*;
 
+#[allow(unused_imports)]
 use super::{objective::ObjectiveDebugger, Object, Team, TeamMaterials, ZooidAssets};
 
 pub struct ZooidWorkerPlugin;
@@ -33,6 +34,7 @@ impl ZooidWorker {
         mut commands: Commands,
         mut control_events: EventReader<ControlEvent>,
         assets: Res<ZooidAssets>,
+        configs: Res<Configs>,
     ) {
         for control_event in control_events.read() {
             let team: Option<Team> = if control_event.is_pressed(ControlAction::SpawnBlue) {
@@ -43,11 +45,14 @@ impl ZooidWorker {
                 None
             };
             if let Some(team) = team {
+                let object = Object::Worker(ZooidWorker::default());
+                let config = configs.get(&object);
                 ZooidWorkerBundler {
                     team,
                     mesh: assets.mesh.clone(),
                     team_materials: assets.get_team_material(team),
                     translation: control_event.position.extend(zindex::ZOOIDS_MIN),
+                    velocity: Vec2::ONE * config.spawn_velocity,
                     ..default()
                 }
                 .spawn(&mut commands)
@@ -87,6 +92,7 @@ impl ZooidWorkerBundler {
             GridEntity::default(),
             PhysicsBundle {
                 material: PhysicsMaterialType::Zooid,
+                velocity: Velocity(self.velocity),
                 ..default()
             },
             self.objective,

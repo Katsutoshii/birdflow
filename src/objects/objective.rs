@@ -37,24 +37,30 @@ impl Default for ObjectiveConfig {
     }
 }
 impl ObjectiveConfig {
-    /// Apply a slowing force.
+    /// Apply a slowing force against current velocity when near the goal.
+    /// Also, undo some of the acceleration force when near the goal.
     pub fn slow_force(
         &self,
         velocity: Velocity,
         position: Vec2,
         target_position: Vec2,
+        flow_acceleration: Acceleration,
     ) -> Acceleration {
         let position_delta = target_position - position;
         let dist_squared = position_delta.length_squared();
         let radius = self.repell_radius;
         let radius_squared = radius * radius;
+
+        //  When within radius, this is negative
+        let radius_diff = (dist_squared - radius_squared) / radius_squared;
         Acceleration(
             self.slow_factor
                 * if dist_squared < radius_squared {
                     -1.0 * velocity.0
                 } else {
                     Vec2::ZERO
-                },
+                }
+                + flow_acceleration.0 * radius_diff.clamp(-1., 0.),
         )
     }
 }
@@ -96,13 +102,13 @@ impl Objective {
             let config = configs.get(object);
             if let Some(resolved) = objective.resolve(transform, &others, &time, &config.waypoint) {
                 *acceleration +=
-                    resolved.acceleration(transform, *velocity, &config.waypoint, &navigation_grid);
+                    resolved.acceleration(transform, *velocity, config, &navigation_grid);
                 let current_acceleration = *acceleration;
                 *acceleration += obstacles_grid.obstacles_acceleration(
                     transform.translation.xy(),
                     *velocity,
                     current_acceleration,
-                ) * 3.;
+                ) * config.obstacle_acceleration;
             } else {
                 *objective = Self::None;
             }
@@ -226,7 +232,7 @@ impl ResolvedObjective {
         &self,
         transform: &Transform,
         velocity: Velocity,
-        config: &ObjectiveConfig,
+        config: &Config,
         navigation_grid: &EntityFlowGrid2,
     ) -> Acceleration {
         let position = transform.translation.xy();
@@ -250,7 +256,7 @@ impl ResolvedObjective {
             } => {
                 let delta = *target_position - *position;
                 if *frame > 0 {
-                    Acceleration(delta.normalize() * 40.0)
+                    Acceleration(delta.normalize() * config.attack_velocity)
                 } else {
                     Self::accelerate_to_entity(
                         *entity,
@@ -265,7 +271,7 @@ impl ResolvedObjective {
             Self::None => {
                 // If no objective, slow down and circle about.
                 let half_velocity = velocity.0 / 2.;
-                Acceleration(Mat2::from_angle(PI / 4.) * half_velocity - half_velocity)
+                Acceleration(Mat2::from_angle(PI / 16.) * half_velocity - half_velocity)
             }
         }
     }
@@ -275,15 +281,21 @@ impl ResolvedObjective {
         entity: Entity,
         position: Vec2,
         target_position: Vec2,
-        config: &ObjectiveConfig,
+        config: &Config,
         velocity: Velocity,
         navigation_grid: &EntityFlowGrid2,
     ) -> Acceleration {
         if let Some(flow_grid) = navigation_grid.get(&entity) {
             let target_cell = flow_grid.to_rowcol(target_position);
             let target_cell_position = flow_grid.to_world_position(target_cell);
-            flow_grid.flow_acceleration5(position)
-                + config.slow_force(velocity, position, target_cell_position)
+            let flow_acceleration = flow_grid.flow_acceleration5(position) * config.nav_flow_factor;
+            flow_acceleration
+                + config.waypoint.slow_force(
+                    velocity,
+                    position,
+                    target_cell_position,
+                    flow_acceleration,
+                )
         } else {
             warn!(
                 "Missing entity. This is okay if it's only for one frame. Entity: {:?}",

@@ -33,8 +33,8 @@ impl Food {
             return;
         }
         println!("Spawn food");
-        for row in 0..20 {
-            for col in 0..20 {
+        for row in 0..2 {
+            for col in 0..2 {
                 commands
                     .spawn(Food { period_sec: 1.0 }.bundle(
                         Vec2 {
