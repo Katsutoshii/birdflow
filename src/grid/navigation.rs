@@ -68,6 +68,93 @@ impl PartialOrd for AStarState {
     }
 }
 
+/// Struct to allow running A* on demand while re-using old results.
+pub struct AStarRunner {
+    pub destination: RowCol,
+    pub costs: HashMap<RowCol, f32>,
+    heap: BinaryHeap<AStarState>,
+}
+impl AStarRunner {
+    /// Initialize AStarRunner to a goal.
+    pub fn new(destination: RowCol) -> Self {
+        let mut heap = BinaryHeap::new();
+        heap.push(AStarState {
+            cost: 0.,
+            rowcol: destination,
+            heuristic: 0.,
+        });
+        Self {
+            destination,
+            costs: HashMap::new(),
+            heap,
+        }
+    }
+
+    /// Compute heuristic factor on naive 8-distance heuristic.
+    /// We want to use the heuristic more at higher distances from the destination.
+    pub fn heuristic_factor(&self, source: RowCol) -> f32 {
+        let min_grid_dist = 1.;
+        let max_grid_dist = 30.;
+        let dist = self.destination.distance8(source);
+        let max_heuristic = 0.9;
+        let final_dist = dist.clamp(min_grid_dist, max_grid_dist);
+        max_heuristic * final_dist / max_grid_dist
+    }
+    /// Runs A star from the given source to the destination.
+    pub fn a_star_from_source(
+        &mut self,
+        source: RowCol,
+        grid: &SparseFlowGrid2,
+        obstacles: &Grid2<Obstacle>,
+    ) {
+        // We're at `start`, with a zero cost
+        if grid.is_boundary(self.destination) {
+            return;
+        }
+
+        let heuristic_factor = self.heuristic_factor(source);
+
+        // Examine the frontier with lower cost nodes first (min-heap)
+        while let Some(AStarState {
+            cost,
+            rowcol,
+            heuristic: _,
+        }) = self.heap.pop()
+        {
+            // Skip already finalized cells.
+            if self.costs.contains_key(&rowcol) {
+                continue;
+            }
+
+            // Costs inserted here are guaranteed to be the best costs seen so far.
+            self.costs.insert(rowcol, cost);
+
+            // If at the goal, we're done!
+            if rowcol == source {
+                return;
+            }
+
+            // For each node we can reach, see if we can find a way with
+            // a lower cost going through this node
+            for (neighbor_rowcol, neighbor_cost) in grid.neighbors8(rowcol) {
+                // Skip out of bounds positions.
+                if grid.is_boundary(neighbor_rowcol) {
+                    continue;
+                }
+                if obstacles[neighbor_rowcol] != Obstacle::Empty {
+                    continue;
+                }
+
+                self.heap.push(AStarState {
+                    cost: cost + neighbor_cost,
+                    rowcol: neighbor_rowcol,
+                    heuristic: heuristic_factor * neighbor_rowcol.distance8(source),
+                });
+            }
+        }
+    }
+}
+
 /// Sparse storage for flow vectors.
 #[derive(Default, DerefMut, Deref, Clone)]
 pub struct SparseFlowGrid2(SparseGrid2<Acceleration>);
@@ -154,78 +241,19 @@ impl SparseFlowGrid2 {
         destination: RowCol,
         obstacles: &Grid2<Obstacle>,
     ) -> HashMap<RowCol, f32> {
-        // Initial setup.
-        let mut costs: HashMap<RowCol, f32> = HashMap::new();
-        let mut heap: BinaryHeap<AStarState> = BinaryHeap::new();
-        let mut goals: BTreeSet<RowCol> = sources
+        let sources: BTreeSet<RowCol> = sources
             .iter()
             .filter(|&&rowcol| self.in_bounds(rowcol) && obstacles[rowcol] == Obstacle::Empty)
             .copied()
             .collect();
-        let mut current_goal = *goals.first().unwrap();
-
-        let min_grid_dist = 1.;
-        let max_grid_dist = 30.;
-        let max_dist = goals
-            .iter()
-            .map(|&rowcol| destination.distance8(rowcol))
-            .fold(0f32, |a, b| a.max(b));
-        let max_heuristic = 0.9;
-        let final_dist = max_dist.clamp(min_grid_dist, max_grid_dist);
-        let heuristic_factor = max_heuristic * final_dist / max_grid_dist;
-        // We're at `start`, with a zero cost
-        if self.is_boundary(destination) {
-            return costs;
-        }
-        heap.push(AStarState {
-            cost: 0.,
-            rowcol: destination,
-            heuristic: 0.,
-        });
-
-        // Examine the frontier with lower cost nodes first (min-heap)
-        while let Some(AStarState {
-            cost,
-            rowcol,
-            heuristic: _,
-        }) = heap.pop()
-        {
-            // Skip already finalized cells.
-            if costs.contains_key(&rowcol) {
+        let mut runner = AStarRunner::new(destination);
+        for source in sources {
+            if runner.costs.contains_key(&source) {
                 continue;
             }
-
-            // Costs inserted here are guaranteed to be the best costs seen so far.
-            costs.insert(rowcol, cost);
-
-            // If the current goal has been reached, clear the heap and move on to the next goal.
-            if goals.remove(&rowcol) {
-                if goals.is_empty() {
-                    break;
-                }
-                if rowcol == current_goal {
-                    current_goal = *goals.first().unwrap();
-                }
-            }
-            // For each node we can reach, see if we can find a way with
-            // a lower cost going through this node
-            for (neighbor_rowcol, neighbor_cost) in self.neighbors8(rowcol) {
-                // Skip out of bounds positions.
-                if self.is_boundary(neighbor_rowcol) {
-                    continue;
-                }
-                if obstacles[neighbor_rowcol] != Obstacle::Empty {
-                    continue;
-                }
-
-                heap.push(AStarState {
-                    cost: cost + neighbor_cost,
-                    rowcol: neighbor_rowcol,
-                    heuristic: heuristic_factor * neighbor_rowcol.distance8(current_goal),
-                });
-            }
+            runner.a_star_from_source(source, self, obstacles);
         }
-        costs
+        runner.costs
     }
 }
 
