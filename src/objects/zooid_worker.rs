@@ -46,7 +46,7 @@ impl ZooidWorker {
             };
             if let Some(team) = team {
                 let object = Object::Worker;
-                let config = configs.get(&object);
+                let config = configs.objects.get(&object).unwrap();
                 ZooidWorkerBundler {
                     team,
                     mesh: assets.mesh.clone(),

@@ -2,7 +2,7 @@ use crate::prelude::*;
 use bevy::prelude::*;
 
 pub use self::{
-    config::{Config, Configs, InteractionConfig},
+    config::{InteractionConfig, ObjectConfig},
     damage::{DamageEvent, Health},
     object::Object,
     objective::{Objective, ObjectiveDebugger, Objectives},
@@ -26,9 +26,9 @@ impl Plugin for ObjectsPlugin {
         ))
         .register_type::<Vec2>()
         .register_type::<Configs>()
-        .register_type::<Config>()
-        .register_type::<Team>()
+        .register_type::<ObjectConfig>()
         .register_type::<InteractionConfig>()
+        .register_type::<Team>()
         .init_resource::<ZooidAssets>()
         .configure_sets(FixedUpdate, SystemStage::get_config());
     }

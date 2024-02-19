@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 pub mod aabb;
 pub mod camera;
+pub mod config;
 pub mod cursor;
 pub mod effects;
 pub mod grid;
@@ -21,6 +22,7 @@ pub mod prelude {
     pub use crate::{
         aabb::Aabb2,
         camera::{CameraController, CameraMoveEvent, MainCamera},
+        config::Configs,
         cursor::Cursor,
         effects,
         effects::EffectCommands,
@@ -31,7 +33,7 @@ pub mod prelude {
         inputs::{ControlAction, ControlEvent, InputState},
         meshes,
         objects::{
-            Config, Configs, DamageEvent, Health, Object, Objective, ObjectiveDebugger, Objectives,
+            DamageEvent, Health, Object, ObjectConfig, Objective, ObjectiveDebugger, Objectives,
             Team,
         },
         physics::{Acceleration, PhysicsBundle, PhysicsMaterial, PhysicsMaterialType, Velocity},

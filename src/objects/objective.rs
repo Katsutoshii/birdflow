@@ -245,7 +245,7 @@ impl Objectives {
         time: Res<Time>,
     ) {
         for (mut objectives, object, transform, velocity, mut acceleration) in &mut query {
-            let config = configs.get(object);
+            let config = configs.objects.get(object).unwrap();
             let resolved = objectives.resolve(transform, &others, &time, &config.waypoint);
             *acceleration +=
                 resolved.acceleration(transform, *velocity, config, &grid_spec, &navigation_grid);
@@ -300,7 +300,7 @@ impl ResolvedObjective {
         &self,
         transform: &Transform,
         velocity: Velocity,
-        config: &Config,
+        config: &ObjectConfig,
         grid_spec: &GridSpec,
         navigation_grid: &NavigationGrid2,
     ) -> Acceleration {
@@ -351,7 +351,7 @@ impl ResolvedObjective {
     pub fn accelerate_to_position(
         position: Vec2,
         target_position: Vec2,
-        config: &Config,
+        config: &ObjectConfig,
         velocity: Velocity,
         grid_spec: &GridSpec,
         navigation_grid: &NavigationGrid2,

@@ -57,7 +57,7 @@ pub fn save_system(
     }
     let scene = DynamicSceneBuilder::from_world(world)
         .extract_entities(query.iter())
-        .allow_resource::<Config>()
+        .allow_resource::<Configs>()
         .allow_resource::<Grid2<EntitySet>>()
         .extract_resources()
         .build();

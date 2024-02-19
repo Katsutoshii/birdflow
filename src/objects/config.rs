@@ -1,9 +1,10 @@
 use bevy::prelude::*;
+use bevy::utils::HashMap;
 
 use crate::prelude::*;
 use crate::{objects::objective::ObjectiveConfig, physics::PhysicsMaterialType};
 
-/// Singleton that spawns birds with specified stats.
+/// Describes interactions between two objects
 #[derive(Resource, Reflect)]
 #[reflect(Resource)]
 pub struct InteractionConfig {
@@ -27,35 +28,10 @@ impl Default for InteractionConfig {
     }
 }
 
-/// Singleton that spawns birds with specified stats.
-#[derive(Resource, Reflect, Default)]
-#[reflect(Resource)]
-pub struct Configs {
-    // Specify which team the player controls.
-    pub player_team: Team,
-    pub visibility_radius: u16,
-    pub fog_radius: u16,
-    pub window_size: Vec2,
-    pub cursor_sensitivity: f32,
-    // Configs for each Zooid type.
-    pub worker: Config,
-    pub head: Config,
-    pub food: Config,
-}
-impl Configs {
-    pub fn get(&self, zooid: &Object) -> &Config {
-        match zooid {
-            Object::Worker => &self.worker,
-            Object::Head => &self.head,
-            Object::Food => &self.food,
-        }
-    }
-}
-
-/// Specifies stats per object type.
 #[derive(Resource, Reflect)]
 #[reflect(Resource)]
-pub struct Config {
+/// Specifies stats per object type.
+pub struct ObjectConfig {
     physics_material: PhysicsMaterialType,
     pub neighbor_radius: f32,
     pub alignment_factor: f32,
@@ -68,11 +44,9 @@ pub struct Config {
     pub death_speed: f32,
 
     // Interactions
-    pub worker: InteractionConfig,
-    pub head: InteractionConfig,
-    pub food: InteractionConfig,
+    pub interactions: HashMap<Object, InteractionConfig>,
 }
-impl Default for Config {
+impl Default for ObjectConfig {
     fn default() -> Self {
         Self {
             physics_material: PhysicsMaterialType::Default,
@@ -85,21 +59,20 @@ impl Default for Config {
             hit_radius: 10.0,
             death_speed: 9.0,
             waypoint: ObjectiveConfig::default(),
-            worker: InteractionConfig::default(),
-            head: InteractionConfig::default(),
-            food: InteractionConfig::default(),
+            interactions: {
+                let mut interactions = HashMap::new();
+                interactions.insert(Object::Worker, InteractionConfig::default());
+                interactions.insert(Object::Head, InteractionConfig::default());
+                interactions.insert(Object::Food, InteractionConfig::default());
+                interactions
+            },
         }
     }
 }
-impl Config {
-    pub fn get_interaction(&self, zooid: &Object) -> &InteractionConfig {
-        match zooid {
-            Object::Worker => &self.worker,
-            Object::Head => &self.head,
-            Object::Food => &self.food,
-        }
+impl ObjectConfig {
+    pub fn get_interaction(&self, object: Object) -> &InteractionConfig {
+        unsafe { self.interactions.get(&object).unwrap_unchecked() }
     }
-
     /// Returns true if it's a hit.
     pub fn is_hit(&self, distance_squared: f32, velocity_squared: f32) -> bool {
         // info!("{}", velocity_squared);

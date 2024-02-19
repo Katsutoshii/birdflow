@@ -120,7 +120,7 @@ impl ZooidHead {
         assets: Res<ZooidAssets>,
         mut control_events: EventReader<ControlEvent>,
     ) {
-        let config = configs.get(&Object::Worker);
+        let config = configs.objects.get(&Object::Worker).unwrap();
         for control_event in control_events.read() {
             if control_event.is_pressed(ControlAction::SpawnZooid) {
                 for (_head, head_id, transform, velocity, team) in &query {

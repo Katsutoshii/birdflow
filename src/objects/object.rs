@@ -34,7 +34,7 @@ pub struct ProcessNeighborsResult {
 }
 
 /// Entities that can interact with each other.
-#[derive(Component, Reflect, Clone, PartialEq)]
+#[derive(Component, Reflect, Clone, PartialEq, Eq, Hash)]
 #[reflect(Component)]
 pub enum Object {
     Worker,
@@ -73,7 +73,7 @@ impl Object {
         objects.par_iter_mut().for_each(
             |(
                 entity,
-                zooid,
+                object,
                 &velocity,
                 mut acceleration,
                 mut objectives,
@@ -81,8 +81,8 @@ impl Object {
                 transform,
                 team,
             )| {
-                let config = configs.get(zooid);
-                let neighbors_result = zooid.process_neighbors(
+                let config = configs.objects.get(object).unwrap();
+                let neighbors_result = object.process_neighbors(
                     entity,
                     team,
                     velocity,
@@ -108,12 +108,12 @@ impl Object {
     }
 
     pub fn death(
-        mut objects: Query<(Entity, &GridEntity, &Health, &Transform, &Team)>,
+        mut objects: Query<(Entity, &Self, &GridEntity, &Health, &Transform, &Team)>,
         mut commands: Commands,
         mut effect_commands: EffectCommands,
         mut grid: ResMut<Grid2<EntitySet>>,
     ) {
-        for (entity, grid_entity, health, transform, team) in &mut objects {
+        for (entity, object, grid_entity, health, transform, team) in &mut objects {
             if health.health <= 0 {
                 grid.remove(entity, grid_entity);
                 commands.entity(entity).despawn_recursive();
@@ -122,6 +122,9 @@ impl Object {
                     transform: *transform,
                     team: *team,
                 });
+                if object == &Object::Food {
+                    // commands.spawn()
+                }
             }
         }
     }
@@ -137,7 +140,7 @@ impl Object {
         entities: &Query<(&Object, &Velocity, &Transform, &Team)>,
         grid: &Grid2<EntitySet>,
         health: &Health,
-        config: &Config,
+        config: &ObjectConfig,
     ) -> ProcessNeighborsResult {
         let mut acceleration = Acceleration::ZERO;
         // Forces from other entities
@@ -212,11 +215,11 @@ impl Object {
         other: &Self,
         other_transform: &Transform,
         other_velocity: Velocity,
-        config: &Config,
+        config: &ObjectConfig,
         num_others: usize,
     ) -> Acceleration {
         let mut acceleration = Acceleration::ZERO;
-        let interaction = config.get_interaction(other);
+        let interaction = config.interactions.get(other).unwrap();
         let position_delta =
             transform.translation.truncate() - other_transform.translation.truncate(); // Towards self, away from other.
         let distance_squared = position_delta.length_squared();
