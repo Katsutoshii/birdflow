@@ -6,10 +6,7 @@ use crate::physics::{PhysicsBundle, PhysicsMaterialType};
 use crate::prelude::*;
 
 use super::Team;
-use super::{
-    zooid_worker::{ZooidWorker, ZooidWorkerBundler},
-    Object, ZooidAssets,
-};
+use super::{zooid_worker::ZooidWorkerBundler, Object, ZooidAssets};
 
 pub struct ZooidHeadPlugin;
 impl Plugin for ZooidHeadPlugin {
@@ -111,6 +108,7 @@ impl ZooidHead {
             },
             Objectives::default(),
             Selected::default(),
+            Health::new(6),
             Name::new("ZooidHead"),
         )
     }
@@ -123,7 +121,7 @@ impl ZooidHead {
         assets: Res<ZooidAssets>,
         mut control_events: EventReader<ControlEvent>,
     ) {
-        let config = configs.get(&Object::Worker(ZooidWorker::default()));
+        let config = configs.get(&Object::Worker);
         for control_event in control_events.read() {
             if control_event.is_pressed(ControlAction::SpawnZooid) {
                 for (_head, head_id, transform, velocity, team) in &query {
@@ -132,6 +130,7 @@ impl ZooidHead {
                         let zindex = zindex::ZOOIDS_MIN
                             + (i as f32) * 0.00001 * (zindex::ZOOIDS_MAX - zindex::ZOOIDS_MIN);
                         let velocity: Vec2 = Vec2::Y * config.spawn_velocity + velocity.0;
+                        info!("Spawn zooid!");
                         ZooidWorkerBundler {
                             team: *team,
                             mesh: assets.mesh.clone(),
@@ -163,7 +162,7 @@ impl ZooidHead {
         let mut entities = HashSet::<Entity>::new();
         for (entity, grid_entity, object, _) in &mut objects {
             grid.remove(entity, grid_entity);
-            if let Object::Worker(_) = object {
+            if let Object::Worker = object {
                 commands.entity(entity).despawn_recursive();
                 entities.insert(entity);
             }

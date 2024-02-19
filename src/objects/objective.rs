@@ -309,6 +309,7 @@ impl ResolvedObjective {
                 config,
                 velocity,
                 navigation_grid,
+                /*slow_factor=*/ 1.0,
             ),
             Self::AttackEntity {
                 entity,
@@ -327,6 +328,7 @@ impl ResolvedObjective {
                         config,
                         velocity,
                         navigation_grid,
+                        /*slow_factor=*/ 0.5,
                     ) + Acceleration(delta.normalize() * 0.0)
                 }
             }
@@ -346,6 +348,7 @@ impl ResolvedObjective {
         config: &Config,
         velocity: Velocity,
         navigation_grid: &EntityFlowGrid2,
+        slow_factor: f32,
     ) -> Acceleration {
         if let Some(flow_grid) = navigation_grid.get(&entity) {
             let target_cell = flow_grid.to_rowcol(target_position);
@@ -357,7 +360,7 @@ impl ResolvedObjective {
                     position,
                     target_cell_position,
                     flow_acceleration,
-                )
+                ) * slow_factor
         } else {
             warn!(
                 "Missing entity. This is okay if it's only for one frame. Entity: {:?}",

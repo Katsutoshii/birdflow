@@ -26,27 +26,34 @@ impl Food {
     pub fn spawn(
         mut commands: Commands,
         assets: Res<ZooidAssets>,
-        grid_spec: Res<GridSpec>,
-        keyboard_input: Res<Input<KeyCode>>,
+        // grid_spec: Res<GridSpec>,
+        mut control_events: EventReader<ControlEvent>,
     ) {
-        if !keyboard_input.just_pressed(KeyCode::F) {
-            return;
-        }
-        println!("Spawn food");
-        for row in 0..2 {
-            for col in 0..2 {
+        for control_event in control_events.read() {
+            if control_event.is_pressed(ControlAction::SpawnFood) {
+                println!("Spawn food");
                 commands
-                    .spawn(Food { period_sec: 1.0 }.bundle(
-                        Vec2 {
-                            x: (0.5 + row as f32),
-                            y: (0.5 + col as f32),
-                        } * grid_spec.width
-                            - Vec2 { x: 10., y: 10. } * grid_spec.width,
-                        &assets,
-                    ))
+                    .spawn(Food { period_sec: 1.0 }.bundle(control_event.position, &assets))
                     .with_children(|parent| {
                         parent.spawn(FoodBackground.bundle(&assets));
                     });
+                // Old code to spawn lots of food.
+                // for row in 0..20 {
+                //     for col in 0..20 {
+                //         commands
+                //             .spawn(Food { period_sec: 1.0 }.bundle(
+                //                 Vec2 {
+                //                     x: (0.5 + row as f32),
+                //                     y: (0.5 + col as f32),
+                //                 } * grid_spec.width
+                //                     - Vec2 { x: 10., y: 10. } * grid_spec.width,
+                //                 &assets,
+                //             ))
+                //             .with_children(|parent| {
+                //                 parent.spawn(FoodBackground.bundle(&assets));
+                //             });
+                //     }
+                // }
             }
         }
     }
@@ -55,9 +62,8 @@ impl Food {
         (
             self,
             Object::Food,
-            Team::default(),
+            Team::None,
             GridEntity::default(),
-            PhysicsBundle::default(),
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: assets.mesh.clone().into(),
                 transform: Transform::default()
@@ -66,8 +72,14 @@ impl Food {
                 material: assets.get_team_material(Team::None).primary,
                 ..default()
             },
+            PhysicsBundle {
+                material: PhysicsMaterialType::Food,
+                ..default()
+            },
+            Objectives::default(),
+            Health::new(1),
             Selected::default(),
-            Name::new("Zooid"),
+            Name::new("ZooidFood"),
         )
     }
 

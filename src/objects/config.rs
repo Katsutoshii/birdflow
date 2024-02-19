@@ -45,7 +45,7 @@ pub struct Configs {
 impl Configs {
     pub fn get(&self, zooid: &Object) -> &Config {
         match zooid {
-            Object::Worker(_) => &self.worker,
+            Object::Worker => &self.worker,
             Object::Head => &self.head,
             Object::Food => &self.food,
         }
@@ -94,7 +94,7 @@ impl Default for Config {
 impl Config {
     pub fn get_interaction(&self, zooid: &Object) -> &InteractionConfig {
         match zooid {
-            Object::Worker(_) => &self.worker,
+            Object::Worker => &self.worker,
             Object::Head => &self.head,
             Object::Food => &self.food,
         }

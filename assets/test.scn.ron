@@ -85,6 +85,8 @@
         physics_material: SlowZooid,
         neighbor_radius: 100.0,
         spawn_velocity: 20.0,
+        hit_radius: 24.0,
+        death_speed: 5.,
         waypoint: (
           max_acceleration: 3.5,
           repell_radius: 20.0,
@@ -106,6 +108,8 @@
       food: (
         physics_material: Food,
         neighbor_radius: 128.0,
+        hit_radius: 12.0,
+        death_speed: 5.,
         worker: (
           separation_radius: 100.0,
           separation_acceleration: 0.05

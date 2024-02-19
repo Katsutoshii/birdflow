@@ -45,7 +45,7 @@ impl ZooidWorker {
                 None
             };
             if let Some(team) = team {
-                let object = Object::Worker(ZooidWorker::default());
+                let object = Object::Worker;
                 let config = configs.get(&object);
                 ZooidWorkerBundler {
                     team,
@@ -87,7 +87,8 @@ impl ZooidWorkerBundler {
 
     pub fn bundle(self) -> impl Bundle {
         (
-            Object::Worker(self.worker),
+            self.worker,
+            Object::Worker,
             self.team,
             GridEntity::default(),
             PhysicsBundle {
@@ -105,7 +106,7 @@ impl ZooidWorkerBundler {
                 ..default()
             },
             Selected::default(),
-            Health::default(),
+            Health::new(3),
             Name::new("Zooid"),
         )
     }

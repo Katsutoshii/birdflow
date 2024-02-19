@@ -3,10 +3,12 @@ use bevy::prelude::*;
 
 pub use self::{
     config::{Config, Configs, InteractionConfig},
+    damage::{DamageEvent, Health},
+    object::Object,
     objective::{Objective, ObjectiveDebugger, Objectives},
 };
 use self::{
-    food::FoodPlugin, object::ObjectPlugin, objective::ObjectivePlugin,
+    damage::DamagePlugin, food::FoodPlugin, object::ObjectPlugin, objective::ObjectivePlugin,
     zooid_head::ZooidHeadPlugin, zooid_worker::ZooidWorkerPlugin,
 };
 
@@ -20,6 +22,7 @@ impl Plugin for ObjectsPlugin {
             ZooidWorkerPlugin,
             FoodPlugin,
             ObjectPlugin,
+            DamagePlugin,
         ))
         .register_type::<Vec2>()
         .register_type::<Configs>()
@@ -32,13 +35,13 @@ impl Plugin for ObjectsPlugin {
 }
 
 mod config;
+mod damage;
 mod food;
 mod object;
 mod objective;
 mod zooid_head;
 mod zooid_worker;
 
-pub use object::{Health, Object};
 /// Enum to specify the team of the given object.
 #[derive(Component, Default, Debug, PartialEq, Eq, Reflect, Clone, Copy, Hash)]
 #[reflect(Component)]
