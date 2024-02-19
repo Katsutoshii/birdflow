@@ -20,11 +20,17 @@ impl Plugin for ObjectPlugin {
     }
 }
 
+/// Signals to begin attacking.
+pub struct AttackEvent {
+    pub entity: Entity,
+    pub waypoint_event: CreateWaypointEvent,
+}
+
 /// Stores results from processing neighboring objects.
 pub struct ProcessNeighborsResult {
-    acceleration: Acceleration,
-    attack_event: Option<CreateWaypointEvent>,
-    damage_event: Option<DamageEvent>,
+    pub acceleration: Acceleration,
+    pub attack_event: Option<AttackEvent>,
+    pub damage_event: Option<DamageEvent>,
 }
 
 /// Entities that can interact with each other.
@@ -89,7 +95,10 @@ impl Object {
                 *acceleration += neighbors_result.acceleration;
                 if let Some(attack_event) = neighbors_result.attack_event {
                     objectives.start_attacking(&attack_event);
-                    create_waypoint_events.lock().unwrap().send(attack_event);
+                    create_waypoint_events
+                        .lock()
+                        .unwrap()
+                        .send(attack_event.waypoint_event);
                 }
                 if let Some(damage_event) = neighbors_result.damage_event {
                     damage_events.lock().unwrap().send(damage_event);
@@ -136,7 +145,7 @@ impl Object {
         let other_entities = grid.get_entities_in_radius(position, config);
 
         let mut closest_enemy_distance_squared = f32::INFINITY;
-        let mut attack_event: Option<CreateWaypointEvent> = None;
+        let mut attack_event: Option<AttackEvent> = None;
         let mut damage_event: Option<DamageEvent> = None;
 
         for other_entity in &other_entities {
@@ -166,10 +175,12 @@ impl Object {
                 // Try attacking, only workers can attack.
                 if *self == Self::Worker && distance_squared < closest_enemy_distance_squared {
                     closest_enemy_distance_squared = distance_squared;
-                    attack_event = Some(CreateWaypointEvent {
+                    attack_event = Some(AttackEvent {
                         entity: *other_entity,
-                        destination: other_position,
-                        sources: vec![position],
+                        waypoint_event: CreateWaypointEvent {
+                            destination: other_position,
+                            sources: vec![position],
+                        },
                     })
                 }
 

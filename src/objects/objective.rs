@@ -4,6 +4,8 @@ use crate::prelude::*;
 use bevy::{prelude::*, text::Text2dBounds};
 use rand::Rng;
 
+use super::object::AttackEvent;
+
 pub struct ObjectivePlugin;
 impl Plugin for ObjectivePlugin {
     fn build(&self, app: &mut App) {
@@ -90,10 +92,10 @@ pub enum Objective {
 }
 impl Objective {
     /// Given an objective, get the next one (if there should be a next one, else None).
-    pub fn try_attacking(&self, event: &CreateWaypointEvent) -> Option<Self> {
+    pub fn try_attacking(&self, entity: Entity) -> Option<Self> {
         match self {
             Self::None | Self::FollowEntity(_) => Some(Self::AttackEntity {
-                entity: event.entity,
+                entity,
                 frame: 0,
                 cooldown: Timer::from_seconds(
                     Self::attack_delay().as_secs_f32(),
@@ -224,8 +226,8 @@ impl Objectives {
     }
 
     // Start attacking
-    pub fn start_attacking(&mut self, attack_enemy_event: &CreateWaypointEvent) {
-        if let Some(objective) = self.last().try_attacking(attack_enemy_event) {
+    pub fn start_attacking(&mut self, attack_event: &AttackEvent) {
+        if let Some(objective) = self.last().try_attacking(attack_event.entity) {
             self.push(objective);
         }
     }
@@ -235,14 +237,16 @@ impl Objectives {
         mut query: Query<(&mut Self, &Object, &Transform, &Velocity, &mut Acceleration)>,
         others: Query<(&Transform, &Velocity)>,
         configs: Res<Configs>,
-        navigation_grid: Res<EntityFlowGrid2>,
+        grid_spec: Res<GridSpec>,
+        navigation_grid: Res<NavigationGrid2>,
         obstacles_grid: Res<Grid2<Obstacle>>,
         time: Res<Time>,
     ) {
         for (mut objectives, object, transform, velocity, mut acceleration) in &mut query {
             let config = configs.get(object);
             let resolved = objectives.resolve(transform, &others, &time, &config.waypoint);
-            *acceleration += resolved.acceleration(transform, *velocity, config, &navigation_grid);
+            *acceleration +=
+                resolved.acceleration(transform, *velocity, config, &grid_spec, &navigation_grid);
             let current_acceleration = *acceleration;
             *acceleration += obstacles_grid.obstacles_acceleration(
                 transform.translation.xy(),
@@ -295,24 +299,25 @@ impl ResolvedObjective {
         transform: &Transform,
         velocity: Velocity,
         config: &Config,
-        navigation_grid: &EntityFlowGrid2,
+        grid_spec: &GridSpec,
+        navigation_grid: &NavigationGrid2,
     ) -> Acceleration {
         let position = transform.translation.xy();
         match self {
             Self::FollowEntity {
-                entity,
+                entity: _,
                 position: target_position,
-            } => Self::accelerate_to_entity(
-                *entity,
+            } => Self::accelerate_to_position(
                 position,
                 *target_position,
                 config,
                 velocity,
+                grid_spec,
                 navigation_grid,
                 /*slow_factor=*/ 1.0,
             ),
             Self::AttackEntity {
-                entity,
+                entity: _,
                 position,
                 target_position,
                 frame,
@@ -321,12 +326,12 @@ impl ResolvedObjective {
                 if *frame > 0 {
                     Acceleration(delta.normalize() * config.attack_velocity)
                 } else {
-                    Self::accelerate_to_entity(
-                        *entity,
+                    Self::accelerate_to_position(
                         *position,
                         *target_position,
                         config,
                         velocity,
+                        grid_spec,
                         navigation_grid,
                         /*slow_factor=*/ 0.5,
                     ) + Acceleration(delta.normalize() * 0.0)
@@ -341,17 +346,17 @@ impl ResolvedObjective {
     }
 
     // Returns acceleration for following an entity.
-    pub fn accelerate_to_entity(
-        entity: Entity,
+    pub fn accelerate_to_position(
         position: Vec2,
         target_position: Vec2,
         config: &Config,
         velocity: Velocity,
-        navigation_grid: &EntityFlowGrid2,
+        grid_spec: &GridSpec,
+        navigation_grid: &NavigationGrid2,
         slow_factor: f32,
     ) -> Acceleration {
-        if let Some(flow_grid) = navigation_grid.get(&entity) {
-            let target_cell = flow_grid.to_rowcol(target_position);
+        let target_cell = grid_spec.to_rowcol(target_position);
+        if let Some(flow_grid) = navigation_grid.get(&target_cell) {
             let target_cell_position = flow_grid.to_world_position(target_cell);
             let flow_acceleration = flow_grid.flow_acceleration5(position) * config.nav_flow_factor;
             flow_acceleration
@@ -363,8 +368,8 @@ impl ResolvedObjective {
                 ) * slow_factor
         } else {
             warn!(
-                "Missing entity. This is okay if it's only for one frame. Entity: {:?}",
-                entity
+                "Missing target_cell. This is okay if it's only for one frame. {:?}",
+                target_cell
             );
             Acceleration::ZERO
         }

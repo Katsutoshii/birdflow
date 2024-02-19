@@ -18,13 +18,13 @@ impl Plugin for NavigationPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<NavigationCostEvent>()
             .add_event::<CreateWaypointEvent>()
-            .insert_resource(EntityFlowGrid2::default())
+            .insert_resource(NavigationGrid2::default())
             .add_systems(
                 FixedUpdate,
                 (
-                    EntityFlowGrid2::resize_on_change,
-                    EntityFlowGrid2::create_waypoints.after(Waypoint::update),
-                    EntityFlowGrid2::delete_waypoints.before(EntityFlowGrid2::create_waypoints),
+                    NavigationGrid2::resize_on_change,
+                    NavigationGrid2::create_waypoints.after(Waypoint::update),
+                    NavigationGrid2::delete_waypoints.before(NavigationGrid2::create_waypoints),
                 ),
             );
     }
@@ -33,7 +33,6 @@ impl Plugin for NavigationPlugin {
 /// Communicates cost updates to the visualizer
 #[derive(Event)]
 pub struct NavigationCostEvent {
-    pub entity: Entity,
     pub rowcol: RowCol,
     pub cost: f32,
 }
@@ -225,11 +224,7 @@ impl SparseFlowGrid2 {
                 Acceleration(rowcol.signed_delta8(min_neighbor_rowcol)),
             );
 
-            event_writer.send(NavigationCostEvent {
-                entity: event.entity,
-                rowcol,
-                cost,
-            });
+            event_writer.send(NavigationCostEvent { rowcol, cost });
         }
     }
 
@@ -257,11 +252,12 @@ impl SparseFlowGrid2 {
     }
 }
 
+/// Mapping from goal RowCol to a sparse flow grid with accelerations towards that RowCol.
 #[derive(Default, Resource, DerefMut, Deref)]
-pub struct EntityFlowGrid2(HashMap<Entity, SparseFlowGrid2>);
+pub struct NavigationGrid2(HashMap<RowCol, SparseFlowGrid2>);
 
 /// Stores a flow grid per targeted entity.
-impl EntityFlowGrid2 {
+impl NavigationGrid2 {
     // Resize all grids when spec is updated.
     pub fn resize_on_change(spec: Res<GridSpec>, mut grid: ResMut<Self>) {
         if spec.is_changed() {
@@ -272,8 +268,8 @@ impl EntityFlowGrid2 {
     }
 
     /// Compute acceleration using the weighted sum of the 4 neighboring cells and the current cell.
-    pub fn flow_acceleration5(&mut self, position: Vec2, entity: Entity) -> Acceleration {
-        if let Some(flow_grid) = self.get_mut(&entity) {
+    pub fn flow_acceleration5(&mut self, position: Vec2, destination: RowCol) -> Acceleration {
+        if let Some(flow_grid) = self.get_mut(&destination) {
             flow_grid.flow_acceleration5(position)
         } else {
             Acceleration::ZERO
@@ -289,7 +285,8 @@ impl EntityFlowGrid2 {
         obstacles: Res<Grid2<Obstacle>>,
     ) {
         for event in event_reader.read() {
-            let flow_grid = match grid.entry(event.entity) {
+            let destination_rowcol = spec.to_rowcol(event.destination);
+            let flow_grid = match grid.entry(destination_rowcol) {
                 Entry::Occupied(o) => o.into_mut(),
                 Entry::Vacant(v) => v.insert(SparseFlowGrid2(SparseGrid2 {
                     spec: spec.clone(),
@@ -303,21 +300,27 @@ impl EntityFlowGrid2 {
     /// Consumes CreateWaypointEvent events and populates the navigation grid.
     pub fn delete_waypoints(
         all_objectives: Query<&Objectives, Without<Waypoint>>,
+        transforms: Query<&Transform>,
         mut grid: ResMut<Self>,
+        spec: Res<GridSpec>,
     ) {
-        let mut followed_entities = HashSet::new();
+        let mut destinations = HashSet::new();
         for objectives in all_objectives.iter() {
             if let Some(entity) = objectives.last().get_followed_entity() {
-                followed_entities.insert(entity);
+                if let Ok(transform) = transforms.get(entity) {
+                    let rowcol = spec.to_rowcol(transform.translation.xy());
+                    destinations.insert(rowcol);
+                }
             }
         }
-        let entities_to_remove: Vec<Entity> = grid
+
+        let rowcols_to_remove: Vec<RowCol> = grid
             .keys()
-            .filter(|&entity| !followed_entities.contains(entity))
+            .filter(|&destination| !destinations.contains(destination))
             .copied()
             .collect();
-        for entity in entities_to_remove {
-            grid.remove(&entity);
+        for rowcol in rowcols_to_remove {
+            grid.remove(&rowcol);
         }
     }
 }
@@ -325,7 +328,6 @@ impl EntityFlowGrid2 {
 /// Event to request waypoint creation.
 #[derive(Event, Clone, Debug)]
 pub struct CreateWaypointEvent {
-    pub entity: Entity,
     pub destination: Vec2,
     pub sources: Vec<Vec2>,
 }

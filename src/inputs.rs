@@ -310,7 +310,7 @@ impl Default for ControlTimers {
         let mut timers = Self(HashMap::default());
         timers.insert(
             ControlAction::Move,
-            Timer::new(Duration::from_millis(100), TimerMode::Repeating),
+            Timer::new(Duration::from_millis(500), TimerMode::Repeating),
         );
         timers
     }

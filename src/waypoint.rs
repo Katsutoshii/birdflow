@@ -70,12 +70,15 @@ impl Waypoint {
     ) {
         for &ControlEvent {
             action,
-            state: _,
+            state,
             position,
         } in control_events.read()
         {
             if action != ControlAction::Move {
-                return;
+                continue;
+            }
+            if state == InputState::Released {
+                continue;
             }
 
             // Spawn a new waypoint.
@@ -93,7 +96,6 @@ impl Waypoint {
             }
             if !sources.is_empty() {
                 event_writer.send(CreateWaypointEvent {
-                    entity,
                     sources,
                     destination: position,
                 })

@@ -25,8 +25,8 @@ pub mod prelude {
         effects,
         effects::EffectCommands,
         grid::{
-            CreateWaypointEvent, EntityFlowGrid2, EntityGridEvent, EntitySet, Grid2, Grid2Plugin,
-            GridEntity, GridSize, GridSpec, Obstacle, RowCol, RowColDistance,
+            CreateWaypointEvent, EntityGridEvent, EntitySet, Grid2, Grid2Plugin, GridEntity,
+            GridSize, GridSpec, NavigationGrid2, Obstacle, RowCol, RowColDistance,
         },
         inputs::{ControlAction, ControlEvent, InputState},
         meshes,

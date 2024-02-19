@@ -80,7 +80,6 @@ impl ZooidHead {
                 });
                 entity_commands.insert(Objectives::new(Objective::FollowEntity(entity)));
                 event_writer.send(CreateWaypointEvent {
-                    entity,
                     destination: position,
                     sources: vec![position],
                 })
