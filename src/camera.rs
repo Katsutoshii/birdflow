@@ -148,7 +148,6 @@ impl CameraController {
     pub fn update(
         time: Res<Time>,
         mut controller_query: Query<(&mut Self, &mut Transform), With<MainCamera>>,
-        cursor: Query<&Transform, (Without<MainCamera>, With<Cursor>)>,
         window_query: Query<&Window, With<PrimaryWindow>>,
         mut event_writer: EventWriter<CameraMoveEvent>,
     ) {
@@ -156,8 +155,8 @@ impl CameraController {
         let window = window_query.single();
         let (mut controller, mut camera_transform) = controller_query.single_mut();
 
-        let cursor = cursor.single();
-        let cursor_position = cursor.translation.xy();
+        // let cursor = cursor.single();
+        // let cursor_position = cursor.translation.xy();
         let mut acceleration = Vec2::ZERO;
         controller.velocity = Vec2::ZERO;
         let window_size = Vec2 {
@@ -165,34 +164,34 @@ impl CameraController {
             y: window.physical_height() as f32,
         } / window.scale_factor() as f32;
 
-        let centered_cursor_position = cursor_position + window_size / 2.;
+        if let Some(centered_cursor_position) = window.cursor_position() {
+            let boundary = 1.;
+            // Screen border panning.
+            acceleration += if centered_cursor_position.x < boundary {
+                -Vec2::X
+            } else if centered_cursor_position.x > window_size.x - boundary {
+                Vec2::X
+            } else {
+                Vec2::ZERO
+            };
+            acceleration += if centered_cursor_position.y < boundary {
+                Vec2::Y
+            } else if centered_cursor_position.y > window_size.y - boundary {
+                -Vec2::Y
+            } else {
+                Vec2::ZERO
+            };
 
-        let boundary = 1.;
-        // Screen border panning.
-        acceleration += if centered_cursor_position.x < boundary {
-            -Vec2::X
-        } else if centered_cursor_position.x > window_size.x - boundary {
-            Vec2::X
-        } else {
-            Vec2::ZERO
-        };
-        acceleration += if centered_cursor_position.y < boundary {
-            -Vec2::Y
-        } else if centered_cursor_position.y > window_size.y - boundary {
-            Vec2::Y
-        } else {
-            Vec2::ZERO
-        };
-
-        controller.velocity += acceleration;
-        camera_transform.translation +=
-            controller.velocity.extend(0.) * dt * controller.sensitivity;
-        controller
-            .world2d_bounds
-            .clamp3(&mut camera_transform.translation);
-        event_writer.send(CameraMoveEvent {
-            position: camera_transform.translation.xy(),
-        });
+            controller.velocity += acceleration;
+            camera_transform.translation +=
+                controller.velocity.extend(0.) * dt * controller.sensitivity;
+            controller
+                .world2d_bounds
+                .clamp3(&mut camera_transform.translation);
+            event_writer.send(CameraMoveEvent {
+                position: camera_transform.translation.xy(),
+            });
+        }
     }
 
     pub fn pan_to_position(

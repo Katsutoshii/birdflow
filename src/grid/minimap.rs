@@ -95,7 +95,7 @@ impl ShaderPlaneMaterial for MinimapShaderMaterial {
     }
 }
 impl MinimapShaderMaterial {
-    const SCREEN_RATIO: f32 = 1. / 6.;
+    const SCREEN_RATIO: f32 = 1. / 8.;
 
     fn viewport_size(window: &Window) -> Vec2 {
         Vec2 {
