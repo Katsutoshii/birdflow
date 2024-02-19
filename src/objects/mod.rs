@@ -3,7 +3,7 @@ use bevy::prelude::*;
 
 pub use self::{
     config::{Config, Configs, InteractionConfig},
-    objective::{Objective, Objectives},
+    objective::{Objective, ObjectiveDebugger, Objectives},
 };
 use self::{
     food::FoodPlugin, object::ObjectPlugin, objective::ObjectivePlugin,
@@ -52,6 +52,8 @@ pub enum Team {
 impl Team {
     /// Number of teams.
     pub const COUNT: usize = 3;
+    pub const ALL: [Self; Self::COUNT] = [Self::None, Self::Blue, Self::Red];
+    pub const COLORS: [Color; Self::COUNT] = [Color::SEA_GREEN, Color::TEAL, Color::TOMATO];
 }
 
 #[derive(Default, Clone)]
@@ -88,14 +90,18 @@ impl FromWorld for ZooidAssets {
         let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
         Self {
             mesh,
-            team_materials: vec![
-                // Team::None
-                TeamMaterials::new(Color::SEA_GREEN, &mut materials),
-                // Team::Blue
-                TeamMaterials::new(Color::TEAL, &mut materials),
-                // Team::Red
-                TeamMaterials::new(Color::TOMATO, &mut materials),
-            ],
+            // team_materials: vec![
+            //     // Team::None
+            //     TeamMaterials::new(, &mut materials),
+            //     // Team::Blue
+            //     TeamMaterials::new(Color::TEAL, &mut materials),
+            //     // Team::Red
+            //     TeamMaterials::new(Color::TOMATO, &mut materials),
+            // ],
+            team_materials: Team::COLORS
+                .iter()
+                .map(|color| TeamMaterials::new(*color, &mut materials))
+                .collect(),
         }
     }
 }

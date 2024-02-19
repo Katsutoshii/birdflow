@@ -59,6 +59,9 @@ pub struct Config {
     physics_material: PhysicsMaterialType,
     pub neighbor_radius: f32,
     pub alignment_factor: f32,
+    pub obstacle_acceleration: f32,
+    pub nav_flow_factor: f32,
+    pub attack_velocity: f32,
     pub spawn_velocity: f32,
     pub waypoint: ObjectiveConfig,
     pub hit_radius: f32,
@@ -75,6 +78,9 @@ impl Default for Config {
             physics_material: PhysicsMaterialType::Default,
             neighbor_radius: 10.0,
             alignment_factor: 0.1,
+            obstacle_acceleration: 3.,
+            nav_flow_factor: 1.,
+            attack_velocity: 40.,
             spawn_velocity: 2.0,
             hit_radius: 10.0,
             death_speed: 9.0,
@@ -92,5 +98,12 @@ impl Config {
             Object::Head => &self.head,
             Object::Food => &self.food,
         }
+    }
+
+    /// Returns true if it's a hit.
+    pub fn is_hit(&self, distance_squared: f32, velocity_squared: f32) -> bool {
+        // info!("{}", velocity_squared);
+        (distance_squared < self.hit_radius * self.hit_radius)
+            && (velocity_squared > self.death_speed * self.death_speed)
     }
 }

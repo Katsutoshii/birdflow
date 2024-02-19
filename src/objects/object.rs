@@ -1,23 +1,102 @@
 use std::sync::Mutex;
 
+use self::effects::{EffectCommands, EffectSize, FireworkSpec};
+
 use super::{zooid_worker::ZooidWorker, InteractionConfig};
-use crate::effects;
 use crate::prelude::*;
 use bevy::prelude::*;
-use bevy_hanabi::prelude::*;
 
 /// Plugin for running zooids simulation.
 pub struct ObjectPlugin;
 impl Plugin for ObjectPlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<Object>().add_systems(
-            FixedUpdate,
-            (
-                Object::update.in_set(SystemStage::Compute),
-                Object::death.in_set(SystemStage::Despawn),
-            ),
-        );
+        app.add_event::<DamageEvent>()
+            .register_type::<Object>()
+            .add_systems(
+                FixedUpdate,
+                (
+                    Object::update.in_set(SystemStage::Compute),
+                    Health::update
+                        .in_set(SystemStage::Compute)
+                        .after(Object::update),
+                    DamageEvent::update
+                        .in_set(SystemStage::Compute)
+                        .after(Health::update),
+                    Object::death.in_set(SystemStage::Despawn),
+                ),
+            );
     }
+}
+
+#[derive(Component)]
+pub struct Health {
+    pub health: i32,
+    pub hit_timer: Timer,
+}
+impl Default for Health {
+    fn default() -> Self {
+        Self {
+            health: 3,
+            hit_timer: Timer::from_seconds(0.5, TimerMode::Once),
+        }
+    }
+}
+impl Health {
+    pub fn damageable(&self) -> bool {
+        self.hit_timer.finished()
+    }
+    pub fn damage(&mut self, amount: i32) {
+        self.health -= amount;
+        self.hit_timer = Timer::from_seconds(0.5, TimerMode::Once);
+    }
+    pub fn update(mut query: Query<&mut Health>, time: Res<Time>) {
+        for mut health in query.iter_mut() {
+            health.hit_timer.tick(time.delta());
+        }
+    }
+}
+
+#[derive(Event)]
+pub struct DamageEvent {
+    pub damager: Entity,
+    pub damaged: Entity,
+    pub amount: i32,
+    pub velocity: Velocity,
+}
+impl DamageEvent {
+    pub fn update(
+        mut query: Query<(&mut Acceleration, &mut Health, &Team, &Transform)>,
+        mut events: EventReader<DamageEvent>,
+        mut effects: EffectCommands,
+    ) {
+        for event in events.read() {
+            // Knock back the damager
+            if let Ok((mut acceleration, _health, _team, _transform)) = query.get_mut(event.damager)
+            {
+                *acceleration -= Acceleration(event.velocity.0 * 5.);
+            }
+            // Reduce health and set off firework for the damaged.
+            if let Ok((mut acceleration, mut health, &team, &transform)) =
+                query.get_mut(event.damaged)
+            {
+                health.damage(event.amount);
+                effects.make_fireworks(FireworkSpec {
+                    size: EffectSize::Small,
+                    team,
+                    transform,
+                });
+                *acceleration += Acceleration(event.velocity.0 * 2.);
+            }
+        }
+    }
+}
+
+/// Stores results from processing neighboring objects.
+pub struct ProcessNeighborsResult {
+    acceleration: Acceleration,
+    new_objective: Option<Objective>,
+    create_waypoint_event: Option<CreateWaypointEvent>,
+    damage_event: Option<DamageEvent>,
 }
 
 /// Entities that can interact with each other.
@@ -28,30 +107,15 @@ pub enum Object {
     Head,
     Food,
 }
-
-#[derive(Component)]
-pub struct Health {
-    pub health: i32,
-    pub hit_timer: Timer,
-}
-
-impl Default for Health {
-    fn default() -> Self {
-        Self {
-            health: 2,
-            hit_timer: Timer::from_seconds(0.5, TimerMode::Once),
-        }
-    }
-}
-
 impl Default for Object {
     fn default() -> Self {
         Self::Worker(ZooidWorker::default())
     }
 }
 impl Object {
-    /// Update objects acceleration and objectives.\
+    /// Update objects acceleration and objectives.
     #[allow(clippy::type_complexity)]
+    #[allow(clippy::too_many_arguments)]
     pub fn update(
         mut objects: Query<(
             Entity,
@@ -64,14 +128,14 @@ impl Object {
             &Team,
         )>,
         other_objects: Query<(&Self, &Velocity, &Transform, &Team)>,
-        obstacles: Res<Grid2<Obstacle>>,
         grid: Res<Grid2<EntitySet>>,
         configs: Res<Configs>,
-        mut waypoint_event_writer: EventWriter<CreateWaypointEvent>,
-        time: Res<Time>,
+        mut create_waypoint_events: EventWriter<CreateWaypointEvent>,
+        mut damage_events: EventWriter<DamageEvent>,
     ) {
-        let writer_mutex: Mutex<&mut EventWriter<CreateWaypointEvent>> =
-            Mutex::new(&mut waypoint_event_writer);
+        let create_waypoint_events: Mutex<&mut EventWriter<CreateWaypointEvent>> =
+            Mutex::new(&mut create_waypoint_events);
+        let damage_events: Mutex<&mut EventWriter<DamageEvent>> = Mutex::new(&mut damage_events);
         objects.par_iter_mut().for_each(
             |(
                 entity,
@@ -84,22 +148,26 @@ impl Object {
                 team,
             )| {
                 let config = configs.get(zooid);
-                let (neighbor_acceleration, waypoint_event) = zooid.process_neighbors(
+                let neighbors_result = zooid.process_neighbors(
                     entity,
                     team,
                     velocity,
                     transform,
                     &other_objects,
                     &grid,
-                    &obstacles,
-                    &mut health,
+                    &health,
                     config,
-                    &time,
+                    &objective,
                 );
-                *acceleration += neighbor_acceleration;
-                if let Some(waypoint_event) = waypoint_event {
-                    objectives.update_new_enemy(&waypoint_event);
-                    writer_mutex.lock().unwrap().send(waypoint_event);
+                *acceleration += neighbors_result.acceleration;
+                if let Some(new_objective) = neighbors_result.new_objective {
+                    *objective = new_objective;
+                }
+                if let Some(waypoint_event) = neighbors_result.create_waypoint_event {
+                    create_waypoint_events.lock().unwrap().send(waypoint_event);
+                }
+                if let Some(damage_event) = neighbors_result.damage_event {
+                    damage_events.lock().unwrap().send(damage_event);
                 }
             },
         )
@@ -108,22 +176,18 @@ impl Object {
     pub fn death(
         mut objects: Query<(Entity, &GridEntity, &Health, &Transform, &Team)>,
         mut commands: Commands,
-        mut effects: ResMut<Assets<EffectAsset>>,
+        mut effect_commands: EffectCommands,
         mut grid: ResMut<Grid2<EntitySet>>,
     ) {
         for (entity, grid_entity, health, transform, team) in &mut objects {
             if health.health <= 0 {
-                let effect = effects.add(effects::firework_effect(team));
                 grid.remove(entity, grid_entity);
                 commands.entity(entity).despawn_recursive();
-                commands.spawn((
-                    Name::new("firework"),
-                    ParticleEffectBundle {
-                        effect: ParticleEffect::new(effect),
-                        transform: *transform,
-                        ..Default::default()
-                    },
-                ));
+                effect_commands.make_fireworks(FireworkSpec {
+                    size: EffectSize::Medium,
+                    transform: *transform,
+                    team: *team,
+                });
             }
         }
     }
@@ -138,11 +202,10 @@ impl Object {
         transform: &Transform,
         entities: &Query<(&Object, &Velocity, &Transform, &Team)>,
         grid: &Grid2<EntitySet>,
-        obstacles: &Grid2<Obstacle>,
-        health: &mut Health,
+        health: &Health,
         config: &Config,
-        time: &Time,
-    ) -> (Acceleration, Option<CreateWaypointEvent>) {
+        objective: &Objective,
+    ) -> ProcessNeighborsResult {
         let mut acceleration = Acceleration::ZERO;
         // Forces from other entities
         let position = transform.translation.xy();
@@ -150,6 +213,7 @@ impl Object {
 
         let mut closest_enemy_distance_squared = f32::INFINITY;
         let mut enemy_waypoint_event: Option<CreateWaypointEvent> = None;
+        let mut damage_event: Option<DamageEvent> = None;
 
         for other_entity in &other_entities {
             if entity == *other_entity {
@@ -181,19 +245,26 @@ impl Object {
                         sources: vec![position],
                     })
                 }
-                health.hit_timer.tick(time.delta());
-                if distance_squared < config.hit_radius.powi(2)
-                    && health.hit_timer.finished()
-                    && velocity.length_squared() > config.death_speed.powi(2)
+                // If we got hit.
+                if config.is_hit(distance_squared, other_velocity.length_squared())
+                    && health.damageable()
                 {
-                    health.health -= 1;
-                    health.hit_timer = Timer::from_seconds(1.0, TimerMode::Once);
+                    damage_event = Some(DamageEvent {
+                        damager: *other_entity,
+                        damaged: entity,
+                        amount: 1,
+                        velocity: other_velocity,
+                    });
                 }
             }
         }
-        acceleration += obstacles.obstacles_acceleration(position, velocity, acceleration) * 3.;
 
-        (acceleration, enemy_waypoint_event)
+        ProcessNeighborsResult {
+            acceleration,
+            new_objective: objective.next(&enemy_waypoint_event),
+            create_waypoint_event: enemy_waypoint_event,
+            damage_event,
+        }
     }
 
     #[allow(clippy::too_many_arguments)]

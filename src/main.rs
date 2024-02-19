@@ -23,13 +23,16 @@ pub mod prelude {
         camera::{CameraController, CameraMoveEvent, MainCamera},
         cursor::Cursor,
         effects,
+        effects::EffectCommands,
         grid::{
             CreateWaypointEvent, EntityFlowGrid2, EntityGridEvent, EntitySet, Grid2, Grid2Plugin,
             GridEntity, GridSize, GridSpec, Obstacle, RowCol, RowColDistance,
         },
         inputs::{ControlAction, ControlEvent, InputState},
         meshes,
-        objects::{Config, Configs, Health, Object, Objective, Objectives, Team},
+        objects::{
+            Config, Configs, Health, Object, Objective, ObjectiveDebugger, Objectives, Team,
+        },
         physics::{Acceleration, PhysicsBundle, PhysicsMaterial, PhysicsMaterialType, Velocity},
         raycast::{RaycastEvent, RaycastTarget},
         selector::Selected,
@@ -40,8 +43,6 @@ pub mod prelude {
 }
 
 use prelude::*;
-
-use bevy_hanabi::prelude::*;
 
 fn main() {
     App::new()
@@ -62,7 +63,7 @@ fn main() {
             camera::CameraPlugin,
             physics::PhysicsPlugin,
             cursor::CursorPlugin,
-            HanabiPlugin,
+            effects::EffectsPlugin,
         ))
         .add_systems(Startup, startup)
         .add_systems(

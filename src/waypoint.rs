@@ -113,6 +113,7 @@ impl Waypoint {
                 material: assets.blue_material.clone(),
                 ..default()
             },
+            Velocity::ZERO,
             self,
         )
     }
