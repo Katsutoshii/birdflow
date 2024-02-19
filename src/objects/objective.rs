@@ -13,7 +13,7 @@ impl Plugin for ObjectivePlugin {
                 Objectives::update.in_set(SystemStage::PreCompute),
                 ObjectiveDebugger::update
                     .in_set(SystemStage::PreCompute)
-                    .after(Objective::update),
+                    .after(Objectives::update),
             ),
         );
     }
@@ -74,7 +74,7 @@ pub struct AttackEntity {
 }
 
 /// Represents the objective of the owning entity.
-#[derive(Component, Default, Debug, Clone)]
+#[derive(Component, Default, Debug, Clone, PartialEq)]
 pub enum Objective {
     /// Entity has no objective.
     #[default]
@@ -88,62 +88,11 @@ pub enum Objective {
         cooldown: Timer,
     },
 }
-
-/// Represents the objectives of the owning entity.
-#[derive(Component, Default, Debug, Clone, DerefMut, Deref)]
-pub struct Objectives(pub Vec<Objective>);
-impl Objectives {
-    /// Update acceleration from the current objective.
-    pub fn update(
-        mut query: Query<(&mut Self, &Object, &Transform, &Velocity, &mut Acceleration)>,
-        others: Query<(&Transform, &Velocity)>,
-        configs: Res<Configs>,
-        navigation_grid: Res<EntityFlowGrid2>,
-        obstacles_grid: Res<Grid2<Obstacle>>,
-        time: Res<Time>,
-    ) {
-        for (mut objectives, object, transform, velocity, mut acceleration) in &mut query {
-            let config = configs.get(object);
-            if let Some(resolved) = objective.resolve(transform, &others, &time, &config.waypoint) {
-                *acceleration +=
-                    resolved.acceleration(transform, *velocity, config, &navigation_grid);
-                let current_acceleration = *acceleration;
-                *acceleration += obstacles_grid.obstacles_acceleration(
-                    transform.translation.xy(),
-                    *velocity,
-                    current_acceleration,
-                ) * config.obstacle_acceleration;
-            } else {
-                *objective = Self::None;
-            }
-        }
-    }
-
-    pub fn get_followed_entity(&self) -> Option<Entity> {
-        match self {
-            Self::AttackEntity {
-                entity,
-                frame: _,
-                cooldown: _,
-            } => Some(*entity),
-            Self::FollowEntity(entity) => Some(*entity),
-        }
-    }
-
-    /// Gets a random attack cooldown.
-    pub fn attack_cooldown() -> Duration {
-        Duration::from_millis(rand::thread_rng().gen_range(0..1200))
-    }
-
-    /// Gets a random attack delay.
-    pub fn attack_delay() -> Duration {
-        Duration::from_millis(rand::thread_rng().gen_range(0..300))
-    }
-
+impl Objective {
     /// Given an objective, get the next one (if there should be a next one, else None).
-    pub fn next(&self, event: &Option<CreateWaypointEvent>) -> Option<Self> {
+    pub fn try_attacking(&self, event: &CreateWaypointEvent) -> Option<Self> {
         match self {
-            Self::None | Self::FollowEntity(_) => event.as_ref().map(|event| Self::AttackEntity {
+            Self::None | Self::FollowEntity(_) => Some(Self::AttackEntity {
                 entity: event.entity,
                 frame: 0,
                 cooldown: Timer::from_seconds(
@@ -159,25 +108,34 @@ impl Objectives {
         }
     }
 
-    /// Resolve the entity references for the objective and store them in ResolvedObjective.
-    /// If there are invalid entity references (deleted entities), return None.
+    /// Gets a random attack delay.
+    pub fn attack_delay() -> Duration {
+        Duration::from_millis(rand::thread_rng().gen_range(0..300))
+    }
+
+    /// Gets a random attack cooldown.
+    pub fn attack_cooldown() -> Duration {
+        Duration::from_millis(rand::thread_rng().gen_range(0..1200))
+    }
+
+    /// Resolves an objective.
     pub fn resolve(
         &mut self,
         transform: &Transform,
         query: &Query<(&Transform, &Velocity)>,
         time: &Time,
         config: &ObjectiveConfig,
-    ) -> Option<ResolvedObjective> {
+    ) -> ResolvedObjective {
         match self {
-            Self::None => Some(ResolvedObjective::None),
+            Self::None => ResolvedObjective::None,
             Self::FollowEntity(entity) => {
                 if let Ok((other_transform, _other_velocity)) = query.get(*entity) {
-                    Some(ResolvedObjective::FollowEntity {
+                    ResolvedObjective::FollowEntity {
                         entity: *entity,
                         position: other_transform.translation.xy(),
-                    })
+                    }
                 } else {
-                    None
+                    ResolvedObjective::None
                 }
             }
             Self::AttackEntity {
@@ -200,22 +158,122 @@ impl Objectives {
                     if *frame > 0 {
                         *frame -= 1;
                     }
-                    Some(ResolvedObjective::AttackEntity {
+                    ResolvedObjective::AttackEntity {
                         entity: *entity,
                         position,
                         target_position,
                         frame: *frame,
-                    })
+                    }
                 } else {
-                    None
+                    ResolvedObjective::None
                 }
             }
         }
     }
+
+    pub fn get_followed_entity(&self) -> Option<Entity> {
+        match self {
+            Self::AttackEntity {
+                entity,
+                frame: _,
+                cooldown: _,
+            } => Some(*entity),
+            Self::FollowEntity(entity) => Some(*entity),
+            _ => None,
+        }
+    }
+}
+/// Represents the objectives of the owning entity.
+/// The stack always has Objective::None at the bottom.
+#[derive(Component, Debug, Clone)]
+pub struct Objectives(Vec<Objective>);
+impl Default for Objectives {
+    fn default() -> Self {
+        Self(vec![Objective::None])
+    }
+}
+impl Objectives {
+    /// Construct an objective with default to None (idle).
+    pub fn new(objective: Objective) -> Self {
+        Self(vec![Objective::None, objective])
+    }
+    /// Get the last objective.
+    pub fn last(&self) -> &Objective {
+        unsafe { self.0.get_unchecked(self.0.len() - 1) }
+    }
+    /// Get the last objective.
+    pub fn last_mut(&mut self) -> &mut Objective {
+        let i = self.0.len() - 1;
+        unsafe { self.0.get_unchecked_mut(i) }
+    }
+    /// Resets the objectives.
+    pub fn clear(&mut self) {
+        *self = Self::default();
+    }
+    /// Push an objective on the stack.
+    pub fn push(&mut self, objective: Objective) {
+        self.0.push(objective)
+    }
+    /// Pop an objective, but only if it's not the bottom None objective.
+    pub fn pop(&mut self) -> Option<Objective> {
+        if self.0.len() > 1 {
+            self.0.pop()
+        } else {
+            None
+        }
+    }
+
+    // Start attacking
+    pub fn start_attacking(&mut self, attack_enemy_event: &CreateWaypointEvent) {
+        if let Some(objective) = self.last().try_attacking(attack_enemy_event) {
+            self.push(objective);
+        }
+    }
+
+    /// Update acceleration from the current objective.
+    pub fn update(
+        mut query: Query<(&mut Self, &Object, &Transform, &Velocity, &mut Acceleration)>,
+        others: Query<(&Transform, &Velocity)>,
+        configs: Res<Configs>,
+        navigation_grid: Res<EntityFlowGrid2>,
+        obstacles_grid: Res<Grid2<Obstacle>>,
+        time: Res<Time>,
+    ) {
+        for (mut objectives, object, transform, velocity, mut acceleration) in &mut query {
+            let config = configs.get(object);
+            let resolved = objectives.resolve(transform, &others, &time, &config.waypoint);
+            *acceleration += resolved.acceleration(transform, *velocity, config, &navigation_grid);
+            let current_acceleration = *acceleration;
+            *acceleration += obstacles_grid.obstacles_acceleration(
+                transform.translation.xy(),
+                *velocity,
+                current_acceleration,
+            ) * config.obstacle_acceleration;
+        }
+    }
+
+    /// Resolve the entity references for the objective and store them in ResolvedObjective.
+    /// If there are invalid entity references (deleted entities), remove those objectives.
+    pub fn resolve(
+        &mut self,
+        transform: &Transform,
+        query: &Query<(&Transform, &Velocity)>,
+        time: &Time,
+        config: &ObjectiveConfig,
+    ) -> ResolvedObjective {
+        while self.last() != &Objective::None {
+            let resolved = self.last_mut().resolve(transform, query, time, config);
+            if resolved != ResolvedObjective::None {
+                return resolved;
+            }
+            self.0.pop();
+        }
+        ResolvedObjective::None
+    }
 }
 
 /// Represents the objective of the owning entity.
-#[derive(Component, Default, Debug, Clone)]
+#[derive(Component, Default, Debug, Clone, PartialEq)]
 pub enum ResolvedObjective {
     /// Entity has no objective.
     #[default]
@@ -274,8 +332,8 @@ impl ResolvedObjective {
             }
             Self::None => {
                 // If no objective, slow down and circle about.
-                let half_velocity = velocity.0 / 2.;
-                Acceleration(Mat2::from_angle(PI / 16.) * half_velocity - half_velocity)
+                let reduce_velocity = velocity.0 / 2.;
+                Acceleration(Mat2::from_angle(PI / 16.) * reduce_velocity - reduce_velocity)
             }
         }
     }

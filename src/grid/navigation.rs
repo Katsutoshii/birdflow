@@ -244,8 +244,8 @@ impl EntityFlowGrid2 {
     }
 
     /// Compute acceleration using the weighted sum of the 4 neighboring cells and the current cell.
-    pub fn flow_acceleration5(&self, position: Vec2, entity: Entity) -> Acceleration {
-        if let Some(flow_grid) = self.get(&entity) {
+    pub fn flow_acceleration5(&mut self, position: Vec2, entity: Entity) -> Acceleration {
+        if let Some(flow_grid) = self.get_mut(&entity) {
             flow_grid.flow_acceleration5(position)
         } else {
             Acceleration::ZERO
@@ -279,10 +279,8 @@ impl EntityFlowGrid2 {
     ) {
         let mut followed_entities = HashSet::new();
         for objectives in all_objectives.iter() {
-            if let Some(objective) = objectives.last() {
-                if let Some(entity) = objective.get_followed_entity() {
-                    followed_entities.insert(entity);
-                }
+            if let Some(entity) = objectives.last().get_followed_entity() {
+                followed_entities.insert(entity);
             }
         }
         let entities_to_remove: Vec<Entity> = grid

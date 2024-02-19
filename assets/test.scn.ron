@@ -57,7 +57,7 @@
         waypoint: (
           max_acceleration: 3.0,
           repell_radius: 64.0,
-          slow_factor: 0.5,
+          slow_factor: 0.3,
           attack_radius: 265.0,
         ),
         worker: (
@@ -68,7 +68,7 @@
         ),
         head: (
           separation_radius: 100.0,
-          separation_acceleration: 10.7,
+          separation_acceleration: 3.,
           cohesion_acceleration: 0.5,
           alignment_factor: 100.0,
           slow_factor: 0.1
@@ -88,7 +88,7 @@
         waypoint: (
           max_acceleration: 3.5,
           repell_radius: 20.0,
-          slow_factor: 0.0
+          slow_factor: 0.3
         ),
         worker: (
           separation_radius: 40.0,

@@ -94,8 +94,7 @@ impl DamageEvent {
 /// Stores results from processing neighboring objects.
 pub struct ProcessNeighborsResult {
     acceleration: Acceleration,
-    new_objective: Option<Objective>,
-    create_waypoint_event: Option<CreateWaypointEvent>,
+    attack_event: Option<CreateWaypointEvent>,
     damage_event: Option<DamageEvent>,
 }
 
@@ -143,7 +142,7 @@ impl Object {
                 &velocity,
                 mut acceleration,
                 mut objectives,
-                mut health,
+                health,
                 transform,
                 team,
             )| {
@@ -157,14 +156,11 @@ impl Object {
                     &grid,
                     &health,
                     config,
-                    &objective,
                 );
                 *acceleration += neighbors_result.acceleration;
-                if let Some(new_objective) = neighbors_result.new_objective {
-                    *objective = new_objective;
-                }
-                if let Some(waypoint_event) = neighbors_result.create_waypoint_event {
-                    create_waypoint_events.lock().unwrap().send(waypoint_event);
+                if let Some(attack_event) = neighbors_result.attack_event {
+                    objectives.start_attacking(&attack_event);
+                    create_waypoint_events.lock().unwrap().send(attack_event);
                 }
                 if let Some(damage_event) = neighbors_result.damage_event {
                     damage_events.lock().unwrap().send(damage_event);
@@ -204,7 +200,6 @@ impl Object {
         grid: &Grid2<EntitySet>,
         health: &Health,
         config: &Config,
-        objective: &Objective,
     ) -> ProcessNeighborsResult {
         let mut acceleration = Acceleration::ZERO;
         // Forces from other entities
@@ -212,7 +207,7 @@ impl Object {
         let other_entities = grid.get_entities_in_radius(position, config);
 
         let mut closest_enemy_distance_squared = f32::INFINITY;
-        let mut enemy_waypoint_event: Option<CreateWaypointEvent> = None;
+        let mut attack_event: Option<CreateWaypointEvent> = None;
         let mut damage_event: Option<DamageEvent> = None;
 
         for other_entity in &other_entities {
@@ -239,7 +234,7 @@ impl Object {
                 let distance_squared = delta.length_squared();
                 if distance_squared < closest_enemy_distance_squared {
                     closest_enemy_distance_squared = distance_squared;
-                    enemy_waypoint_event = Some(CreateWaypointEvent {
+                    attack_event = Some(CreateWaypointEvent {
                         entity: *other_entity,
                         destination: other_position,
                         sources: vec![position],
@@ -258,11 +253,9 @@ impl Object {
                 }
             }
         }
-
         ProcessNeighborsResult {
             acceleration,
-            new_objective: objective.next(&enemy_waypoint_event),
-            create_waypoint_event: enemy_waypoint_event,
+            attack_event,
             damage_event,
         }
     }

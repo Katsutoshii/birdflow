@@ -81,7 +81,7 @@ impl ZooidHead {
                 entity_commands.with_children(|parent| {
                     parent.spawn(ZooidHeadBackground.bundle(&assets, team));
                 });
-                entity_commands.insert(Objectives(vec![Objective::FollowEntity(entity)]));
+                entity_commands.insert(Objectives::new(Objective::FollowEntity(entity)));
                 event_writer.send(CreateWaypointEvent {
                     entity,
                     destination: position,
@@ -118,7 +118,7 @@ impl ZooidHead {
     /// System to spawn zooids on Z key.
     pub fn spawn_zooids(
         mut commands: Commands,
-        query: Query<(&Self, Entity, &Transform, &Velocity, &Objectives, &Team)>,
+        query: Query<(&Self, Entity, &Transform, &Velocity, &Team)>,
         configs: Res<Configs>,
         assets: Res<ZooidAssets>,
         mut control_events: EventReader<ControlEvent>,
@@ -126,7 +126,7 @@ impl ZooidHead {
         let config = configs.get(&Object::Worker(ZooidWorker::default()));
         for control_event in control_events.read() {
             if control_event.is_pressed(ControlAction::SpawnZooid) {
-                for (_head, head_id, transform, velocity, objectives, team) in &query {
+                for (_head, head_id, transform, velocity, team) in &query {
                     let num_zooids = 1;
                     for i in 1..=num_zooids {
                         let zindex = zindex::ZOOIDS_MIN
@@ -140,7 +140,7 @@ impl ZooidHead {
                                 + velocity.extend(0.)
                                 + Vec3::Z * zindex,
                             velocity,
-                            objectives: Objectives(vec![Objective::FollowEntity(head_id)]),
+                            objectives: Objectives::new(Objective::FollowEntity(head_id)),
                             ..default()
                         }
                         .spawn(&mut commands);
@@ -166,11 +166,6 @@ impl ZooidHead {
             if let Object::Worker(_) = object {
                 commands.entity(entity).despawn_recursive();
                 entities.insert(entity);
-            }
-        }
-        for (_, _, _, mut objectives) in &mut objects {
-            if let Some(Objective::FollowEntity(_)) = objectives.last() {
-                objectives.pop();
             }
         }
     }
