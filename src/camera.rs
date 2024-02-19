@@ -116,7 +116,7 @@ impl CameraController {
     pub fn update_drag(
         mut controller_query: Query<(&mut Self, &mut Transform), With<MainCamera>>,
         cursor: Query<&GlobalTransform, (With<Cursor>, Without<MainCamera>)>,
-        mouse_input: Res<Input<MouseButton>>,
+        mouse_input: Res<ButtonInput<MouseButton>>,
         mut event_writer: EventWriter<CameraMoveEvent>,
     ) {
         let (mut controller, mut camera_transform) = controller_query.single_mut();

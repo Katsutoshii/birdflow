@@ -155,7 +155,7 @@ impl ZooidHead {
         mut objects: Query<(Entity, &GridEntity, &Object, &mut Objective)>,
         mut commands: Commands,
         mut grid: ResMut<Grid2<EntitySet>>,
-        keyboard_input: Res<Input<KeyCode>>,
+        keyboard_input: Res<ButtonInput<KeyCode>>,
     ) {
         if !keyboard_input.just_pressed(KeyCode::D) {
             return;

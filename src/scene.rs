@@ -50,7 +50,7 @@ pub fn load_system(mut commands: Commands, asset_server: Res<AssetServer>) {
 pub fn save_system(
     world: &World,
     query: Query<Entity, With<SaveEntity>>,
-    keyboard_input: Res<Input<KeyCode>>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
 ) {
     if !keyboard_input.just_pressed(KeyCode::S) {
         return;

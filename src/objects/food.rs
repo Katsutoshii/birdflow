@@ -27,7 +27,7 @@ impl Food {
         mut commands: Commands,
         assets: Res<ZooidAssets>,
         grid_spec: Res<GridSpec>,
-        keyboard_input: Res<Input<KeyCode>>,
+        keyboard_input: Res<ButtonInput<KeyCode>>,
     ) {
         if !keyboard_input.just_pressed(KeyCode::F) {
             return;

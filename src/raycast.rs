@@ -1,5 +1,4 @@
 use bevy::{ecs::query::QueryIter, prelude::*, sprite::Mesh2dHandle, utils::FloatOrd};
-use bevy_mod_raycast::prelude::*;
 
 #[derive(Component, Default, PartialEq, Debug, Clone, Copy)]
 pub enum RaycastTarget {
@@ -27,7 +26,7 @@ pub struct RaycastEvent {
 
 /// Send a raycast and return an event with intersection data.
 pub fn raycast(
-    ray: Ray3d,
+    ray: bevy_mod_raycast::prelude::Ray3d,
     meshes: QueryIter<(Entity, &RaycastTarget, &Mesh2dHandle, &GlobalTransform), ()>,
     mesh_assets: &Assets<Mesh>,
 ) -> Option<RaycastEvent> {
@@ -36,9 +35,12 @@ pub fn raycast(
         let mesh = mesh_assets.get(&mesh_handle.0).unwrap();
         let mesh_to_world = transform.compute_matrix();
         let world_to_mesh = mesh_to_world.inverse();
-        if let Some(intersection) =
-            ray_intersection_over_mesh(mesh, &mesh_to_world, &ray, Backfaces::Include)
-        {
+        if let Some(intersection) = bevy_mod_raycast::prelude::ray_intersection_over_mesh(
+            mesh,
+            &mesh_to_world,
+            &ray,
+            bevy_mod_raycast::prelude::Backfaces::Include,
+        ) {
             let distance = FloatOrd(intersection.distance());
             let event = RaycastEvent {
                 entity,

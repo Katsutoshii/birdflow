@@ -112,8 +112,8 @@ pub struct InputEvent {
 }
 impl InputEvent {
     fn process_input(
-        input: &Input<MouseButton>,
-        keyboard_input: &Input<KeyCode>,
+        input: &ButtonInput<MouseButton>,
+        keyboard_input: &ButtonInput<KeyCode>,
         action: InputAction,
         ray: Ray3d,
     ) -> Option<Self> {
@@ -158,8 +158,8 @@ impl InputEvent {
     }
 
     pub fn update(
-        mouse_input: Res<Input<MouseButton>>,
-        keyboard_input: Res<Input<KeyCode>>,
+        mouse_input: Res<ButtonInput<MouseButton>>,
+        keyboard_input: Res<ButtonInput<KeyCode>>,
         cursor: Query<&GlobalTransform, With<Cursor>>,
         mut event_writer: EventWriter<Self>,
     ) {
