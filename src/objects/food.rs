@@ -31,7 +31,6 @@ impl Food {
     ) {
         for control_event in control_events.read() {
             if control_event.is_pressed(ControlAction::SpawnFood) {
-                println!("Spawn food");
                 commands
                     .spawn(Food { period_sec: 1.0 }.bundle(control_event.position, &assets))
                     .with_children(|parent| {

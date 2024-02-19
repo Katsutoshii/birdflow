@@ -12,7 +12,9 @@ impl Plugin for ObjectivePlugin {
         app.register_type::<ObjectiveConfig>().add_systems(
             FixedUpdate,
             (
-                Objectives::update.in_set(SystemStage::PreCompute),
+                Objectives::update
+                    .in_set(SystemStage::PreCompute)
+                    .after(NavigationGrid2::update_waypoints),
                 ObjectiveDebugger::update
                     .in_set(SystemStage::PreCompute)
                     .after(Objectives::update),
@@ -356,9 +358,9 @@ impl ResolvedObjective {
         slow_factor: f32,
     ) -> Acceleration {
         let target_cell = grid_spec.to_rowcol(target_position);
-        if let Some(flow_grid) = navigation_grid.get(&target_cell) {
-            let target_cell_position = flow_grid.to_world_position(target_cell);
-            let flow_acceleration = flow_grid.flow_acceleration5(position) * config.nav_flow_factor;
+        if let Some(nav) = navigation_grid.get(&target_cell) {
+            let target_cell_position = nav.grid.to_world_position(target_cell);
+            let flow_acceleration = nav.grid.flow_acceleration5(position) * config.nav_flow_factor;
             flow_acceleration
                 + config.waypoint.slow_force(
                     velocity,
@@ -367,10 +369,11 @@ impl ResolvedObjective {
                     flow_acceleration,
                 ) * slow_factor
         } else {
-            warn!(
-                "Missing target_cell. This is okay if it's only for one frame. {:?}",
-                target_cell
-            );
+            // TODO figure out why this logs sometimes. Commenting out to avoid spamming.
+            // warn!(
+            //     "Missing target_cell. This is okay if it's only for one frame. {:?}",
+            //     target_cell
+            // );
             Acceleration::ZERO
         }
     }

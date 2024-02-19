@@ -10,8 +10,10 @@ impl Plugin for WaypointPlugin {
         app.init_resource::<WaypointAssets>().add_systems(
             FixedUpdate,
             (
-                Waypoint::update.in_set(SystemStage::Compute),
-                Waypoint::cleanup.in_set(SystemStage::PostApply),
+                Waypoint::update.in_set(SystemStage::PostApply),
+                Waypoint::cleanup
+                    .in_set(SystemStage::PostApply)
+                    .after(Waypoint::update),
             ),
         );
     }
