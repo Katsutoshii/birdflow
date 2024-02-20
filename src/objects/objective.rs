@@ -22,8 +22,7 @@ impl Plugin for ObjectivePlugin {
         );
     }
 }
-#[derive(Resource, Debug, Clone, Reflect)]
-#[reflect(Resource)]
+#[derive(Debug, Clone, Reflect)]
 pub struct ObjectiveConfig {
     pub max_acceleration: f32,
     pub repell_radius: f32,

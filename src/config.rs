@@ -1,17 +1,26 @@
 use bevy::prelude::*;
 use bevy::utils::HashMap;
 
-use crate::objects::{InteractionConfig, ObjectConfig};
+use crate::objects::{InteractionConfig, ObjectConfig, TestInteractionConfigs};
 use crate::prelude::*;
 
 pub struct ConfigPlugin;
 impl Plugin for ConfigPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<Vec2>()
-            .register_type::<Configs>()
-            .register_type::<ObjectConfig>()
+            .register_type::<Team>()
+            .register_type::<Object>()
+            .register_type::<ObjectiveConfig>()
+            .register_type::<PhysicsMaterialType>()
             .register_type::<InteractionConfig>()
-            .register_type::<Team>();
+            .register_type::<TestInteractionConfigs>()
+            .register_type::<HashMap<PhysicsMaterialType, InteractionConfig>>()
+            .register_type::<HashMap<Object, ObjectConfig>>()
+            .register_type::<HashMap<Object, InteractionConfig>>()
+            .register_type::<ObjectConfig>()
+            .register_type::<ObjectConfigs>()
+            .register_type::<InteractionConfigs>()
+            .register_type::<Configs>();
     }
 }
 
@@ -27,5 +36,5 @@ pub struct Configs {
     pub cursor_sensitivity: f32,
 
     // Configs per object type.
-    pub objects: HashMap<Object, ObjectConfig>,
+    pub objects: ObjectConfigs,
 }

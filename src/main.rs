@@ -33,8 +33,8 @@ pub mod prelude {
         inputs::{ControlAction, ControlEvent, InputState},
         meshes,
         objects::{
-            DamageEvent, Health, Object, ObjectConfig, Objective, ObjectiveDebugger, Objectives,
-            Team,
+            DamageEvent, Health, InteractionConfigs, Object, ObjectConfig, ObjectConfigs,
+            Objective, ObjectiveConfig, ObjectiveDebugger, Objectives, Team,
         },
         physics::{Acceleration, PhysicsBundle, PhysicsMaterial, PhysicsMaterialType, Velocity},
         raycast::{RaycastEvent, RaycastTarget},
@@ -56,6 +56,7 @@ fn main() {
                     ..default()
                 })
                 .set(window::custom_plugin()),
+            config::ConfigPlugin,
             inputs::InputActionPlugin,
             grid::GridPlugin,
             objects::ObjectsPlugin,

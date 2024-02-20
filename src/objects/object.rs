@@ -34,17 +34,13 @@ pub struct ProcessNeighborsResult {
 }
 
 /// Entities that can interact with each other.
-#[derive(Component, Reflect, Clone, PartialEq, Eq, Hash)]
+#[derive(Component, Reflect, Default, Clone, PartialEq, Eq, Hash)]
 #[reflect(Component)]
 pub enum Object {
+    #[default]
     Worker,
     Head,
     Food,
-}
-impl Default for Object {
-    fn default() -> Self {
-        Self::Worker
-    }
 }
 impl Object {
     /// Update objects acceleration and objectives.
