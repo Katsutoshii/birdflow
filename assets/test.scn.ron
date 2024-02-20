@@ -7,12 +7,16 @@
       visualize: false,
     ),
     "birdflow::grid::obstacles::ObstaclesSpec": ([
-      // ((104, 104), Full),
-      // ((107, 102), Full),
-      // ((104, 105), Full),
-      // ((105, 105), DownRight),
-      // ((105, 106), Full),
-      // ((104, 106), UpLeft),
+      ((134, 134), Full),
+      ((134, 135), Full),
+      ((134, 136), Full),
+      ((134, 137), Full),
+      ((134, 138), Full),
+      ((137, 122), Full),
+      ((134, 125), Full),
+      ((135, 125), DownRight),
+      ((135, 126), Full),
+      ((134, 126), UpLeft),
     ]),
     "birdflow::physics::PhysicsMaterials": PhysicsMaterials(
       {

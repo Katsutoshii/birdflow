@@ -34,7 +34,7 @@ impl Plugin for ObstaclesPlugin {
 }
 
 // Represents obstacle presence and orientation
-#[derive(Default, Reflect, Clone, Copy, PartialEq, Eq)]
+#[derive(Default, Reflect, Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u16)]
 pub enum Obstacle {
     #[default]
