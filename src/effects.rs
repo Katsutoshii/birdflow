@@ -9,7 +9,8 @@ pub struct EffectsPlugin;
 impl Plugin for EffectsPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(HanabiPlugin)
-            .init_resource::<EffectAssets>();
+            .init_resource::<EffectAssets>()
+            .add_systems(FixedUpdate, ScheduleDespawn::despawn);
     }
 }
 
@@ -116,6 +117,24 @@ pub struct FireworkSpec {
     pub size: EffectSize,
 }
 
+/// Schedule despawn for a particle.
+#[derive(Component, DerefMut, Deref)]
+pub struct ScheduleDespawn(pub Timer);
+impl ScheduleDespawn {
+    pub fn despawn(
+        mut query: Query<(Entity, &mut ScheduleDespawn)>,
+        time: Res<Time>,
+        mut commands: Commands,
+    ) {
+        for (entity, mut timer) in &mut query {
+            timer.tick(time.delta());
+            if timer.finished() {
+                commands.entity(entity).despawn_recursive();
+            }
+        }
+    }
+}
+
 /// System param to allow spawning effects.
 #[derive(SystemParam)]
 pub struct EffectCommands<'w, 's> {
@@ -126,6 +145,7 @@ impl EffectCommands<'_, '_> {
     pub fn make_fireworks(&mut self, spec: FireworkSpec) {
         self.commands.spawn((
             Name::new("firework"),
+            ScheduleDespawn(Timer::from_seconds(0.5, TimerMode::Once)),
             ParticleEffectBundle {
                 effect: ParticleEffect::new(match spec.size {
                     EffectSize::Small => self.assets.small_fireworks[spec.team].clone(),

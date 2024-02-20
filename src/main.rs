@@ -72,7 +72,7 @@ fn main() {
         .add_systems(Startup, startup)
         .add_systems(
             FixedUpdate,
-            (window::resize_window.in_set(SystemStage::Spawn),),
+            (window::resize_window.in_set(SystemStage::Spawn), update),
         )
         .run();
 }
@@ -100,4 +100,12 @@ fn startup(mut commands: Commands) {
         align_self: AlignSelf::FlexEnd,
         ..default()
     }),));
+}
+
+pub fn update(query: Query<Entity>) {
+    let mut count = 0;
+    for _entity in &query {
+        count += 1
+    }
+    info!("{:?}", count);
 }
