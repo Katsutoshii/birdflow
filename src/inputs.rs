@@ -57,9 +57,10 @@ pub enum InputAction {
     SpawnZooid,
     SpawnRed,
     SpawnBlue,
+    SpawnFood,
 }
 impl InputAction {
-    const NUM_ACTIONS: usize = 7;
+    const NUM_ACTIONS: usize = 8;
     const ACTIONS: [Self; Self::NUM_ACTIONS] = [
         Self::Primary,
         Self::Secondary,
@@ -68,6 +69,7 @@ impl InputAction {
         Self::SpawnZooid,
         Self::SpawnRed,
         Self::SpawnBlue,
+        Self::SpawnFood,
     ];
     pub fn mouse_buttons() -> Vec<MouseButton> {
         let mut result = Vec::new();
@@ -99,6 +101,7 @@ impl From<InputAction> for RawInput {
             InputAction::SpawnRed => Self::KeyCode(KeyCode::Minus),
             InputAction::SpawnBlue => Self::KeyCode(KeyCode::Equals),
             InputAction::SpawnZooid => Self::KeyCode(KeyCode::Z),
+            InputAction::SpawnFood => Self::KeyCode(KeyCode::F),
         }
     }
 }
@@ -213,16 +216,11 @@ impl ControlEvent {
                 position: grid_spec
                     .local_to_world_position(raycast_event.position * Vec2 { x: 1., y: -1. }),
             }),
-            (_, InputAction::SpawnHead) => {
-                if event.state == InputState::Pressed {
-                    info!("SpawnHead");
-                }
-                Some(Self {
-                    action: ControlAction::SpawnHead,
-                    state: event.state,
-                    position: raycast_event.world_position,
-                })
-            }
+            (_, InputAction::SpawnHead) => Some(Self {
+                action: ControlAction::SpawnHead,
+                state: event.state,
+                position: raycast_event.world_position,
+            }),
             (_, InputAction::SpawnZooid) => Some(Self {
                 action: ControlAction::SpawnZooid,
                 state: event.state,
@@ -235,6 +233,11 @@ impl ControlEvent {
             }),
             (_, InputAction::SpawnBlue) => Some(Self {
                 action: ControlAction::SpawnBlue,
+                state: event.state,
+                position: raycast_event.world_position,
+            }),
+            (_, InputAction::SpawnFood) => Some(Self {
+                action: ControlAction::SpawnFood,
                 state: event.state,
                 position: raycast_event.world_position,
             }),
@@ -296,6 +299,7 @@ pub enum ControlAction {
     SpawnZooid,
     SpawnRed,
     SpawnBlue,
+    SpawnFood,
 }
 
 /// Collection of timers to prevent input action spam.
@@ -306,7 +310,7 @@ impl Default for ControlTimers {
         let mut timers = Self(HashMap::default());
         timers.insert(
             ControlAction::Move,
-            Timer::new(Duration::from_millis(100), TimerMode::Repeating),
+            Timer::new(Duration::from_millis(500), TimerMode::Repeating),
         );
         timers
     }

@@ -45,8 +45,8 @@ impl ZooidWorker {
                 None
             };
             if let Some(team) = team {
-                let object = Object::Worker(ZooidWorker::default());
-                let config = configs.get(&object);
+                let object = Object::Worker;
+                let config = configs.objects.get(&object).unwrap();
                 ZooidWorkerBundler {
                     team,
                     mesh: assets.mesh.clone(),
@@ -69,7 +69,7 @@ pub struct ZooidWorkerBundler {
     pub mesh: Handle<Mesh>,
     pub team_materials: TeamMaterials,
     pub translation: Vec3,
-    pub objective: Objective,
+    pub objectives: Objectives,
     pub velocity: Vec2,
 }
 impl ZooidWorkerBundler {
@@ -87,7 +87,8 @@ impl ZooidWorkerBundler {
 
     pub fn bundle(self) -> impl Bundle {
         (
-            Object::Worker(self.worker),
+            self.worker,
+            Object::Worker,
             self.team,
             GridEntity::default(),
             PhysicsBundle {
@@ -95,7 +96,7 @@ impl ZooidWorkerBundler {
                 velocity: Velocity(self.velocity),
                 ..default()
             },
-            self.objective,
+            self.objectives,
             MaterialMesh2dBundle::<ColorMaterial> {
                 mesh: self.mesh.into(),
                 transform: Transform::default()
@@ -105,7 +106,7 @@ impl ZooidWorkerBundler {
                 ..default()
             },
             Selected::default(),
-            Health::default(),
+            Health::new(3),
             Name::new("Zooid"),
         )
     }

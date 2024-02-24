@@ -2,7 +2,7 @@ use std::sync::Mutex;
 
 use self::effects::{EffectCommands, EffectSize, FireworkSpec};
 
-use super::{zooid_worker::ZooidWorker, InteractionConfig};
+use super::{DamageEvent, InteractionConfig};
 use crate::prelude::*;
 use bevy::prelude::*;
 
@@ -10,107 +10,37 @@ use bevy::prelude::*;
 pub struct ObjectPlugin;
 impl Plugin for ObjectPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<DamageEvent>()
-            .register_type::<Object>()
-            .add_systems(
-                FixedUpdate,
-                (
-                    Object::update.in_set(SystemStage::Compute),
-                    Health::update
-                        .in_set(SystemStage::Compute)
-                        .after(Object::update),
-                    DamageEvent::update
-                        .in_set(SystemStage::Compute)
-                        .after(Health::update),
-                    Object::death.in_set(SystemStage::Despawn),
-                ),
-            );
+        app.register_type::<Object>().add_systems(
+            FixedUpdate,
+            (
+                Object::update.in_set(SystemStage::Compute),
+                Object::death.in_set(SystemStage::Despawn),
+            ),
+        );
     }
 }
 
-#[derive(Component)]
-pub struct Health {
-    pub health: i32,
-    pub hit_timer: Timer,
-}
-impl Default for Health {
-    fn default() -> Self {
-        Self {
-            health: 3,
-            hit_timer: Timer::from_seconds(0.5, TimerMode::Once),
-        }
-    }
-}
-impl Health {
-    pub fn damageable(&self) -> bool {
-        self.hit_timer.finished()
-    }
-    pub fn damage(&mut self, amount: i32) {
-        self.health -= amount;
-        self.hit_timer = Timer::from_seconds(0.5, TimerMode::Once);
-    }
-    pub fn update(mut query: Query<&mut Health>, time: Res<Time>) {
-        for mut health in query.iter_mut() {
-            health.hit_timer.tick(time.delta());
-        }
-    }
-}
-
-#[derive(Event)]
-pub struct DamageEvent {
-    pub damager: Entity,
-    pub damaged: Entity,
-    pub amount: i32,
-    pub velocity: Velocity,
-}
-impl DamageEvent {
-    pub fn update(
-        mut query: Query<(&mut Acceleration, &mut Health, &Team, &Transform)>,
-        mut events: EventReader<DamageEvent>,
-        mut effects: EffectCommands,
-    ) {
-        for event in events.read() {
-            // Knock back the damager
-            if let Ok((mut acceleration, _health, _team, _transform)) = query.get_mut(event.damager)
-            {
-                *acceleration -= Acceleration(event.velocity.0 * 5.);
-            }
-            // Reduce health and set off firework for the damaged.
-            if let Ok((mut acceleration, mut health, &team, &transform)) =
-                query.get_mut(event.damaged)
-            {
-                health.damage(event.amount);
-                effects.make_fireworks(FireworkSpec {
-                    size: EffectSize::Small,
-                    team,
-                    transform,
-                });
-                *acceleration += Acceleration(event.velocity.0 * 2.);
-            }
-        }
-    }
+/// Signals to begin attacking.
+pub struct AttackEvent {
+    pub entity: Entity,
+    pub waypoint_event: CreateWaypointEvent,
 }
 
 /// Stores results from processing neighboring objects.
 pub struct ProcessNeighborsResult {
-    acceleration: Acceleration,
-    new_objective: Option<Objective>,
-    create_waypoint_event: Option<CreateWaypointEvent>,
-    damage_event: Option<DamageEvent>,
+    pub acceleration: Acceleration,
+    pub attack_event: Option<AttackEvent>,
+    pub damage_event: Option<DamageEvent>,
 }
 
 /// Entities that can interact with each other.
-#[derive(Component, Reflect, Clone)]
+#[derive(Component, Reflect, Default, Clone, PartialEq, Eq, Hash)]
 #[reflect(Component)]
 pub enum Object {
-    Worker(ZooidWorker),
+    #[default]
+    Worker,
     Head,
     Food,
-}
-impl Default for Object {
-    fn default() -> Self {
-        Self::Worker(ZooidWorker::default())
-    }
 }
 impl Object {
     /// Update objects acceleration and objectives.
@@ -122,7 +52,7 @@ impl Object {
             &Self,
             &Velocity,
             &mut Acceleration,
-            &mut Objective,
+            &mut Objectives,
             &mut Health,
             &Transform,
             &Team,
@@ -139,16 +69,16 @@ impl Object {
         objects.par_iter_mut().for_each(
             |(
                 entity,
-                zooid,
+                object,
                 &velocity,
                 mut acceleration,
-                mut objective,
+                mut objectives,
                 health,
                 transform,
                 team,
             )| {
-                let config = configs.get(zooid);
-                let neighbors_result = zooid.process_neighbors(
+                let config = configs.objects.get(object).unwrap();
+                let neighbors_result = object.process_neighbors(
                     entity,
                     team,
                     velocity,
@@ -157,14 +87,14 @@ impl Object {
                     &grid,
                     &health,
                     config,
-                    &objective,
                 );
                 *acceleration += neighbors_result.acceleration;
-                if let Some(new_objective) = neighbors_result.new_objective {
-                    *objective = new_objective;
-                }
-                if let Some(waypoint_event) = neighbors_result.create_waypoint_event {
-                    create_waypoint_events.lock().unwrap().send(waypoint_event);
+                if let Some(attack_event) = neighbors_result.attack_event {
+                    objectives.start_attacking(&attack_event);
+                    create_waypoint_events
+                        .lock()
+                        .unwrap()
+                        .send(attack_event.waypoint_event);
                 }
                 if let Some(damage_event) = neighbors_result.damage_event {
                     damage_events.lock().unwrap().send(damage_event);
@@ -174,12 +104,12 @@ impl Object {
     }
 
     pub fn death(
-        mut objects: Query<(Entity, &GridEntity, &Health, &Transform, &Team)>,
+        mut objects: Query<(Entity, &Self, &GridEntity, &Health, &Transform, &Team)>,
         mut commands: Commands,
         mut effect_commands: EffectCommands,
         mut grid: ResMut<Grid2<EntitySet>>,
     ) {
-        for (entity, grid_entity, health, transform, team) in &mut objects {
+        for (entity, object, grid_entity, health, transform, team) in &mut objects {
             if health.health <= 0 {
                 grid.remove(entity, grid_entity);
                 commands.entity(entity).despawn_recursive();
@@ -188,6 +118,9 @@ impl Object {
                     transform: *transform,
                     team: *team,
                 });
+                if object == &Object::Food {
+                    // commands.spawn()
+                }
             }
         }
     }
@@ -203,8 +136,7 @@ impl Object {
         entities: &Query<(&Object, &Velocity, &Transform, &Team)>,
         grid: &Grid2<EntitySet>,
         health: &Health,
-        config: &Config,
-        objective: &Objective,
+        config: &ObjectConfig,
     ) -> ProcessNeighborsResult {
         let mut acceleration = Acceleration::ZERO;
         // Forces from other entities
@@ -212,7 +144,7 @@ impl Object {
         let other_entities = grid.get_entities_in_radius(position, config);
 
         let mut closest_enemy_distance_squared = f32::INFINITY;
-        let mut enemy_waypoint_event: Option<CreateWaypointEvent> = None;
+        let mut attack_event: Option<AttackEvent> = None;
         let mut damage_event: Option<DamageEvent> = None;
 
         for other_entity in &other_entities {
@@ -236,15 +168,21 @@ impl Object {
                     other_entities.len(),
                 ) * (1.0 / (other_entities.len() as f32));
             } else {
+                // If the other entity is on the enemy team:
                 let distance_squared = delta.length_squared();
-                if distance_squared < closest_enemy_distance_squared {
+
+                // Try attacking, only workers can attack.
+                if *self == Self::Worker && distance_squared < closest_enemy_distance_squared {
                     closest_enemy_distance_squared = distance_squared;
-                    enemy_waypoint_event = Some(CreateWaypointEvent {
+                    attack_event = Some(AttackEvent {
                         entity: *other_entity,
-                        destination: other_position,
-                        sources: vec![position],
+                        waypoint_event: CreateWaypointEvent {
+                            destination: other_position,
+                            sources: vec![position],
+                        },
                     })
                 }
+
                 // If we got hit.
                 if config.is_hit(distance_squared, other_velocity.length_squared())
                     && health.damageable()
@@ -258,11 +196,9 @@ impl Object {
                 }
             }
         }
-
         ProcessNeighborsResult {
             acceleration,
-            new_objective: objective.next(&enemy_waypoint_event),
-            create_waypoint_event: enemy_waypoint_event,
+            attack_event,
             damage_event,
         }
     }
@@ -275,11 +211,11 @@ impl Object {
         other: &Self,
         other_transform: &Transform,
         other_velocity: Velocity,
-        config: &Config,
+        config: &ObjectConfig,
         num_others: usize,
     ) -> Acceleration {
         let mut acceleration = Acceleration::ZERO;
-        let interaction = config.get_interaction(other);
+        let interaction = config.interactions.get(other).unwrap();
         let position_delta =
             transform.translation.truncate() - other_transform.translation.truncate(); // Towards self, away from other.
         let distance_squared = position_delta.length_squared();

@@ -86,7 +86,7 @@ impl Grid2<EntitySet> {
         None
     }
 
-    pub fn get_entities_in_radius(&self, position: Vec2, config: &Config) -> HashSet<Entity> {
+    pub fn get_entities_in_radius(&self, position: Vec2, config: &ObjectConfig) -> HashSet<Entity> {
         let mut other_entities: HashSet<Entity> = HashSet::default();
         let positions = self.get_in_radius(position, config.neighbor_radius);
         for rowcol in positions {

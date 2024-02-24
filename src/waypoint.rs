@@ -10,8 +10,10 @@ impl Plugin for WaypointPlugin {
         app.init_resource::<WaypointAssets>().add_systems(
             FixedUpdate,
             (
-                Waypoint::update.in_set(SystemStage::Compute),
-                Waypoint::cleanup.in_set(SystemStage::PostApply),
+                Waypoint::update.in_set(SystemStage::PostApply),
+                Waypoint::cleanup
+                    .in_set(SystemStage::PostApply)
+                    .after(Waypoint::update),
             ),
         );
     }
@@ -32,7 +34,7 @@ impl Default for Waypoint {
 }
 impl Waypoint {
     pub fn cleanup(
-        objectives: Query<&Objective, Without<Waypoint>>,
+        all_objectives: Query<&Objectives, Without<Waypoint>>,
         waypoints: Query<Entity, With<Waypoint>>,
         mut commands: Commands,
         mut input_actions: EventReader<ControlEvent>,
@@ -48,8 +50,8 @@ impl Waypoint {
             }
 
             let mut followed_entities = HashSet::new();
-            for objective in objectives.iter() {
-                if let Some(entity) = objective.get_followed_entity() {
+            for objectives in all_objectives.iter() {
+                if let Some(entity) = objectives.last().get_followed_entity() {
                     followed_entities.insert(entity);
                 }
             }
@@ -63,19 +65,22 @@ impl Waypoint {
 
     pub fn update(
         mut control_events: EventReader<ControlEvent>,
-        mut selection: Query<(&Selected, &mut Objective, &Transform), Without<Self>>,
+        mut selection: Query<(&Selected, &mut Objectives, &Transform), Without<Self>>,
         mut event_writer: EventWriter<CreateWaypointEvent>,
         mut commands: Commands,
         assets: Res<WaypointAssets>,
     ) {
         for &ControlEvent {
             action,
-            state: _,
+            state,
             position,
         } in control_events.read()
         {
             if action != ControlAction::Move {
-                return;
+                continue;
+            }
+            if state == InputState::Released {
+                continue;
             }
 
             // Spawn a new waypoint.
@@ -84,15 +89,15 @@ impl Waypoint {
             let entity = commands.spawn(waypoint_bundle).id();
 
             let mut sources = Vec::new();
-            for (selected, mut objective, transform) in selection.iter_mut() {
+            for (selected, mut objectives, transform) in selection.iter_mut() {
                 if selected.is_selected() {
-                    *objective = Objective::FollowEntity(entity);
+                    objectives.clear();
+                    objectives.push(Objective::FollowEntity(entity));
                     sources.push(transform.translation.xy());
                 }
             }
             if !sources.is_empty() {
                 event_writer.send(CreateWaypointEvent {
-                    entity,
                     sources,
                     destination: position,
                 })

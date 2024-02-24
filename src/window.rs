@@ -1,6 +1,6 @@
 use bevy::{
     prelude::*,
-    window::{Cursor, CursorGrabMode, PresentMode, PrimaryWindow, WindowMode, WindowTheme},
+    window::{Cursor, PresentMode, PrimaryWindow, WindowMode, WindowTheme},
 };
 
 use crate::prelude::Configs;
@@ -9,12 +9,10 @@ pub fn custom_plugin() -> WindowPlugin {
     WindowPlugin {
         primary_window: Some(Window {
             cursor: Cursor {
-                grab_mode: CursorGrabMode::Locked,
                 visible: false,
                 ..default()
             },
             title: "Bevy Zooids".into(),
-            resolution: Vec2 { x: 1600., y: 900. }.into(),
             present_mode: PresentMode::AutoVsync,
             // Tells wasm to resize the window according to the available canvas
             fit_canvas_to_parent: true,
@@ -27,7 +25,7 @@ pub fn custom_plugin() -> WindowPlugin {
             },
             visible: true,
             resizable: false,
-            mode: WindowMode::Windowed,
+            mode: WindowMode::BorderlessFullscreen,
             ..default()
         }),
         ..default()
@@ -38,9 +36,11 @@ pub fn resize_window(mut query: Query<&mut Window, With<PrimaryWindow>>, configs
     if configs.is_changed() {
         let mut window = query.single_mut();
         let scale_factor = window.scale_factor() as f32;
-        window.resolution.set_physical_resolution(
-            (configs.window_size.x * scale_factor) as u32,
-            (configs.window_size.y * scale_factor) as u32,
-        );
+        if configs.window_size != Vec2::ZERO {
+            window.resolution.set_physical_resolution(
+                (configs.window_size.x * scale_factor) as u32,
+                (configs.window_size.y * scale_factor) as u32,
+            );
+        }
     }
 }

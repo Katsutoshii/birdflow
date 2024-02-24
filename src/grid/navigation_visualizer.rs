@@ -62,20 +62,15 @@ impl NavigationShaderMaterial {
         let material = shader_assets.get_mut(&assets.shader_material).unwrap();
         for &ControlEvent {
             action,
-            state: _,
+            state,
             position: _,
         } in input_actions.read()
         {
-            if action == ControlAction::Move {
+            if action == ControlAction::Move && state != InputState::Released {
                 material.grid = vec![0.; material.grid.len()];
             }
         }
-        for &NavigationCostEvent {
-            entity: _,
-            rowcol,
-            cost,
-        } in events.read()
-        {
+        for &NavigationCostEvent { rowcol, cost } in events.read() {
             material.grid[grid_spec.flat_index(rowcol)] = cost * 0.002;
         }
     }

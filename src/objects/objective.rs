@@ -4,22 +4,25 @@ use crate::prelude::*;
 use bevy::{prelude::*, text::Text2dBounds};
 use rand::Rng;
 
+use super::object::AttackEvent;
+
 pub struct ObjectivePlugin;
 impl Plugin for ObjectivePlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<ObjectiveConfig>().add_systems(
             FixedUpdate,
             (
-                Objective::update.in_set(SystemStage::PreCompute),
+                Objectives::update
+                    .in_set(SystemStage::PreCompute)
+                    .after(NavigationGrid2::update_waypoints),
                 ObjectiveDebugger::update
                     .in_set(SystemStage::PreCompute)
-                    .after(Objective::update),
+                    .after(Objectives::update),
             ),
         );
     }
 }
-#[derive(Resource, Debug, Clone, Reflect)]
-#[reflect(Resource)]
+#[derive(Debug, Clone, Reflect)]
 pub struct ObjectiveConfig {
     pub max_acceleration: f32,
     pub repell_radius: f32,
@@ -74,7 +77,7 @@ pub struct AttackEntity {
 }
 
 /// Represents the objective of the owning entity.
-#[derive(Component, Default, Debug, Clone)]
+#[derive(Component, Default, Debug, Clone, PartialEq)]
 pub enum Objective {
     /// Entity has no objective.
     #[default]
@@ -89,58 +92,11 @@ pub enum Objective {
     },
 }
 impl Objective {
-    /// Update acceleration from the current objective.
-    pub fn update(
-        mut query: Query<(&mut Self, &Object, &Transform, &Velocity, &mut Acceleration)>,
-        others: Query<(&Transform, &Velocity)>,
-        configs: Res<Configs>,
-        navigation_grid: Res<EntityFlowGrid2>,
-        obstacles_grid: Res<Grid2<Obstacle>>,
-        time: Res<Time>,
-    ) {
-        for (mut objective, object, transform, velocity, mut acceleration) in &mut query {
-            let config = configs.get(object);
-            if let Some(resolved) = objective.resolve(transform, &others, &time, &config.waypoint) {
-                *acceleration +=
-                    resolved.acceleration(transform, *velocity, config, &navigation_grid);
-                let current_acceleration = *acceleration;
-                *acceleration += obstacles_grid.obstacles_acceleration(
-                    transform.translation.xy(),
-                    *velocity,
-                    current_acceleration,
-                ) * config.obstacle_acceleration;
-            } else {
-                *objective = Self::None;
-            }
-        }
-    }
-
-    pub fn get_followed_entity(&self) -> Option<Entity> {
-        match self {
-            Self::AttackEntity {
-                entity,
-                frame: _,
-                cooldown: _,
-            } => Some(*entity),
-            Self::FollowEntity(entity) => Some(*entity),
-            _ => None,
-        }
-    }
-    /// Gets a random attack cooldown.
-    pub fn attack_cooldown() -> Duration {
-        Duration::from_millis(rand::thread_rng().gen_range(0..1200))
-    }
-
-    /// Gets a random attack delay.
-    pub fn attack_delay() -> Duration {
-        Duration::from_millis(rand::thread_rng().gen_range(0..300))
-    }
-
     /// Given an objective, get the next one (if there should be a next one, else None).
-    pub fn next(&self, event: &Option<CreateWaypointEvent>) -> Option<Self> {
+    pub fn try_attacking(&self, entity: Entity) -> Option<Self> {
         match self {
-            Self::None | Self::FollowEntity(_) => event.as_ref().map(|event| Self::AttackEntity {
-                entity: event.entity,
+            Self::None | Self::FollowEntity(_) => Some(Self::AttackEntity {
+                entity,
                 frame: 0,
                 cooldown: Timer::from_seconds(
                     Self::attack_delay().as_secs_f32(),
@@ -155,25 +111,34 @@ impl Objective {
         }
     }
 
-    /// Resolve the entity references for the objective and store them in ResolvedObjective.
-    /// If there are invalid entity references (deleted entities), return None.
+    /// Gets a random attack delay.
+    pub fn attack_delay() -> Duration {
+        Duration::from_millis(rand::thread_rng().gen_range(0..300))
+    }
+
+    /// Gets a random attack cooldown.
+    pub fn attack_cooldown() -> Duration {
+        Duration::from_millis(rand::thread_rng().gen_range(0..1200))
+    }
+
+    /// Resolves an objective.
     pub fn resolve(
         &mut self,
         transform: &Transform,
         query: &Query<(&Transform, &Velocity)>,
         time: &Time,
         config: &ObjectiveConfig,
-    ) -> Option<ResolvedObjective> {
+    ) -> ResolvedObjective {
         match self {
-            Self::None => Some(ResolvedObjective::None),
+            Self::None => ResolvedObjective::None,
             Self::FollowEntity(entity) => {
                 if let Ok((other_transform, _other_velocity)) = query.get(*entity) {
-                    Some(ResolvedObjective::FollowEntity {
+                    ResolvedObjective::FollowEntity {
                         entity: *entity,
                         position: other_transform.translation.xy(),
-                    })
+                    }
                 } else {
-                    None
+                    ResolvedObjective::None
                 }
             }
             Self::AttackEntity {
@@ -196,22 +161,124 @@ impl Objective {
                     if *frame > 0 {
                         *frame -= 1;
                     }
-                    Some(ResolvedObjective::AttackEntity {
+                    ResolvedObjective::AttackEntity {
                         entity: *entity,
                         position,
                         target_position,
                         frame: *frame,
-                    })
+                    }
                 } else {
-                    None
+                    ResolvedObjective::None
                 }
             }
         }
     }
+
+    pub fn get_followed_entity(&self) -> Option<Entity> {
+        match self {
+            Self::AttackEntity {
+                entity,
+                frame: _,
+                cooldown: _,
+            } => Some(*entity),
+            Self::FollowEntity(entity) => Some(*entity),
+            _ => None,
+        }
+    }
+}
+/// Represents the objectives of the owning entity.
+/// The stack always has Objective::None at the bottom.
+#[derive(Component, Debug, Clone)]
+pub struct Objectives(Vec<Objective>);
+impl Default for Objectives {
+    fn default() -> Self {
+        Self(vec![Objective::None])
+    }
+}
+impl Objectives {
+    /// Construct an objective with default to None (idle).
+    pub fn new(objective: Objective) -> Self {
+        Self(vec![Objective::None, objective])
+    }
+    /// Get the last objective.
+    pub fn last(&self) -> &Objective {
+        unsafe { self.0.get_unchecked(self.0.len() - 1) }
+    }
+    /// Get the last objective.
+    pub fn last_mut(&mut self) -> &mut Objective {
+        let i = self.0.len() - 1;
+        unsafe { self.0.get_unchecked_mut(i) }
+    }
+    /// Resets the objectives.
+    pub fn clear(&mut self) {
+        *self = Self::default();
+    }
+    /// Push an objective on the stack.
+    pub fn push(&mut self, objective: Objective) {
+        self.0.push(objective)
+    }
+    /// Pop an objective, but only if it's not the bottom None objective.
+    pub fn pop(&mut self) -> Option<Objective> {
+        if self.0.len() > 1 {
+            self.0.pop()
+        } else {
+            None
+        }
+    }
+
+    // Start attacking
+    pub fn start_attacking(&mut self, attack_event: &AttackEvent) {
+        if let Some(objective) = self.last().try_attacking(attack_event.entity) {
+            self.push(objective);
+        }
+    }
+
+    /// Update acceleration from the current objective.
+    pub fn update(
+        mut query: Query<(&mut Self, &Object, &Transform, &Velocity, &mut Acceleration)>,
+        others: Query<(&Transform, &Velocity)>,
+        configs: Res<Configs>,
+        grid_spec: Res<GridSpec>,
+        navigation_grid: Res<NavigationGrid2>,
+        obstacles_grid: Res<Grid2<Obstacle>>,
+        time: Res<Time>,
+    ) {
+        for (mut objectives, object, transform, velocity, mut acceleration) in &mut query {
+            let config = configs.objects.get(object).unwrap();
+            let resolved = objectives.resolve(transform, &others, &time, &config.waypoint);
+            *acceleration +=
+                resolved.acceleration(transform, *velocity, config, &grid_spec, &navigation_grid);
+            let current_acceleration = *acceleration;
+            *acceleration += obstacles_grid.obstacles_acceleration(
+                transform.translation.xy(),
+                *velocity,
+                current_acceleration,
+            ) * config.obstacle_acceleration;
+        }
+    }
+
+    /// Resolve the entity references for the objective and store them in ResolvedObjective.
+    /// If there are invalid entity references (deleted entities), remove those objectives.
+    pub fn resolve(
+        &mut self,
+        transform: &Transform,
+        query: &Query<(&Transform, &Velocity)>,
+        time: &Time,
+        config: &ObjectiveConfig,
+    ) -> ResolvedObjective {
+        while self.last() != &Objective::None {
+            let resolved = self.last_mut().resolve(transform, query, time, config);
+            if resolved != ResolvedObjective::None {
+                return resolved;
+            }
+            self.0.pop();
+        }
+        ResolvedObjective::None
+    }
 }
 
 /// Represents the objective of the owning entity.
-#[derive(Component, Default, Debug, Clone)]
+#[derive(Component, Default, Debug, Clone, PartialEq)]
 pub enum ResolvedObjective {
     /// Entity has no objective.
     #[default]
@@ -232,24 +299,26 @@ impl ResolvedObjective {
         &self,
         transform: &Transform,
         velocity: Velocity,
-        config: &Config,
-        navigation_grid: &EntityFlowGrid2,
+        config: &ObjectConfig,
+        grid_spec: &GridSpec,
+        navigation_grid: &NavigationGrid2,
     ) -> Acceleration {
         let position = transform.translation.xy();
         match self {
             Self::FollowEntity {
-                entity,
+                entity: _,
                 position: target_position,
-            } => Self::accelerate_to_entity(
-                *entity,
+            } => Self::accelerate_to_position(
                 position,
                 *target_position,
                 config,
                 velocity,
+                grid_spec,
                 navigation_grid,
+                /*slow_factor=*/ 1.0,
             ),
             Self::AttackEntity {
-                entity,
+                entity: _,
                 position,
                 target_position,
                 frame,
@@ -258,49 +327,52 @@ impl ResolvedObjective {
                 if *frame > 0 {
                     Acceleration(delta.normalize() * config.attack_velocity)
                 } else {
-                    Self::accelerate_to_entity(
-                        *entity,
+                    Self::accelerate_to_position(
                         *position,
                         *target_position,
                         config,
                         velocity,
+                        grid_spec,
                         navigation_grid,
+                        /*slow_factor=*/ 0.5,
                     ) + Acceleration(delta.normalize() * 0.0)
                 }
             }
             Self::None => {
                 // If no objective, slow down and circle about.
-                let half_velocity = velocity.0 / 2.;
-                Acceleration(Mat2::from_angle(PI / 16.) * half_velocity - half_velocity)
+                let reduce_velocity = velocity.0 / 2.;
+                Acceleration(Mat2::from_angle(PI / 16.) * reduce_velocity - reduce_velocity)
             }
         }
     }
 
     // Returns acceleration for following an entity.
-    pub fn accelerate_to_entity(
-        entity: Entity,
+    pub fn accelerate_to_position(
         position: Vec2,
         target_position: Vec2,
-        config: &Config,
+        config: &ObjectConfig,
         velocity: Velocity,
-        navigation_grid: &EntityFlowGrid2,
+        grid_spec: &GridSpec,
+        navigation_grid: &NavigationGrid2,
+        slow_factor: f32,
     ) -> Acceleration {
-        if let Some(flow_grid) = navigation_grid.get(&entity) {
-            let target_cell = flow_grid.to_rowcol(target_position);
-            let target_cell_position = flow_grid.to_world_position(target_cell);
-            let flow_acceleration = flow_grid.flow_acceleration5(position) * config.nav_flow_factor;
+        let target_cell = grid_spec.to_rowcol(target_position);
+        if let Some(nav) = navigation_grid.get(&target_cell) {
+            let target_cell_position = nav.grid.to_world_position(target_cell);
+            let flow_acceleration = nav.grid.flow_acceleration5(position) * config.nav_flow_factor;
             flow_acceleration
                 + config.waypoint.slow_force(
                     velocity,
                     position,
                     target_cell_position,
                     flow_acceleration,
-                )
+                ) * slow_factor
         } else {
-            warn!(
-                "Missing entity. This is okay if it's only for one frame. Entity: {:?}",
-                entity
-            );
+            // TODO figure out why this logs sometimes. Commenting out to avoid spamming.
+            // warn!(
+            //     "Missing target_cell. This is okay if it's only for one frame. {:?}",
+            //     target_cell
+            // );
             Acceleration::ZERO
         }
     }

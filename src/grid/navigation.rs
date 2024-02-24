@@ -7,7 +7,7 @@ use std::{
 use crate::prelude::*;
 use bevy::{
     prelude::*,
-    utils::{Entry, HashMap, HashSet},
+    utils::{Entry, HashMap},
 };
 
 use super::SparseGrid2;
@@ -18,13 +18,15 @@ impl Plugin for NavigationPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<NavigationCostEvent>()
             .add_event::<CreateWaypointEvent>()
-            .insert_resource(EntityFlowGrid2::default())
+            .insert_resource(NavigationGrid2::default())
             .add_systems(
                 FixedUpdate,
                 (
-                    EntityFlowGrid2::resize_on_change,
-                    EntityFlowGrid2::create_waypoints.after(Waypoint::update),
-                    EntityFlowGrid2::delete_waypoints.before(EntityFlowGrid2::create_waypoints),
+                    NavigationGrid2::resize_on_change,
+                    NavigationGrid2::create_waypoints
+                        .in_set(SystemStage::PostApply)
+                        .after(Waypoint::update),
+                    NavigationGrid2::update_waypoints.in_set(SystemStage::PreCompute), // .before(NavigationGrid2::create_waypoints),
                 ),
             );
     }
@@ -33,7 +35,6 @@ impl Plugin for NavigationPlugin {
 /// Communicates cost updates to the visualizer
 #[derive(Event)]
 pub struct NavigationCostEvent {
-    pub entity: Entity,
     pub rowcol: RowCol,
     pub cost: f32,
 }
@@ -65,6 +66,116 @@ impl Ord for AStarState {
 impl PartialOrd for AStarState {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+/// Struct to allow running A* on demand while re-using old results.
+pub struct AStarRunner {
+    pub destination: RowCol,
+    pub costs: HashMap<RowCol, f32>,
+    heap: BinaryHeap<AStarState>,
+}
+impl AStarRunner {
+    /// Initialize AStarRunner to a goal.
+    pub fn new(destination: RowCol) -> Self {
+        let mut heap = BinaryHeap::new();
+        heap.push(AStarState {
+            cost: 0.,
+            rowcol: destination,
+            heuristic: 0.,
+        });
+        Self {
+            destination,
+            costs: HashMap::new(),
+            heap,
+        }
+    }
+
+    /// Compute heuristic factor on naive 8-distance heuristic.
+    /// We want to use the heuristic more at higher distances from the destination.
+    pub fn heuristic_factor(&self, source: RowCol) -> f32 {
+        let min_grid_dist = 1.;
+        let max_grid_dist = 30.;
+        let dist = self.destination.distance8(source);
+        let max_heuristic = 0.9;
+        let final_dist = dist.clamp(min_grid_dist, max_grid_dist);
+        max_heuristic * final_dist / max_grid_dist
+    }
+    /// Runs A star from the given source to the destination.
+    pub fn a_star_from_source(
+        &mut self,
+        source: RowCol,
+        grid: &SparseFlowGrid2,
+        obstacles: &Grid2<Obstacle>,
+    ) {
+        // We're at `start`, with a zero cost
+        if grid.is_boundary(self.destination) {
+            return;
+        }
+
+        let heuristic_factor = self.heuristic_factor(source);
+
+        // Examine the frontier with lower cost nodes first (min-heap)
+        while let Some(AStarState {
+            cost,
+            rowcol,
+            heuristic: _,
+        }) = self.heap.pop()
+        {
+            // Skip already finalized cells.
+            if self.costs.contains_key(&rowcol) {
+                continue;
+            }
+
+            // Costs inserted here are guaranteed to be the best costs seen so far.
+            self.costs.insert(rowcol, cost);
+
+            // If at the goal, we're done!
+            if rowcol == source {
+                return;
+            }
+
+            // For each node we can reach, see if we can find a way with
+            // a lower cost going through this node
+            for (neighbor_rowcol, neighbor_cost) in grid.neighbors8(rowcol) {
+                // Skip out of bounds positions.
+                if grid.is_boundary(neighbor_rowcol) {
+                    continue;
+                }
+                if obstacles[neighbor_rowcol] != Obstacle::Empty {
+                    continue;
+                }
+
+                self.heap.push(AStarState {
+                    cost: cost + neighbor_cost,
+                    rowcol: neighbor_rowcol,
+                    heuristic: heuristic_factor * neighbor_rowcol.distance8(source),
+                });
+            }
+        }
+    }
+
+    /// Run A* search from destination to reach all sources.
+    pub fn a_star(
+        &self,
+        sources: &[RowCol],
+        destination: RowCol,
+        grid: &SparseFlowGrid2,
+        obstacles: &Grid2<Obstacle>,
+    ) -> HashMap<RowCol, f32> {
+        let sources: BTreeSet<RowCol> = sources
+            .iter()
+            .filter(|&&rowcol| grid.in_bounds(rowcol) && obstacles[rowcol] == Obstacle::Empty)
+            .copied()
+            .collect();
+        let mut runner = AStarRunner::new(destination);
+        for source in sources {
+            if runner.costs.contains_key(&source) {
+                continue;
+            }
+            runner.a_star_from_source(source, grid, obstacles);
+        }
+        runner.costs
     }
 }
 
@@ -103,6 +214,51 @@ impl SparseFlowGrid2 {
         }
         Acceleration(total_acceleration.normalize_or_zero())
     }
+}
+
+pub struct NavigationGrid2Entry {
+    pub grid: SparseFlowGrid2,
+    pub a_star_runner: AStarRunner,
+}
+impl NavigationGrid2Entry {
+    /// Add a waypoint given rowcols.
+    pub fn add_waypoint_rowcols(
+        &mut self,
+        destination: RowCol,
+        sources: &[RowCol],
+        obstacles: &Grid2<Obstacle>,
+        event_writer: &mut EventWriter<NavigationCostEvent>,
+    ) {
+        // let mut expanded_sources: Vec<RowCol> = Vec::with_capacity(sources.len());
+        // for &rowcol in &sources {
+        //     for neighbor_rowcol in self.grid.get_in_radius_discrete(rowcol, 2) {
+        //         sources.push(neighbor_rowcol);
+        //     }
+        // }
+
+        let costs = self
+            .a_star_runner
+            .a_star(sources, destination, &self.grid, obstacles);
+
+        // Compute flow direction.
+        for (&rowcol, &cost) in &costs {
+            let mut min_neighbor_rowcol = rowcol;
+            let mut min_neighbor_cost = cost;
+            for (neighbor_rowcol, _) in self.grid.neighbors8(rowcol) {
+                if let Some(&neighbor_cost) = costs.get(&neighbor_rowcol) {
+                    if neighbor_cost < min_neighbor_cost {
+                        min_neighbor_rowcol = neighbor_rowcol;
+                        min_neighbor_cost = neighbor_cost;
+                    }
+                }
+            }
+            self.grid.cells.insert(
+                rowcol,
+                Acceleration(rowcol.signed_delta8(min_neighbor_rowcol)),
+            );
+            event_writer.send(NavigationCostEvent { rowcol, cost });
+        }
+    }
 
     /// Add a waypoint.
     /// Create flows from all points to the waypoint.
@@ -112,184 +268,152 @@ impl SparseFlowGrid2 {
         obstacles: &Grid2<Obstacle>,
         event_writer: &mut EventWriter<NavigationCostEvent>,
     ) {
-        let mut sources = Vec::with_capacity(event.sources.len());
+        let mut sources: Vec<RowCol> = Vec::with_capacity(event.sources.len());
         for &source in &event.sources {
-            let rowcol = self.spec.to_rowcol(source);
-            for neighbor_rowcol in self.get_in_radius_discrete(rowcol, 2) {
+            let rowcol = self.grid.spec.to_rowcol(source);
+            for neighbor_rowcol in self.grid.get_in_radius_discrete(rowcol, 2) {
                 sources.push(neighbor_rowcol);
             }
         }
-        let destination = self.to_rowcol(event.destination);
-        let costs = self.a_star(&sources, destination, obstacles);
-        // Compute flow direction.
-        for (&rowcol, &cost) in &costs {
-            let mut min_neighbor_rowcol = rowcol;
-            let mut min_neighbor_cost = cost;
-            for (neighbor_rowcol, _) in self.neighbors8(rowcol) {
-                if let Some(&neighbor_cost) = costs.get(&neighbor_rowcol) {
-                    if neighbor_cost < min_neighbor_cost {
-                        min_neighbor_rowcol = neighbor_rowcol;
-                        min_neighbor_cost = neighbor_cost;
-                    }
-                }
-            }
-            self.cells.insert(
-                rowcol,
-                Acceleration(rowcol.signed_delta8(min_neighbor_rowcol)),
-            );
 
-            event_writer.send(NavigationCostEvent {
-                entity: event.entity,
-                rowcol,
-                cost,
-            });
-        }
-    }
-
-    /// Run A* search from destination to reach all sources.
-    /// Alternate targeting
-    pub fn a_star(
-        &self,
-        sources: &[RowCol],
-        destination: RowCol,
-        obstacles: &Grid2<Obstacle>,
-    ) -> HashMap<RowCol, f32> {
-        // Initial setup.
-        let mut costs: HashMap<RowCol, f32> = HashMap::new();
-        let mut heap: BinaryHeap<AStarState> = BinaryHeap::new();
-        let mut goals: BTreeSet<RowCol> = sources
-            .iter()
-            .filter(|&&rowcol| self.in_bounds(rowcol) && obstacles[rowcol] == Obstacle::Empty)
-            .copied()
-            .collect();
-        let mut current_goal = *goals.first().unwrap();
-
-        let min_grid_dist = 1.;
-        let max_grid_dist = 30.;
-        let max_dist = goals
-            .iter()
-            .map(|&rowcol| destination.distance8(rowcol))
-            .fold(0f32, |a, b| a.max(b));
-        let max_heuristic = 0.9;
-        let final_dist = max_dist.clamp(min_grid_dist, max_grid_dist);
-        let heuristic_factor = max_heuristic * final_dist / max_grid_dist;
-        // We're at `start`, with a zero cost
-        if self.is_boundary(destination) {
-            return costs;
-        }
-        heap.push(AStarState {
-            cost: 0.,
-            rowcol: destination,
-            heuristic: 0.,
-        });
-
-        // Examine the frontier with lower cost nodes first (min-heap)
-        while let Some(AStarState {
-            cost,
-            rowcol,
-            heuristic: _,
-        }) = heap.pop()
-        {
-            // Skip already finalized cells.
-            if costs.contains_key(&rowcol) {
-                continue;
-            }
-
-            // Costs inserted here are guaranteed to be the best costs seen so far.
-            costs.insert(rowcol, cost);
-
-            // If the current goal has been reached, clear the heap and move on to the next goal.
-            if goals.remove(&rowcol) {
-                if goals.is_empty() {
-                    break;
-                }
-                if rowcol == current_goal {
-                    current_goal = *goals.first().unwrap();
-                }
-            }
-            // For each node we can reach, see if we can find a way with
-            // a lower cost going through this node
-            for (neighbor_rowcol, neighbor_cost) in self.neighbors8(rowcol) {
-                // Skip out of bounds positions.
-                if self.is_boundary(neighbor_rowcol) {
-                    continue;
-                }
-                if obstacles[neighbor_rowcol] != Obstacle::Empty {
-                    continue;
-                }
-
-                heap.push(AStarState {
-                    cost: cost + neighbor_cost,
-                    rowcol: neighbor_rowcol,
-                    heuristic: heuristic_factor * neighbor_rowcol.distance8(current_goal),
-                });
-            }
-        }
-        costs
+        let destination = self.grid.to_rowcol(event.destination);
+        self.add_waypoint_rowcols(destination, &sources, obstacles, event_writer);
     }
 }
 
+/// Mapping from goal RowCol to a sparse flow grid with accelerations towards that RowCol.
 #[derive(Default, Resource, DerefMut, Deref)]
-pub struct EntityFlowGrid2(HashMap<Entity, SparseFlowGrid2>);
+pub struct NavigationGrid2(HashMap<RowCol, NavigationGrid2Entry>);
 
 /// Stores a flow grid per targeted entity.
-impl EntityFlowGrid2 {
+impl NavigationGrid2 {
     // Resize all grids when spec is updated.
     pub fn resize_on_change(spec: Res<GridSpec>, mut grid: ResMut<Self>) {
         if spec.is_changed() {
-            for (_entity, flow_grid) in grid.iter_mut() {
-                flow_grid.resize_with(spec.clone());
+            for (
+                _entity,
+                NavigationGrid2Entry {
+                    grid,
+                    a_star_runner: _,
+                },
+            ) in grid.iter_mut()
+            {
+                grid.resize_with(spec.clone());
             }
         }
     }
 
     /// Compute acceleration using the weighted sum of the 4 neighboring cells and the current cell.
-    pub fn flow_acceleration5(&self, position: Vec2, entity: Entity) -> Acceleration {
-        if let Some(flow_grid) = self.get(&entity) {
-            flow_grid.flow_acceleration5(position)
+    pub fn flow_acceleration5(&mut self, position: Vec2, destination: RowCol) -> Acceleration {
+        if let Some(NavigationGrid2Entry {
+            grid,
+            a_star_runner: _,
+        }) = self.get_mut(&destination)
+        {
+            grid.flow_acceleration5(position)
         } else {
             Acceleration::ZERO
         }
     }
 
+    pub fn create_waypoint(
+        &mut self,
+        event: &CreateWaypointEvent,
+        spec: &GridSpec,
+        obstacles: &Grid2<Obstacle>,
+        event_writer: &mut EventWriter<NavigationCostEvent>,
+    ) {
+        let destination = spec.to_rowcol(event.destination);
+        let nav = match self.entry(destination) {
+            Entry::Occupied(o) => o.into_mut(),
+            Entry::Vacant(v) => v.insert(NavigationGrid2Entry {
+                a_star_runner: AStarRunner::new(destination),
+                grid: SparseFlowGrid2(SparseGrid2 {
+                    spec: spec.clone(),
+                    ..default()
+                }),
+            }),
+        };
+        nav.add_waypoint(event, obstacles, event_writer);
+    }
+
     /// Consumes CreateWaypointEvent events and populates the navigation grid.
     pub fn create_waypoints(
-        mut grid: ResMut<Self>,
+        mut nav_grid: ResMut<Self>,
         mut event_reader: EventReader<CreateWaypointEvent>,
         mut event_writer: EventWriter<NavigationCostEvent>,
         spec: Res<GridSpec>,
         obstacles: Res<Grid2<Obstacle>>,
     ) {
         for event in event_reader.read() {
-            let flow_grid = match grid.entry(event.entity) {
-                Entry::Occupied(o) => o.into_mut(),
-                Entry::Vacant(v) => v.insert(SparseFlowGrid2(SparseGrid2 {
-                    spec: spec.clone(),
-                    ..default()
-                })),
-            };
-            flow_grid.add_waypoint(event, &obstacles, &mut event_writer);
+            nav_grid.create_waypoint(event, &spec, &obstacles, &mut event_writer);
         }
     }
 
-    /// Consumes CreateWaypointEvent events and populates the navigation grid.
-    pub fn delete_waypoints(
-        objectives: Query<&Objective, Without<Waypoint>>,
+    /// Also create new ones for moved waypoints.
+    pub fn update_waypoints(
+        all_objectives: Query<(Entity, &Objectives), Without<Waypoint>>,
+        transforms: Query<&Transform>,
         mut grid: ResMut<Self>,
+        obstacles: Res<Grid2<Obstacle>>,
+        spec: Res<GridSpec>,
+        mut event_writer: EventWriter<NavigationCostEvent>,
     ) {
-        let mut followed_entities = HashSet::new();
-        for objective in objectives.iter() {
-            if let Some(entity) = objective.get_followed_entity() {
-                followed_entities.insert(entity);
+        // All active destinations to their current sources.
+        let mut destinations: HashMap<RowCol, Vec<RowCol>> = HashMap::new();
+        for (entity, objectives) in all_objectives.iter() {
+            if let Some(followed_entity) = objectives.last().get_followed_entity() {
+                let source_rowcol = if let Ok(source_transform) = transforms.get(entity) {
+                    spec.to_rowcol(source_transform.translation.xy())
+                } else {
+                    continue;
+                };
+                if let Ok(destination_transform) = transforms.get(followed_entity) {
+                    let destination_rowcol = spec.to_rowcol(destination_transform.translation.xy());
+                    let value = match destinations.entry(destination_rowcol) {
+                        Entry::Occupied(o) => o.into_mut(),
+                        Entry::Vacant(v) => v.insert(Vec::with_capacity(1)),
+                    };
+                    value.push(source_rowcol)
+                }
             }
         }
-        let entities_to_remove: Vec<Entity> = grid
+
+        // Populate any cells that haven't been computed yet.
+        for (&destination, sources) in &destinations {
+            if let Some(nav) = grid.get_mut(&destination) {
+                for &source in sources {
+                    if nav.grid.get(source).is_none() {
+                        nav.add_waypoint_rowcols(
+                            destination,
+                            &[source],
+                            &obstacles,
+                            &mut event_writer,
+                        )
+                    }
+                }
+            } else {
+                grid.insert(
+                    destination,
+                    NavigationGrid2Entry {
+                        a_star_runner: AStarRunner::new(destination),
+                        grid: SparseFlowGrid2(SparseGrid2 {
+                            spec: spec.clone(),
+                            ..default()
+                        }),
+                    },
+                );
+            }
+        }
+
+        // Remove old cells where there is no objective leading to that destination.
+        let rowcols_to_remove: Vec<RowCol> = grid
             .keys()
-            .filter(|&entity| !followed_entities.contains(entity))
+            .filter(|&destination| !destinations.contains_key(destination))
             .copied()
             .collect();
-        for entity in entities_to_remove {
-            grid.remove(&entity);
+        for rowcol in rowcols_to_remove {
+            grid.remove(&rowcol);
         }
     }
 }
@@ -297,7 +421,6 @@ impl EntityFlowGrid2 {
 /// Event to request waypoint creation.
 #[derive(Event, Clone, Debug)]
 pub struct CreateWaypointEvent {
-    pub entity: Entity,
     pub destination: Vec2,
     pub sources: Vec<Vec2>,
 }

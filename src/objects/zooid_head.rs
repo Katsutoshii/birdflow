@@ -6,10 +6,7 @@ use crate::physics::{PhysicsBundle, PhysicsMaterialType};
 use crate::prelude::*;
 
 use super::Team;
-use super::{
-    zooid_worker::{ZooidWorker, ZooidWorkerBundler},
-    Object, ZooidAssets,
-};
+use super::{zooid_worker::ZooidWorkerBundler, Object, ZooidAssets};
 
 pub struct ZooidHeadPlugin;
 impl Plugin for ZooidHeadPlugin {
@@ -81,9 +78,8 @@ impl ZooidHead {
                 entity_commands.with_children(|parent| {
                     parent.spawn(ZooidHeadBackground.bundle(&assets, team));
                 });
-                entity_commands.insert(Objective::FollowEntity(entity));
+                entity_commands.insert(Objectives::new(Objective::FollowEntity(entity)));
                 event_writer.send(CreateWaypointEvent {
-                    entity,
                     destination: position,
                     sources: vec![position],
                 })
@@ -109,8 +105,9 @@ impl ZooidHead {
                 material: PhysicsMaterialType::SlowZooid,
                 ..default()
             },
-            Objective::default(),
+            Objectives::default(),
             Selected::default(),
+            Health::new(6),
             Name::new("ZooidHead"),
         )
     }
@@ -118,20 +115,21 @@ impl ZooidHead {
     /// System to spawn zooids on Z key.
     pub fn spawn_zooids(
         mut commands: Commands,
-        query: Query<(&Self, Entity, &Transform, &Velocity, &Objective, &Team)>,
+        query: Query<(&Self, Entity, &Transform, &Velocity, &Team)>,
         configs: Res<Configs>,
         assets: Res<ZooidAssets>,
         mut control_events: EventReader<ControlEvent>,
     ) {
-        let config = configs.get(&Object::Worker(ZooidWorker::default()));
+        let config = configs.objects.get(&Object::Worker).unwrap();
         for control_event in control_events.read() {
             if control_event.is_pressed(ControlAction::SpawnZooid) {
-                for (_head, _head_id, transform, velocity, objective, team) in &query {
+                for (_head, head_id, transform, velocity, team) in &query {
                     let num_zooids = 1;
                     for i in 1..=num_zooids {
                         let zindex = zindex::ZOOIDS_MIN
                             + (i as f32) * 0.00001 * (zindex::ZOOIDS_MAX - zindex::ZOOIDS_MIN);
                         let velocity: Vec2 = Vec2::Y * config.spawn_velocity + velocity.0;
+                        info!("Spawn zooid!");
                         ZooidWorkerBundler {
                             team: *team,
                             mesh: assets.mesh.clone(),
@@ -140,7 +138,7 @@ impl ZooidHead {
                                 + velocity.extend(0.)
                                 + Vec3::Z * zindex,
                             velocity,
-                            objective: objective.clone(),
+                            objectives: Objectives::new(Objective::FollowEntity(head_id)),
                             ..default()
                         }
                         .spawn(&mut commands);
@@ -152,7 +150,7 @@ impl ZooidHead {
 
     /// System to despawn all zooids.
     pub fn despawn_zooids(
-        mut objects: Query<(Entity, &GridEntity, &Object, &mut Objective)>,
+        mut objects: Query<(Entity, &GridEntity, &Object, &mut Objectives)>,
         mut commands: Commands,
         mut grid: ResMut<Grid2<EntitySet>>,
         keyboard_input: Res<ButtonInput<KeyCode>>,
@@ -163,14 +161,9 @@ impl ZooidHead {
         let mut entities = HashSet::<Entity>::new();
         for (entity, grid_entity, object, _) in &mut objects {
             grid.remove(entity, grid_entity);
-            if let Object::Worker(_) = object {
+            if let Object::Worker = object {
                 commands.entity(entity).despawn_recursive();
                 entities.insert(entity);
-            }
-        }
-        for (_, _, _, mut objective) in &mut objects {
-            if let Objective::FollowEntity(_) = *objective {
-                *objective = Objective::None;
             }
         }
     }

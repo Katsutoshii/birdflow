@@ -1,9 +1,7 @@
 use std::f32::consts::PI;
 
 use crate::prelude::*;
-use bevy::{
-    input::mouse::MouseMotion, prelude::*, sprite::MaterialMesh2dBundle, window::PrimaryWindow,
-};
+use bevy::{prelude::*, sprite::MaterialMesh2dBundle, window::PrimaryWindow};
 
 /// Plugin to manage a virtual cursor.
 pub struct CursorPlugin;
@@ -19,32 +17,21 @@ pub struct Cursor;
 impl Cursor {
     pub fn update(
         mut cursor: Query<&mut Transform, With<Self>>,
-        mut mouse_motion: EventReader<MouseMotion>,
         mut window: Query<&mut Window, With<PrimaryWindow>>,
-        //configs: Res<Configs>,
     ) {
-        let mut window = window.single_mut();
+        let window = window.single_mut();
         let window_size = Vec2 {
             x: window.physical_width() as f32,
             y: window.physical_height() as f32,
         } / window.scale_factor() as f32;
 
         let mut cursor_transform = cursor.single_mut();
-        for &MouseMotion { mut delta } in mouse_motion.read() {
-            delta *= Vec2 { x: 1., y: -1. };
-            cursor_transform.translation += delta.extend(0.);
-        }
-        cursor_transform.translation = cursor_transform
-            .translation
-            .xy()
-            .clamp(-0.5 * window_size, 0.5 * window_size)
-            .extend(cursor_transform.translation.z);
 
-        let center = Vec2 {
-            x: window.width(),
-            y: window.height(),
-        } / 2.;
-        window.set_cursor_position(Some(center))
+        if let Some(cursor_pixel_position) = window.cursor_position() {
+            let cursor_position =
+                (cursor_pixel_position - window_size / 2.) * Vec2 { x: 1., y: -1. };
+            cursor_transform.translation = cursor_position.extend(cursor_transform.translation.z);
+        }
     }
 
     pub fn bundle(self, assets: &CursorAssets, translation: Vec3) -> impl Bundle {
