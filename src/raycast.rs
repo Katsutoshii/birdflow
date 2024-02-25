@@ -26,7 +26,7 @@ pub struct RaycastEvent {
 
 /// Send a raycast and return an event with intersection data.
 pub fn raycast(
-    ray: bevy_mod_raycast::prelude::Ray3d,
+    ray: Ray3d,
     meshes: QueryIter<(Entity, &RaycastTarget, &Mesh2dHandle, &GlobalTransform), ()>,
     mesh_assets: &Assets<Mesh>,
 ) -> Option<RaycastEvent> {
@@ -38,7 +38,7 @@ pub fn raycast(
         if let Some(intersection) = bevy_mod_raycast::prelude::ray_intersection_over_mesh(
             mesh,
             &mesh_to_world,
-            &ray,
+            ray,
             bevy_mod_raycast::prelude::Backfaces::Include,
         ) {
             let distance = FloatOrd(intersection.distance());

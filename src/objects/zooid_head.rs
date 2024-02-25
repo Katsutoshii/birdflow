@@ -82,7 +82,7 @@ impl ZooidHead {
                 event_writer.send(CreateWaypointEvent {
                     destination: position,
                     sources: vec![position],
-                })
+                });
             }
         }
     }
@@ -155,7 +155,7 @@ impl ZooidHead {
         mut grid: ResMut<Grid2<EntitySet>>,
         keyboard_input: Res<ButtonInput<KeyCode>>,
     ) {
-        if !keyboard_input.just_pressed(KeyCode::D) {
+        if !keyboard_input.just_pressed(KeyCode::KeyD) {
             return;
         }
         let mut entities = HashSet::<Entity>::new();

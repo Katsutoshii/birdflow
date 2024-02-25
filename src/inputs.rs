@@ -8,7 +8,6 @@ use std::{
 };
 
 use bevy::{prelude::*, sprite::Mesh2dHandle, utils::HashMap};
-use bevy_mod_raycast::primitives::Ray3d;
 
 use crate::{prelude::*, raycast::raycast};
 
@@ -97,17 +96,17 @@ impl From<InputAction> for RawInput {
             InputAction::Primary => Self::MouseButton(MouseButton::Left),
             InputAction::Secondary => Self::MouseButton(MouseButton::Right),
             InputAction::CameraPan => Self::MouseButton(MouseButton::Middle),
-            InputAction::SpawnHead => Self::KeyCode(KeyCode::Return),
+            InputAction::SpawnHead => Self::KeyCode(KeyCode::Enter),
             InputAction::SpawnRed => Self::KeyCode(KeyCode::Minus),
-            InputAction::SpawnBlue => Self::KeyCode(KeyCode::Equals),
-            InputAction::SpawnZooid => Self::KeyCode(KeyCode::Z),
-            InputAction::SpawnFood => Self::KeyCode(KeyCode::F),
+            InputAction::SpawnBlue => Self::KeyCode(KeyCode::Equal),
+            InputAction::SpawnZooid => Self::KeyCode(KeyCode::KeyZ),
+            InputAction::SpawnFood => Self::KeyCode(KeyCode::KeyF),
         }
     }
 }
 impl InputAction {}
 
-#[derive(Event, Default, PartialEq, Clone, Copy, Debug)]
+#[derive(Event, PartialEq, Clone, Copy, Debug)]
 pub struct InputEvent {
     pub action: InputAction,
     pub state: InputState,

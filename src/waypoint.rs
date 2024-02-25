@@ -100,7 +100,7 @@ impl Waypoint {
                 event_writer.send(CreateWaypointEvent {
                     sources,
                     destination: position,
-                })
+                });
             }
         }
     }
@@ -132,8 +132,10 @@ impl FromWorld for WaypointAssets {
     fn from_world(world: &mut World) -> Self {
         let mesh = {
             let mut meshes = world.get_resource_mut::<Assets<Mesh>>().unwrap();
-            meshes.add(Mesh::from(shape::RegularPolygon {
-                radius: 2f32.sqrt() / 2.,
+            meshes.add(Mesh::from(RegularPolygon {
+                circumcircle: Circle {
+                    radius: 2f32.sqrt() / 2.,
+                },
                 sides: 3,
             }))
         };

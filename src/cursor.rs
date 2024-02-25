@@ -23,7 +23,7 @@ impl Cursor {
         let window_size = Vec2 {
             x: window.physical_width() as f32,
             y: window.physical_height() as f32,
-        } / window.scale_factor() as f32;
+        } / window.scale_factor();
 
         let mut cursor_transform = cursor.single_mut();
 

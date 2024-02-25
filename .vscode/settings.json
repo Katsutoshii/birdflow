@@ -21,5 +21,5 @@
         "bevy_sprite::mesh2d_vertex_output": "https://raw.githubusercontent.com/bevyengine/bevy/v0.12.0/crates/bevy_sprite/src/mesh2d/mesh2d_vertex_output.wgsl",
         "bevy_sprite::mesh2d_view_bindings": "https://raw.githubusercontent.com/bevyengine/bevy/v0.12.0/crates/bevy_sprite/src/mesh2d/mesh2d_view_bindings.wgsl",
         "bevy_sprite::mesh2d_view_types": "https://raw.githubusercontent.com/bevyengine/bevy/v0.12.0/crates/bevy_sprite/src/mesh2d/mesh2d_view_types.wgsl",
-    }
+    },
 }

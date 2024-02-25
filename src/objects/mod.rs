@@ -85,7 +85,7 @@ impl FromWorld for ZooidAssets {
     fn from_world(world: &mut World) -> Self {
         let mesh = {
             let mut meshes = world.get_resource_mut::<Assets<Mesh>>().unwrap();
-            meshes.add(Mesh::from(shape::Circle::default()))
+            meshes.add(Mesh::from(Circle::default()))
         };
         let mut materials = world.get_resource_mut::<Assets<ColorMaterial>>().unwrap();
         Self {
