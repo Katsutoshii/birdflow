@@ -2,12 +2,12 @@
 #import "shaders/constants.wgsl"::{COLOR_MULTIPLIER, HIGHLIGHT_LEVEL, CHECKERBOARD_LIGHT, CHECKERBOARD_DARK};
 #import "shaders/grid.wgsl"::{GridSize, grid_index, grid_offset, grid_coords, grid_uv};
 
-@group(1) @binding(0) var<uniform> color: vec4<f32>;
-@group(1) @binding(1) var<uniform> size: GridSize;
-@group(1) @binding(2) var<uniform> camera_position: vec2<f32>;
-@group(1) @binding(3) var<uniform> viewport_size: vec2<f32>;
-@group(1) @binding(4) var<storage> grid: array<u32>;
-@group(1) @binding(5) var<storage> visibility_grid: array<f32>;
+@group(2) @binding(0) var<uniform> color: vec4<f32>;
+@group(2) @binding(1) var<uniform> size: GridSize;
+@group(2) @binding(2) var<uniform> camera_position: vec2<f32>;
+@group(2) @binding(3) var<uniform> viewport_size: vec2<f32>;
+@group(2) @binding(4) var<storage> grid: array<u32>;
+@group(2) @binding(5) var<storage> visibility_grid: array<f32>;
 
 @fragment
 fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {

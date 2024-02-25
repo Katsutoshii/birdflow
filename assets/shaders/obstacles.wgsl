@@ -3,9 +3,9 @@
 #import "shaders/perlin_noise_2d.wgsl"::{perlin_noise_2d}
 #import "shaders/grid.wgsl"::{GridSize, grid_index, grid_offset, grid_coords};
 
-@group(1) @binding(0) var<uniform> color: vec4<f32>;
-@group(1) @binding(1) var<uniform> size: GridSize;
-@group(1) @binding(2) var<storage> grid: array<u32>;
+@group(2) @binding(0) var<uniform> color: vec4<f32>;
+@group(2) @binding(1) var<uniform> size: GridSize;
+@group(2) @binding(2) var<storage> grid: array<u32>;
 
 // These are the parameters p = [p1, p2, p3] to the 2d value function f(x, y) = p1(x - p3) + p2(x - p3)
 // which can get us the triangles we need for different obstacle positions.

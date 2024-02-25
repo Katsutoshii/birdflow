@@ -129,7 +129,6 @@ impl ZooidHead {
                         let zindex = zindex::ZOOIDS_MIN
                             + (i as f32) * 0.00001 * (zindex::ZOOIDS_MAX - zindex::ZOOIDS_MIN);
                         let velocity: Vec2 = Vec2::Y * config.spawn_velocity + velocity.0;
-                        info!("Spawn zooid!");
                         ZooidWorkerBundler {
                             team: *team,
                             mesh: assets.mesh.clone(),
