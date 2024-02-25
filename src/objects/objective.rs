@@ -13,10 +13,10 @@ impl Plugin for ObjectivePlugin {
             FixedUpdate,
             (
                 Objectives::update
-                    .in_set(SystemStage::PreCompute)
+                    .in_set(SystemStage::PostCompute)
                     .after(NavigationGrid2::update_waypoints),
                 ObjectiveDebugger::update
-                    .in_set(SystemStage::PreCompute)
+                    .in_set(SystemStage::PostCompute)
                     .after(Objectives::update),
             ),
         );
@@ -245,15 +245,13 @@ impl Objectives {
     ) {
         for (mut objectives, object, transform, velocity, mut acceleration) in &mut query {
             let config = configs.objects.get(object).unwrap();
+            let obstacles_acceleration = obstacles_grid
+                .obstacles_acceleration(transform.translation.xy(), *velocity)
+                * config.obstacle_acceleration;
+            *acceleration += obstacles_acceleration;
             let resolved = objectives.resolve(transform, &others, &time, &config.waypoint);
             *acceleration +=
                 resolved.acceleration(transform, *velocity, config, &grid_spec, &navigation_grid);
-            let current_acceleration = *acceleration;
-            *acceleration += obstacles_grid.obstacles_acceleration(
-                transform.translation.xy(),
-                *velocity,
-                current_acceleration,
-            ) * config.obstacle_acceleration;
         }
     }
 
@@ -359,7 +357,7 @@ impl ResolvedObjective {
         let target_cell = grid_spec.to_rowcol(target_position);
         if let Some(nav) = navigation_grid.get(&target_cell) {
             let target_cell_position = nav.grid.to_world_position(target_cell);
-            let flow_acceleration = nav.grid.flow_acceleration5(position) * config.nav_flow_factor;
+            let flow_acceleration = nav.grid.flow_acceleration5(position, config);
             flow_acceleration
                 + config.waypoint.slow_force(
                     velocity,

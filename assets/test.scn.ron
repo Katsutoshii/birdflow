@@ -21,17 +21,17 @@
     "birdflow::physics::PhysicsMaterials": PhysicsMaterials(
       {
         Default: PhysicsMaterial(
-          max_velocity: 10.0,
+          max_velocity: 9.0,
           min_velocity: 1.0,
           velocity_smoothing: 0.0,
         ),
         Zooid: PhysicsMaterial(
-          max_velocity: 7.0,
+          max_velocity: 5.5,
           min_velocity: 1.0,
           velocity_smoothing: 0.5,
         ),
         SlowZooid: PhysicsMaterial(
-          max_velocity: 5.0,
+          max_velocity: 4.5,
           min_velocity: 1.0,
           velocity_smoothing: 0.5,
         ),
@@ -54,15 +54,15 @@
         {
           Worker: ObjectConfig(
             physics_material: Zooid,
-            neighbor_radius: 300.0,
-            obstacle_acceleration: 3.,
-            nav_flow_factor: 1.,
+            neighbor_radius: 128.0,
+            obstacle_acceleration: 5.,
+            nav_flow_factor: 2.,
             attack_velocity: 30.,
             spawn_velocity: 10.0,
             waypoint: (
               max_acceleration: 3.0,
-              repell_radius: 64.0,
-              slow_factor: 0.3,
+              repell_radius:32.0,
+              slow_factor: 0.2,
               attack_radius: 265.0,
             ),
             hit_radius: 12.0,
@@ -95,15 +95,15 @@
           ),
           Head: ObjectConfig(
             physics_material: SlowZooid,
-            neighbor_radius: 100.0,
+            neighbor_radius: 128.0,
             obstacle_acceleration: 3.,
             nav_flow_factor: 1.,
             attack_velocity: 0.,
             spawn_velocity: 2.0,
             waypoint: (
               max_acceleration: 3.5,
-              repell_radius: 20.0,
-              slow_factor: 0.3,
+              repell_radius: 32.0,
+              slow_factor: 0.2,
               attack_radius: 265.0,
             ),
             hit_radius: 24.0,

@@ -66,47 +66,61 @@ impl Grid2<Obstacle> {
     fn obstacle_acceleration(
         &self,
         position: Vec2,
-        cell: RowCol,
-        velocity: Velocity,
+        _velocity: Velocity,
+        rowcol: RowCol,
+        direction: (i16, i16),
     ) -> Acceleration {
-        if !self.in_bounds(cell) {
-            return Acceleration::ZERO;
-        }
-        if self[cell] == Obstacle::Empty {
-            return Acceleration::ZERO;
-        }
-        let obstacle_position = self.to_world_position(cell);
-        let d = obstacle_position - position;
-        let v_dot_d = velocity.dot(d);
-        let d_dot_d = d.dot(d);
+        let mut acceleration = Acceleration::ZERO;
+        let obstacle_position = self.to_world_position(rowcol);
 
-        // If moving towards the obstacle, accelerate away from the obstacle.
-        if v_dot_d > 0.01 {
-            let magnitude = (self.spec.width - position.distance(obstacle_position)).max(0.);
-            let projection = d * (d_dot_d / v_dot_d);
-            Acceleration(-magnitude * projection)
-        } else {
-            Acceleration::ZERO
+        if self[rowcol] != Obstacle::Empty {
+            //   W
+            // ┏---┓
+            // ┏━━━┳━━━┓
+            // ┃ X ┃   Y
+            // ┗━━━┻━━━┛
+            //   ┗-----┛
+            //    1.5 W
+            let max_d = 1.5 * self.spec.width;
+            let d = obstacle_position - position; // Distance to the obstacle per each axis.
+            let magnitude = ((max_d - d.abs()) / max_d).clamp(Vec2::ZERO, Vec2::ONE); // [0, 1], [far from obstacle, near to obstacle]
+
+            // Only apply obstacle force when moving towards the obstacle.
+            // let directional_adjustment = 1.0
+            //     + d.normalize_or_zero()
+            //         .dot(velocity.0.normalize_or_zero())
+            //         .max(0.);
+            let directional_adjustment = 1.;
+            acceleration += Acceleration(
+                -magnitude
+                    * directional_adjustment
+                    * Vec2::new(direction.1 as f32, direction.0 as f32),
+            );
         }
+        acceleration
     }
 
     /// Compute acceleration due to neighboring obstacles.
     /// For each neighboring obstacle, if the object is moving towards the obstacle
     /// we apply a force away from the obstacle.
-    pub fn obstacles_acceleration(
-        &self,
-        position: Vec2,
-        velocity: Velocity,
-        acceleration: Acceleration,
-    ) -> Acceleration {
-        // Apply one step of integration to anticipate movement from this step.
-        let next_velocity = Velocity(velocity.0 + acceleration.0);
-        let mut acceleration = Acceleration::ZERO;
-
-        for (row, col) in self.get_in_radius(position, self.width * 2.) {
-            acceleration += self.obstacle_acceleration(position, (row, col), next_velocity)
+    pub fn obstacles_acceleration(&self, position: Vec2, velocity: Velocity) -> Acceleration {
+        let (row, col) = self.to_rowcol(position);
+        if self.is_boundary((row, col)) {
+            return Acceleration::ZERO;
         }
-        Acceleration(acceleration.clamp_length(0., next_velocity.length()))
+        let mut acceleration = Acceleration::ZERO;
+        for (dr, dc) in [(0, 1), (1, 0), (0, -1), (-1, 0)] {
+            let obstacle_rowcol = ((row as i16 + dr) as u16, (col as i16 + dc) as u16);
+            acceleration +=
+                self.obstacle_acceleration(position, velocity, obstacle_rowcol, (dr, dc));
+        }
+        // for (dr, dc) in [(1, 1), (1, -1), (-1, -1), (-1, 1)] {
+        //     let obstacle_rowcol = ((row as i16 + dr) as u16, (col as i16 + dc) as u16);
+        //     acceleration +=
+        //         self.obstacle_acceleration(position, velocity, obstacle_rowcol, (dr, dc))
+        //             * 2f32.sqrt();
+        // }
+        acceleration
     }
 }
 

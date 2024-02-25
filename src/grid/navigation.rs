@@ -1,16 +1,11 @@
 /// Sparse grid flow for path finding.
-use std::{
-    cmp::Ordering,
-    collections::{BTreeSet, BinaryHeap},
-};
-
 use crate::prelude::*;
 use bevy::{
     prelude::*,
     utils::{Entry, HashMap},
 };
 
-use super::SparseGrid2;
+use super::{AStarRunner, SparseGrid2};
 
 /// Plugin for flow-based navigation.
 pub struct NavigationPlugin;
@@ -39,146 +34,6 @@ pub struct NavigationCostEvent {
     pub cost: f32,
 }
 
-/// State for running A* search to fill out flow cost grid.
-/// See https://doc.rust-lang.org/std/collections/binary_heap/index.html#examples
-#[derive(Copy, Clone, PartialEq)]
-pub struct AStarState {
-    rowcol: RowCol,
-    cost: f32,
-    heuristic: f32,
-}
-impl AStarState {
-    // Priority scoring function f.
-    fn f(&self) -> f32 {
-        self.cost + self.heuristic
-    }
-}
-impl Eq for AStarState {}
-impl Ord for AStarState {
-    fn cmp(&self, other: &Self) -> Ordering {
-        other
-            .f()
-            .partial_cmp(&self.f())
-            .expect("NaN cost found in A*.")
-            .then_with(|| self.rowcol.cmp(&other.rowcol))
-    }
-}
-impl PartialOrd for AStarState {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-/// Struct to allow running A* on demand while re-using old results.
-pub struct AStarRunner {
-    pub destination: RowCol,
-    pub costs: HashMap<RowCol, f32>,
-    heap: BinaryHeap<AStarState>,
-}
-impl AStarRunner {
-    /// Initialize AStarRunner to a goal.
-    pub fn new(destination: RowCol) -> Self {
-        let mut heap = BinaryHeap::new();
-        heap.push(AStarState {
-            cost: 0.,
-            rowcol: destination,
-            heuristic: 0.,
-        });
-        Self {
-            destination,
-            costs: HashMap::new(),
-            heap,
-        }
-    }
-
-    /// Compute heuristic factor on naive 8-distance heuristic.
-    /// We want to use the heuristic more at higher distances from the destination.
-    pub fn heuristic_factor(&self, source: RowCol) -> f32 {
-        let min_grid_dist = 1.;
-        let max_grid_dist = 30.;
-        let dist = self.destination.distance8(source);
-        let max_heuristic = 0.9;
-        let final_dist = dist.clamp(min_grid_dist, max_grid_dist);
-        max_heuristic * final_dist / max_grid_dist
-    }
-    /// Runs A star from the given source to the destination.
-    pub fn a_star_from_source(
-        &mut self,
-        source: RowCol,
-        grid: &SparseFlowGrid2,
-        obstacles: &Grid2<Obstacle>,
-    ) {
-        // We're at `start`, with a zero cost
-        if grid.is_boundary(self.destination) {
-            return;
-        }
-
-        let heuristic_factor = self.heuristic_factor(source);
-
-        // Examine the frontier with lower cost nodes first (min-heap)
-        while let Some(AStarState {
-            cost,
-            rowcol,
-            heuristic: _,
-        }) = self.heap.pop()
-        {
-            // Skip already finalized cells.
-            if self.costs.contains_key(&rowcol) {
-                continue;
-            }
-
-            // Costs inserted here are guaranteed to be the best costs seen so far.
-            self.costs.insert(rowcol, cost);
-
-            // If at the goal, we're done!
-            if rowcol == source {
-                return;
-            }
-
-            // For each node we can reach, see if we can find a way with
-            // a lower cost going through this node
-            for (neighbor_rowcol, neighbor_cost) in grid.neighbors8(rowcol) {
-                // Skip out of bounds positions.
-                if grid.is_boundary(neighbor_rowcol) {
-                    continue;
-                }
-                if obstacles[neighbor_rowcol] != Obstacle::Empty {
-                    continue;
-                }
-
-                self.heap.push(AStarState {
-                    cost: cost + neighbor_cost,
-                    rowcol: neighbor_rowcol,
-                    heuristic: heuristic_factor * neighbor_rowcol.distance8(source),
-                });
-            }
-        }
-    }
-
-    /// Run A* search from destination to reach all sources.
-    pub fn a_star(
-        &self,
-        sources: &[RowCol],
-        destination: RowCol,
-        grid: &SparseFlowGrid2,
-        obstacles: &Grid2<Obstacle>,
-    ) -> HashMap<RowCol, f32> {
-        let sources: BTreeSet<RowCol> = sources
-            .iter()
-            .filter(|&&rowcol| grid.in_bounds(rowcol) && obstacles[rowcol] == Obstacle::Empty)
-            .copied()
-            .collect();
-        let mut runner = AStarRunner::new(destination);
-        for source in sources {
-            if runner.costs.contains_key(&source) {
-                continue;
-            }
-            runner.a_star_from_source(source, grid, obstacles);
-        }
-        runner.costs
-    }
-}
-
 /// Sparse storage for flow vectors.
 #[derive(Default, DerefMut, Deref, Clone)]
 pub struct SparseFlowGrid2(SparseGrid2<Acceleration>);
@@ -196,7 +51,8 @@ impl SparseFlowGrid2 {
         Acceleration::ZERO
     }
 
-    pub fn flow_acceleration5(&self, position: Vec2) -> Acceleration {
+    /// Adds the amount of acceleration needed to bring the velocity to the underlying flow value.
+    pub fn flow_acceleration5(&self, position: Vec2, config: &ObjectConfig) -> Acceleration {
         let mut total_acceleration = Acceleration::ZERO;
 
         let rowcol = self.to_rowcol(position);
@@ -212,7 +68,10 @@ impl SparseFlowGrid2 {
             }
             total_acceleration += self.flow_acceleration(position, neighbor_rowcol);
         }
-        Acceleration(total_acceleration.normalize_or_zero())
+        // What do we need to add to velocity to get total_acccel?
+        // v + x = ta
+        // x = ta - v
+        Acceleration(config.nav_flow_factor * total_acceleration.normalize_or_zero())
     }
 }
 
@@ -229,6 +88,7 @@ impl NavigationGrid2Entry {
         obstacles: &Grid2<Obstacle>,
         event_writer: &mut EventWriter<NavigationCostEvent>,
     ) {
+        // TODO: consider if we should also add neighboring cells for each source.
         // let mut expanded_sources: Vec<RowCol> = Vec::with_capacity(sources.len());
         // for &rowcol in &sources {
         //     for neighbor_rowcol in self.grid.get_in_radius_discrete(rowcol, 2) {
@@ -245,6 +105,17 @@ impl NavigationGrid2Entry {
             let mut min_neighbor_rowcol = rowcol;
             let mut min_neighbor_cost = cost;
             for (neighbor_rowcol, _) in self.grid.neighbors8(rowcol) {
+                // Cornering checks for diagonals.
+                if neighbor_rowcol.0 != rowcol.0 && neighbor_rowcol.1 != rowcol.1 {
+                    if obstacles[(neighbor_rowcol.0, rowcol.1)] != Obstacle::Empty {
+                        // info!("Corner skip! {:?} -> {:?}", rowcol, neighbor_rowcol);
+                        continue;
+                    }
+                    if obstacles[(rowcol.0, neighbor_rowcol.1)] != Obstacle::Empty {
+                        // info!("Corner skip! {:?} -> {:?}", rowcol, neighbor_rowcol);
+                        continue;
+                    }
+                }
                 if let Some(&neighbor_cost) = costs.get(&neighbor_rowcol) {
                     if neighbor_cost < min_neighbor_cost {
                         min_neighbor_rowcol = neighbor_rowcol;
@@ -300,19 +171,6 @@ impl NavigationGrid2 {
             {
                 grid.resize_with(spec.clone());
             }
-        }
-    }
-
-    /// Compute acceleration using the weighted sum of the 4 neighboring cells and the current cell.
-    pub fn flow_acceleration5(&mut self, position: Vec2, destination: RowCol) -> Acceleration {
-        if let Some(NavigationGrid2Entry {
-            grid,
-            a_star_runner: _,
-        }) = self.get_mut(&destination)
-        {
-            grid.flow_acceleration5(position)
-        } else {
-            Acceleration::ZERO
         }
     }
 

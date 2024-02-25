@@ -16,6 +16,8 @@ mod sparse_grid2;
 pub use sparse_grid2::SparseGrid2;
 mod shader_plane;
 pub use shader_plane::{ShaderPlaneAssets, ShaderPlaneMaterial};
+mod astar;
+pub use astar::AStarRunner;
 mod navigation;
 pub use navigation::{CreateWaypointEvent, NavigationCostEvent, NavigationGrid2};
 mod minimap;

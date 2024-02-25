@@ -21,7 +21,7 @@ fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
     alpha += grid[grid_index(size, row + 0u, col + 1u)] * g_frac.x;
     alpha += grid[grid_index(size, row - 1u, col - 0u)] * (1. - g_frac.y);
     alpha += grid[grid_index(size, row - 0u, col - 1u)] * (1. - g_frac.x);
-    alpha *= 0.375;
+    alpha *= 0.4;
 
     var output_color = color;
     let noise_amount = 0.13;

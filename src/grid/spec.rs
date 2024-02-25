@@ -10,6 +10,14 @@ pub type RowCol = (u16, u16);
 pub trait RowColDistance {
     fn distance8(self, other: Self) -> f32;
     fn signed_delta8(self, other: Self) -> Vec2;
+    fn above(self) -> Self;
+    fn above_right(self) -> Self;
+    fn right(self) -> Self;
+    fn below_right(self) -> Self;
+    fn below(self) -> Self;
+    fn below_left(self) -> Self;
+    fn left(self) -> Self;
+    fn above_left(self) -> Self;
 }
 impl RowColDistance for RowCol {
     /// Distance on a grid with 8-connectivity in cell space.
@@ -24,6 +32,30 @@ impl RowColDistance for RowCol {
         2f32.sqrt() * diagonals as f32 + straights as f32
     }
 
+    fn above(self) -> Self {
+        (self.0 + 1, self.1)
+    }
+    fn above_right(self) -> Self {
+        (self.0 + 1, self.1 + 1)
+    }
+    fn right(self) -> Self {
+        (self.0, self.1 + 1)
+    }
+    fn below_right(self) -> Self {
+        (self.0 - 1, self.1 + 1)
+    }
+    fn below(self) -> Self {
+        (self.0 - 1, self.1)
+    }
+    fn below_left(self) -> Self {
+        (self.0 - 1, self.1 - 1)
+    }
+    fn left(self) -> Self {
+        (self.0, self.1 - 1)
+    }
+    fn above_left(self) -> Self {
+        (self.0 + 1, self.1 - 1)
+    }
     /// Signed delta between to rowcol as a float in cell space.
     fn signed_delta8(self, rowcol2: Self) -> Vec2 {
         let (row1, col1) = self;
@@ -109,7 +141,7 @@ impl GridSpec {
         }
     }
 
-        /// Compute the (min, max) position for the grid.
+    /// Compute the (min, max) position for the grid.
     pub fn world2d_bounds_eps(&self) -> Aabb2 {
         Aabb2 {
             min: -self.offset() + self.width,
