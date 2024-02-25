@@ -4,6 +4,8 @@ use bevy::window::PrimaryWindow;
 use crate::cursor::CursorAssets;
 use crate::prelude::*;
 
+use self::window::ScalableWindow;
+
 pub struct CameraPlugin;
 impl Plugin for CameraPlugin {
     fn build(&self, app: &mut App) {
@@ -116,7 +118,7 @@ impl CameraController {
     pub fn update_drag(
         mut controller_query: Query<(&mut Self, &mut Transform), With<MainCamera>>,
         cursor: Query<&GlobalTransform, (With<Cursor>, Without<MainCamera>)>,
-        mouse_input: Res<Input<MouseButton>>,
+        mouse_input: Res<ButtonInput<MouseButton>>,
         mut event_writer: EventWriter<CameraMoveEvent>,
     ) {
         let (mut controller, mut camera_transform) = controller_query.single_mut();
@@ -159,10 +161,7 @@ impl CameraController {
         // let cursor_position = cursor.translation.xy();
         let mut acceleration = Vec2::ZERO;
         controller.velocity = Vec2::ZERO;
-        let window_size = Vec2 {
-            x: window.physical_width() as f32,
-            y: window.physical_height() as f32,
-        } / window.scale_factor() as f32;
+        let window_size = window.scaled_size();
 
         if let Some(centered_cursor_position) = window.cursor_position() {
             let boundary = 1.;

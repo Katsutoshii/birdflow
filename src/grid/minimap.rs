@@ -6,6 +6,8 @@ use bevy::{
 
 use crate::prelude::*;
 
+use self::window::ScalableWindow;
+
 use super::{
     fog::{VisibilityUpdate, VisibilityUpdateEvent},
     shader_plane::{ShaderPlaneAssets, ShaderPlanePlugin},
@@ -62,7 +64,7 @@ impl ShaderPlaneMaterial for MinimapShaderMaterial {
         (quad_size * Vec2 { x: 1., y: -1. }).extend(1.)
     }
     fn translation(window: &Window, _spec: &GridSpec) -> Vec3 {
-        let viewport_size = Self::viewport_size(window);
+        let viewport_size = window.scaled_size();
         let quad_size = Self::quad_size(window);
 
         let mut translation = Vec2::ZERO;
@@ -97,15 +99,8 @@ impl ShaderPlaneMaterial for MinimapShaderMaterial {
 impl MinimapShaderMaterial {
     const SCREEN_RATIO: f32 = 1. / 8.;
 
-    fn viewport_size(window: &Window) -> Vec2 {
-        Vec2 {
-            x: window.physical_width() as f32,
-            y: window.physical_height() as f32,
-        } / window.scale_factor() as f32
-    }
-
     fn quad_size(window: &Window) -> Vec2 {
-        Self::viewport_size(window).xx() * Self::SCREEN_RATIO
+        window.scaled_size().xx() * Self::SCREEN_RATIO
     }
 
     /// Update the grid shader material.

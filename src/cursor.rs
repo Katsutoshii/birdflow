@@ -23,7 +23,7 @@ impl Cursor {
         let window_size = Vec2 {
             x: window.physical_width() as f32,
             y: window.physical_height() as f32,
-        } / window.scale_factor() as f32;
+        } / window.scale_factor();
 
         let mut cursor_transform = cursor.single_mut();
 
@@ -60,8 +60,10 @@ impl FromWorld for CursorAssets {
     fn from_world(world: &mut World) -> Self {
         let mesh = {
             let mut meshes = world.get_resource_mut::<Assets<Mesh>>().unwrap();
-            meshes.add(Mesh::from(shape::RegularPolygon {
-                radius: 2f32.sqrt() / 2.,
+            meshes.add(Mesh::from(RegularPolygon {
+                circumcircle: Circle {
+                    radius: 2f32.sqrt() / 2.,
+                },
                 sides: 3,
             }))
         };

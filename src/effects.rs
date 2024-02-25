@@ -18,15 +18,17 @@ fn color_gradient_from_team(team: Team) -> Gradient<Vec4> {
     let mut color_gradient = Gradient::new();
     match team {
         Team::Blue | Team::None => {
-            color_gradient.add_key(0.0, std::convert::Into::<Vec4>::into(Color::TEAL) * 1.3);
-            color_gradient.add_key(0.1, Color::TEAL.into());
-            color_gradient.add_key(0.9, std::convert::Into::<Vec4>::into(Color::TEAL) * 0.5);
+            let color = Color::TEAL.rgba_to_vec4();
+            color_gradient.add_key(0.0, color * 1.3);
+            color_gradient.add_key(0.1, color);
+            color_gradient.add_key(0.9, color * 0.5);
             color_gradient.add_key(1.0, Vec4::new(0.0, 0.0, 2.0, 0.0));
         }
         Team::Red => {
-            color_gradient.add_key(0.0, std::convert::Into::<Vec4>::into(Color::TOMATO) * 1.3);
-            color_gradient.add_key(0.1, Color::TOMATO.into());
-            color_gradient.add_key(0.7, std::convert::Into::<Vec4>::into(Color::TOMATO) * 0.5);
+            let color = Color::TOMATO.rgba_to_vec4();
+            color_gradient.add_key(0.0, color * 1.3);
+            color_gradient.add_key(0.1, color);
+            color_gradient.add_key(0.7, color * 0.5);
             color_gradient.add_key(1.0, Vec4::new(2.0, 0.0, 0.0, 0.0));
         }
     };

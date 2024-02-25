@@ -82,7 +82,7 @@ impl ZooidHead {
                 event_writer.send(CreateWaypointEvent {
                     destination: position,
                     sources: vec![position],
-                })
+                });
             }
         }
     }
@@ -129,7 +129,6 @@ impl ZooidHead {
                         let zindex = zindex::ZOOIDS_MIN
                             + (i as f32) * 0.00001 * (zindex::ZOOIDS_MAX - zindex::ZOOIDS_MIN);
                         let velocity: Vec2 = Vec2::Y * config.spawn_velocity + velocity.0;
-                        info!("Spawn zooid!");
                         ZooidWorkerBundler {
                             team: *team,
                             mesh: assets.mesh.clone(),
@@ -153,9 +152,9 @@ impl ZooidHead {
         mut objects: Query<(Entity, &GridEntity, &Object, &mut Objectives)>,
         mut commands: Commands,
         mut grid: ResMut<Grid2<EntitySet>>,
-        keyboard_input: Res<Input<KeyCode>>,
+        keyboard_input: Res<ButtonInput<KeyCode>>,
     ) {
-        if !keyboard_input.just_pressed(KeyCode::D) {
+        if !keyboard_input.just_pressed(KeyCode::KeyD) {
             return;
         }
         let mut entities = HashSet::<Entity>::new();

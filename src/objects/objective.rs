@@ -395,7 +395,7 @@ impl ObjectiveDebugger {
                             ..default()
                         },
                     )],
-                    alignment: TextAlignment::Center,
+                    justify: JustifyText::Center,
                     ..default()
                 },
                 text_2d_bounds: Text2dBounds {

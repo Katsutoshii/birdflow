@@ -1,9 +1,9 @@
 #import bevy_sprite::mesh2d_vertex_output::VertexOutput
 #import "shaders/grid.wgsl"::{GridSize, grid_index, grid_offset, grid_coords};
 
-@group(1) @binding(0) var<uniform> color: vec4<f32>;
-@group(1) @binding(1) var<uniform> size: GridSize;
-@group(1) @binding(2) var<storage> grid: array<f32>;
+@group(2) @binding(0) var<uniform> color: vec4<f32>;
+@group(2) @binding(1) var<uniform> size: GridSize;
+@group(2) @binding(2) var<storage> grid: array<f32>;
 
 @fragment
 fn fragment(mesh: VertexOutput) -> @location(0) vec4<f32> {
