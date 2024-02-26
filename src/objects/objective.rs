@@ -338,8 +338,18 @@ impl ResolvedObjective {
             }
             Self::None => {
                 // If no objective, slow down and circle about.
-                let reduce_velocity = velocity.0 / 2.;
-                Acceleration(Mat2::from_angle(PI / 16.) * reduce_velocity - reduce_velocity)
+
+                // If velocity is less than 10, don't slow down.
+                let idle_slow_threshold = 1.;
+                let velocity_squared = velocity.length_squared();
+                let slow_magnitude =
+                    (velocity_squared - idle_slow_threshold).max(0.) / velocity_squared;
+                let slow_vector = -velocity.0 * slow_magnitude;
+
+                let turn_speed = 0.5;
+                let turn_vector = Mat2::from_angle(PI / 8.) * velocity.0 * turn_speed;
+
+                Acceleration(turn_vector + slow_vector)
             }
         }
     }

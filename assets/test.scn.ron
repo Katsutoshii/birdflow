@@ -5,6 +5,7 @@
       cols: 256,
       width: 64.0,
       visualize: false,
+      visualize_navigation: false,
     ),
     "birdflow::grid::obstacles::ObstaclesSpec": ([
       ((134, 134), Full),
@@ -73,14 +74,14 @@
                   separation_radius: 100.0,
                   separation_acceleration: 10.0,
                   cohesion_acceleration: 2.0,
-                  alignment_factor: 20000.0,
+                  alignment_factor: 0.3,
                   slow_factor: 0.0,
                 ),
                 Head: InteractionConfig(
                   separation_radius: 100.0,
                   separation_acceleration: 3.,
                   cohesion_acceleration: 0.5,
-                  alignment_factor: 100.0,
+                  alignment_factor: 0.0001,
                   slow_factor: 0.1,
                 ),
                 Food: InteractionConfig(
@@ -112,14 +113,14 @@
               {
                 Worker: InteractionConfig(
                   separation_radius: 40.0,
-                  separation_acceleration: 0.2,
+                  separation_acceleration: 1.,
                   cohesion_acceleration: 0.1,
                   alignment_factor: 0.0,
                   slow_factor: 0.0,
                 ),
                 Head: InteractionConfig(
                   separation_radius: 100.0,
-                  separation_acceleration: 0.5,
+                  separation_acceleration: 10.5,
                   cohesion_acceleration: 0.1,
                   alignment_factor: 0.0,
                   slow_factor: 0.0,

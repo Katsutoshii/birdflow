@@ -91,10 +91,11 @@ impl Grid2<Obstacle> {
             //         .dot(velocity.0.normalize_or_zero())
             //         .max(0.);
             let directional_adjustment = 1.;
+            let direction = Vec2::new(direction.1 as f32, direction.0 as f32);
             acceleration += Acceleration(
                 -magnitude
                     * directional_adjustment
-                    * Vec2::new(direction.1 as f32, direction.0 as f32),
+                    * direction,
             );
         }
         acceleration

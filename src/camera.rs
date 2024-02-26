@@ -1,5 +1,11 @@
-use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
+use bevy::{
+    core_pipeline::{
+        bloom::{BloomCompositeMode, BloomPrefilterSettings, BloomSettings},
+        tonemapping::Tonemapping,
+    },
+    prelude::*,
+    window::PrimaryWindow,
+};
 
 use crate::cursor::CursorAssets;
 use crate::prelude::*;
@@ -36,7 +42,25 @@ impl MainCamera {
     pub fn startup(mut commands: Commands, assets: Res<CursorAssets>) {
         let camera_entity = commands
             .spawn((
-                Camera2dBundle::default(),
+                Camera2dBundle {
+                    camera: Camera {
+                        hdr: true, // 1. HDR is required for bloom
+                        ..default()
+                    },
+                    tonemapping: Tonemapping::TonyMcMapface, // 2. Using a tonemapper that desaturates to white is recommended
+                    ..default()
+                },
+                BloomSettings {
+                    intensity: 0.15 * 2.0,
+                    low_frequency_boost: 0.7,
+                    low_frequency_boost_curvature: 0.95,
+                    high_pass_frequency: 1.0,
+                    prefilter_settings: BloomPrefilterSettings {
+                        threshold: 0.0,
+                        threshold_softness: 0.0,
+                    },
+                    composite_mode: BloomCompositeMode::EnergyConserving,
+                }, // 3. Enable bloom for the camera
                 CameraController::default(),
                 InheritedVisibility::default(),
                 MainCamera,

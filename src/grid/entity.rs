@@ -136,6 +136,7 @@ mod tests {
                 cols: 10,
                 width: 10.0,
                 visualize: false,
+                visualize_navigation: false,
             },
             ..Default::default()
         };

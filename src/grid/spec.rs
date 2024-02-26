@@ -84,6 +84,7 @@ pub struct GridSpec {
     pub cols: u16,
     pub width: f32,
     pub visualize: bool,
+    pub visualize_navigation: bool,
 }
 impl Default for GridSpec {
     fn default() -> Self {
@@ -92,6 +93,7 @@ impl Default for GridSpec {
             cols: 10,
             width: 10.0,
             visualize: true,
+            visualize_navigation: false,
         }
     }
 }

@@ -15,8 +15,16 @@ pub struct NavigationVisualizerPlugin;
 impl Plugin for NavigationVisualizerPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(ShaderPlanePlugin::<NavigationShaderMaterial>::default())
-            .add_systems(FixedUpdate, (NavigationShaderMaterial::update,));
+            .add_systems(
+                FixedUpdate,
+                (NavigationShaderMaterial::update,).run_if(should_visualize_grid),
+            );
     }
+}
+
+/// Returns true if the grid should be visualized.
+fn should_visualize_grid(spec: Res<GridSpec>) -> bool {
+    spec.visualize_navigation
 }
 
 /// Parameters passed to grid background shader.

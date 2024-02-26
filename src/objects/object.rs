@@ -165,7 +165,6 @@ impl Object {
                     other_transform,
                     other_velocity,
                     config,
-                    other_entities.len(),
                 ) * (1.0 / (other_entities.len() as f32));
             } else {
                 // If the other entity is on the enemy team:
@@ -212,14 +211,13 @@ impl Object {
         other_transform: &Transform,
         other_velocity: Velocity,
         config: &ObjectConfig,
-        num_others: usize,
     ) -> Acceleration {
         let mut acceleration = Acceleration::ZERO;
         let interaction = config.interactions.get(other).unwrap();
-        let position_delta =
-            transform.translation.truncate() - other_transform.translation.truncate(); // Towards self, away from other.
+        let position_delta = transform.translation.xy() - other_transform.translation.xy(); // Towards self, away from other.
         let distance_squared = position_delta.length_squared();
-        if distance_squared > config.neighbor_radius * config.neighbor_radius {
+        let radius_squared = config.neighbor_radius * config.neighbor_radius;
+        if distance_squared > radius_squared {
             return acceleration;
         }
         // Separation
@@ -228,9 +226,9 @@ impl Object {
         // Alignment
         acceleration += Self::alignment_acceleration(
             distance_squared,
+            radius_squared,
             velocity,
             other_velocity,
-            num_others,
             interaction,
         );
         acceleration
@@ -268,20 +266,16 @@ impl Object {
         )
     }
 
-    /// ALignment acceleration.
-    /// For now we just nudge the birds in the direction of all the other birds.
-    /// We normalize by number of other birds to prevent a large flock
-    /// from being unable to turn.
+    /// Alignment acceleration.
+    /// Compute the difference between this object's velocity and the other object's velocity.
     fn alignment_acceleration(
         distance_squared: f32,
+        radius_squared: f32,
         velocity: Velocity,
         other_velocity: Velocity,
-        other_count: usize,
         config: &InteractionConfig,
     ) -> Acceleration {
-        Acceleration(
-            (other_velocity.0 - velocity.0) * config.alignment_factor
-                / (distance_squared.max(0.1) * other_count as f32),
-        )
+        let magnitude = (radius_squared - distance_squared) / radius_squared;
+        Acceleration((other_velocity.0 - velocity.0) * config.alignment_factor * magnitude)
     }
 }
