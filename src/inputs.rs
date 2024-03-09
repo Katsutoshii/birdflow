@@ -98,7 +98,7 @@ impl From<InputAction> for RawInput {
             InputAction::Primary => Self::MouseButton(MouseButton::Left),
             InputAction::Secondary => Self::MouseButton(MouseButton::Right),
             InputAction::PanCamera => Self::MouseButton(MouseButton::Middle),
-            InputAction::SpawnHead => Self::KeyCode(KeyCode::Enter),
+            InputAction::SpawnHead => Self::KeyCode(KeyCode::KeyM),
             InputAction::SpawnRed => Self::KeyCode(KeyCode::Minus),
             InputAction::SpawnBlue => Self::KeyCode(KeyCode::Equal),
             InputAction::SpawnZooid => Self::KeyCode(KeyCode::KeyZ),
@@ -303,7 +303,7 @@ impl ControlEvent {
                             }
                         }
                     }
-                    info!("{:?}", &control_event);
+                    // info!("{:?}", &control_event);
                     event_writer.send(control_event);
                 }
             }

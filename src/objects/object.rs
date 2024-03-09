@@ -15,6 +15,7 @@ impl Plugin for ObjectPlugin {
             (
                 Object::update.in_set(SystemStage::Compute),
                 Object::death.in_set(SystemStage::Despawn),
+                ObjectBackground::update.in_set(SystemStage::Compute),
             ),
         );
     }
@@ -34,7 +35,7 @@ pub struct ProcessNeighborsResult {
 }
 
 /// Entities that can interact with each other.
-#[derive(Component, Reflect, Default, Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Component, Reflect, Default, Copy, Clone, PartialEq, Eq, Hash, Debug, clap::ValueEnum)]
 #[reflect(Component)]
 pub enum Object {
     #[default]
@@ -277,5 +278,21 @@ impl Object {
     ) -> Acceleration {
         let magnitude = (radius_squared - distance_squared) / radius_squared;
         Acceleration((other_velocity.0 - velocity.0) * config.alignment_factor * magnitude)
+    }
+}
+
+#[derive(Component, Default)]
+pub struct ObjectBackground;
+impl ObjectBackground {
+    pub fn update(
+        mut query: Query<(&mut Transform, &Parent), With<Self>>,
+        parent_velocities: Query<&Velocity, With<Children>>,
+    ) {
+        for (mut transform, parent) in &mut query {
+            let parent_velocity = parent_velocities
+                .get(parent.get())
+                .expect("Invalid parent.");
+            transform.translation = -0.1 * parent_velocity.extend(0.);
+        }
     }
 }

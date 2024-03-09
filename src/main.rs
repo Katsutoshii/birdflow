@@ -1,8 +1,12 @@
-use bevy::prelude::*;
+use bevy::{
+    diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin},
+    prelude::*,
+};
 
 pub mod aabb;
 pub mod camera;
 pub mod config;
+pub mod console;
 pub mod cursor;
 pub mod effects;
 pub mod grid;
@@ -33,8 +37,8 @@ pub mod prelude {
         inputs::{ControlAction, ControlEvent, InputState},
         meshes,
         objects::{
-            DamageEvent, Health, InteractionConfigs, Object, ObjectConfig, ObjectConfigs,
-            Objective, ObjectiveConfig, ObjectiveDebugger, Objectives, Team,
+            DamageEvent, Health, InteractionConfigs, Object, ObjectCommands, ObjectConfig,
+            ObjectConfigs, Objective, ObjectiveConfig, ObjectiveDebugger, Objectives, Team,
         },
         physics::{Acceleration, PhysicsBundle, PhysicsMaterial, PhysicsMaterialType, Velocity},
         raycast::{RaycastEvent, RaycastTarget},
@@ -60,6 +64,7 @@ fn main() {
             inputs::InputActionPlugin,
             grid::GridPlugin,
             objects::ObjectsPlugin,
+            console::CustomConsolePlugin,
             scene::LoadableScenePlugin,
             selector::SelectorPlugin,
             waypoint::WaypointPlugin,
@@ -69,6 +74,7 @@ fn main() {
             cursor::CursorPlugin,
             effects::EffectsPlugin,
         ))
+        .add_plugins((FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin::default()))
         .add_systems(Startup, startup)
         .add_systems(
             FixedUpdate,
@@ -81,7 +87,7 @@ fn startup(mut commands: Commands) {
     commands.spawn((TextBundle::from_section(
         [
             "  Controls:",
-            "    Create your spawner: enter",
+            "    Create your spawner: 'm'",
             "    Move camera: move mouse to border",
             "    Move waypoint: right click",
             "    Spawn zooids: 'z'",

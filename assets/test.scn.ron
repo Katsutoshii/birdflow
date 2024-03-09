@@ -72,7 +72,7 @@
               {
                 Worker: InteractionConfig(
                   separation_radius: 100.0,
-                  separation_acceleration: 10.0,
+                  separation_acceleration: 18.0,
                   cohesion_acceleration: 2.0,
                   alignment_factor: 0.3,
                   slow_factor: 0.0,
