@@ -8,11 +8,11 @@ use crate::{objects::objective::ObjectiveConfig, physics::PhysicsMaterialType};
 #[reflect(Resource)]
 pub struct TestInteractionConfigs(pub HashMap<PhysicsMaterialType, PhysicsMaterial>);
 
-#[derive(Resource, Clone, Default, Deref, DerefMut, Reflect)]
+#[derive(Resource, Clone, Default, Deref, DerefMut, Reflect, Debug)]
 #[reflect(Resource)]
 pub struct InteractionConfigs(pub HashMap<Object, InteractionConfig>);
 /// Describes interactions between two objects
-#[derive(Clone, Reflect)]
+#[derive(Clone, Reflect, Debug)]
 pub struct InteractionConfig {
     pub separation_radius: f32,
     pub separation_acceleration: f32,
@@ -32,11 +32,11 @@ impl Default for InteractionConfig {
     }
 }
 
-#[derive(Resource, Clone, Default, Deref, DerefMut, Reflect)]
+#[derive(Resource, Clone, Default, Deref, DerefMut, Reflect, Debug)]
 #[reflect(Resource)]
 pub struct ObjectConfigs(pub HashMap<Object, ObjectConfig>);
 
-#[derive(Clone, Reflect)]
+#[derive(Clone, Reflect, Debug)]
 /// Specifies stats per object type.
 pub struct ObjectConfig {
     physics_material: PhysicsMaterialType,
@@ -67,7 +67,7 @@ impl Default for ObjectConfig {
                 let mut interactions = HashMap::new();
                 interactions.insert(Object::Worker, InteractionConfig::default());
                 interactions.insert(Object::Head, InteractionConfig::default());
-                interactions.insert(Object::Food, InteractionConfig::default());
+                interactions.insert(Object::Plankton, InteractionConfig::default());
                 interactions
             }),
         }

@@ -34,13 +34,13 @@ pub struct ProcessNeighborsResult {
 }
 
 /// Entities that can interact with each other.
-#[derive(Component, Reflect, Default, Clone, PartialEq, Eq, Hash)]
+#[derive(Component, Reflect, Default, Clone, PartialEq, Eq, Hash, Debug)]
 #[reflect(Component)]
 pub enum Object {
     #[default]
     Worker,
     Head,
-    Food,
+    Plankton,
 }
 impl Object {
     /// Update objects acceleration and objectives.
@@ -118,7 +118,7 @@ impl Object {
                     transform: *transform,
                     team: *team,
                 });
-                if object == &Object::Food {
+                if object == &Object::Plankton {
                     // commands.spawn()
                 }
             }

@@ -51,23 +51,25 @@ pub enum InputAction {
     None,
     Primary,
     Secondary,
-    CameraPan,
+    PanCamera,
     SpawnHead,
     SpawnZooid,
     SpawnRed,
     SpawnBlue,
+    SpawnPlankton,
     SpawnFood,
 }
 impl InputAction {
-    const NUM_ACTIONS: usize = 8;
+    const NUM_ACTIONS: usize = 9;
     const ACTIONS: [Self; Self::NUM_ACTIONS] = [
         Self::Primary,
         Self::Secondary,
-        Self::CameraPan,
+        Self::PanCamera,
         Self::SpawnHead,
         Self::SpawnZooid,
         Self::SpawnRed,
         Self::SpawnBlue,
+        Self::SpawnPlankton,
         Self::SpawnFood,
     ];
     pub fn mouse_buttons() -> Vec<MouseButton> {
@@ -95,11 +97,12 @@ impl From<InputAction> for RawInput {
             InputAction::None => unreachable!(),
             InputAction::Primary => Self::MouseButton(MouseButton::Left),
             InputAction::Secondary => Self::MouseButton(MouseButton::Right),
-            InputAction::CameraPan => Self::MouseButton(MouseButton::Middle),
+            InputAction::PanCamera => Self::MouseButton(MouseButton::Middle),
             InputAction::SpawnHead => Self::KeyCode(KeyCode::Enter),
             InputAction::SpawnRed => Self::KeyCode(KeyCode::Minus),
             InputAction::SpawnBlue => Self::KeyCode(KeyCode::Equal),
             InputAction::SpawnZooid => Self::KeyCode(KeyCode::KeyZ),
+            InputAction::SpawnPlankton => Self::KeyCode(KeyCode::KeyP),
             InputAction::SpawnFood => Self::KeyCode(KeyCode::KeyF),
         }
     }
@@ -199,6 +202,7 @@ impl ControlEvent {
     ) -> Option<Self> {
         match (raycast_event.target, event.action) {
             (RaycastTarget::None, _) => None,
+            (_, InputAction::None) => None,
             (RaycastTarget::WorldGrid, InputAction::Primary) => Some(Self {
                 action: ControlAction::Select,
                 state: event.state,
@@ -209,7 +213,24 @@ impl ControlEvent {
                 state: event.state,
                 position: raycast_event.world_position,
             }),
+            (RaycastTarget::WorldGrid, InputAction::PanCamera) => Some(Self {
+                action: ControlAction::PanCamera,
+                state: event.state,
+                position: raycast_event.world_position,
+            }),
             (RaycastTarget::Minimap, InputAction::Primary) => Some(Self {
+                action: ControlAction::PanCamera,
+                state: event.state,
+                position: grid_spec
+                    .local_to_world_position(raycast_event.position * Vec2 { x: 1., y: -1. }),
+            }),
+            (RaycastTarget::Minimap, InputAction::Secondary) => Some(Self {
+                action: ControlAction::Move,
+                state: event.state,
+                position: grid_spec
+                    .local_to_world_position(raycast_event.position * Vec2 { x: 1., y: -1. }),
+            }),
+            (RaycastTarget::Minimap, InputAction::PanCamera) => Some(Self {
                 action: ControlAction::PanCamera,
                 state: event.state,
                 position: grid_spec
@@ -235,12 +256,16 @@ impl ControlEvent {
                 state: event.state,
                 position: raycast_event.world_position,
             }),
+            (_, InputAction::SpawnPlankton) => Some(Self {
+                action: ControlAction::SpawnPlankton,
+                state: event.state,
+                position: raycast_event.world_position,
+            }),
             (_, InputAction::SpawnFood) => Some(Self {
                 action: ControlAction::SpawnFood,
                 state: event.state,
                 position: raycast_event.world_position,
             }),
-            _ => None,
         }
     }
     pub fn update(
@@ -278,6 +303,7 @@ impl ControlEvent {
                             }
                         }
                     }
+                    info!("{:?}", &control_event);
                     event_writer.send(control_event);
                 }
             }
@@ -298,6 +324,7 @@ pub enum ControlAction {
     SpawnZooid,
     SpawnRed,
     SpawnBlue,
+    SpawnPlankton,
     SpawnFood,
 }
 

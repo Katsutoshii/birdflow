@@ -10,8 +10,8 @@ pub use self::{
     objective::{Objective, ObjectiveConfig, ObjectiveDebugger, Objectives},
 };
 use self::{
-    damage::DamagePlugin, food::FoodPlugin, object::ObjectPlugin, objective::ObjectivePlugin,
-    zooid_head::ZooidHeadPlugin, zooid_worker::ZooidWorkerPlugin,
+    damage::DamagePlugin, object::ObjectPlugin, objective::ObjectivePlugin,
+    plankton::PlanktonPlugin, zooid_head::ZooidHeadPlugin, zooid_worker::ZooidWorkerPlugin,
 };
 
 /// Plugin for running zooids simulation.
@@ -22,7 +22,7 @@ impl Plugin for ObjectsPlugin {
             ObjectivePlugin,
             ZooidHeadPlugin,
             ZooidWorkerPlugin,
-            FoodPlugin,
+            PlanktonPlugin,
             ObjectPlugin,
             DamagePlugin,
         ))
@@ -33,9 +33,9 @@ impl Plugin for ObjectsPlugin {
 
 mod config;
 mod damage;
-mod food;
 mod object;
 mod objective;
+mod plankton;
 mod zooid_head;
 mod zooid_worker;
 

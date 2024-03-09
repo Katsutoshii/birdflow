@@ -115,15 +115,15 @@ pub fn update(
 #[reflect(Resource)]
 pub struct PhysicsMaterials(HashMap<PhysicsMaterialType, PhysicsMaterial>);
 
-#[derive(Component, Clone, Default, PartialEq, Eq, Hash, Reflect)]
+#[derive(Component, Clone, Default, PartialEq, Eq, Hash, Reflect, Debug)]
 pub enum PhysicsMaterialType {
     #[default]
     Default,
     Zooid,
     SlowZooid,
-    Food,
+    Plankton,
 }
-#[derive(Clone, Reflect)]
+#[derive(Clone, Reflect, Debug)]
 pub struct PhysicsMaterial {
     max_velocity: f32,
     min_velocity: f32,
