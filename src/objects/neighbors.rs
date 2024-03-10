@@ -25,6 +25,7 @@ pub struct AlliedNeighbors(pub Vec<Neighbor>);
 pub struct NeighborsBundle {
     allies: AlliedNeighbors,
     enemies: EnemyNeighbors,
+    grid_entity: GridEntity,
 }
 
 pub fn update(

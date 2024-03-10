@@ -3,7 +3,7 @@ use bevy::{ecs::system::SystemParam, prelude::*, sprite::MaterialMesh2dBundle};
 
 use super::{
     neighbors::NeighborsBundle, object::ObjectBackground, plankton::Plankton,
-    zooid_head::ZooidHead, zooid_worker::ZooidWorker, TeamMaterials, ZooidAssets,
+    zooid_head::ZooidHead, zooid_worker::ZooidWorker, ObjectAssets, TeamMaterials,
 };
 
 #[derive(Default, Debug)]
@@ -19,7 +19,7 @@ pub struct ObjectSpec {
 /// System param to allow spawning effects.
 #[derive(SystemParam)]
 pub struct ObjectCommands<'w, 's> {
-    assets: ResMut<'w, ZooidAssets>,
+    assets: ResMut<'w, ObjectAssets>,
     commands: Commands<'w, 's>,
     configs: Res<'w, Configs>,
     event_writer: EventWriter<'w, CreateWaypointEvent>,
@@ -37,7 +37,7 @@ impl ObjectCommands<'_, '_> {
             team_material.clone(),
             match spec.object {
                 Object::Worker | Object::Head => zindex::ZOOID_HEAD_BACKGROUND,
-                Object::Plankton => zindex::PLANKTON_BACKGROUND,
+                Object::Plankton | Object::Food => zindex::PLANKTON_BACKGROUND,
             },
         );
         match spec.object {
@@ -47,7 +47,6 @@ impl ObjectCommands<'_, '_> {
                         ZooidWorker::default(),
                         Object::Worker,
                         spec.team,
-                        GridEntity::default(),
                         PhysicsBundle {
                             material: PhysicsMaterialType::Zooid,
                             velocity,
@@ -76,7 +75,6 @@ impl ObjectCommands<'_, '_> {
                     ZooidHead,
                     Object::Head,
                     spec.team,
-                    GridEntity::default(),
                     MaterialMesh2dBundle::<ColorMaterial> {
                         mesh: self.assets.mesh.clone().into(),
                         transform: Transform::default()
@@ -112,7 +110,6 @@ impl ObjectCommands<'_, '_> {
                         Plankton,
                         Object::Plankton,
                         Team::None,
-                        GridEntity::default(),
                         MaterialMesh2dBundle::<ColorMaterial> {
                             mesh: self.assets.mesh.clone().into(),
                             transform: Transform::default()
@@ -135,6 +132,30 @@ impl ObjectCommands<'_, '_> {
                     .with_children(|parent| {
                         parent.spawn(background);
                     });
+            }
+            Object::Food => {
+                self.commands.spawn((
+                    Object::Food,
+                    Team::None,
+                    MaterialMesh2dBundle::<ColorMaterial> {
+                        mesh: self.assets.mesh.clone().into(),
+                        transform: Transform::default()
+                            .with_scale(Vec2::splat(10.0).extend(1.))
+                            .with_translation(spec.position.extend(zindex::PLANKTON)),
+                        material: team_material.secondary,
+                        ..default()
+                    },
+                    PhysicsBundle {
+                        material: PhysicsMaterialType::Plankton,
+                        velocity: Velocity::ZERO,
+                        ..default()
+                    },
+                    spec.objectives,
+                    Health::new(1),
+                    Selected::default(),
+                    NeighborsBundle::default(),
+                    Name::new("Food"),
+                ));
             }
         }
     }

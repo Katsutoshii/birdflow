@@ -2,7 +2,7 @@ use self::effects::{EffectCommands, EffectSize, FireworkSpec};
 
 use super::{
     neighbors::{AlliedNeighbors, EnemyNeighbors},
-    DamageEvent, InteractionConfig,
+    DamageEvent, InteractionConfig, ObjectSpec,
 };
 use crate::prelude::*;
 use bevy::prelude::*;
@@ -31,6 +31,7 @@ pub enum Object {
     Worker,
     Head,
     Plankton,
+    Food,
 }
 impl Object {
     pub fn update_acceleration(
@@ -81,8 +82,19 @@ impl Object {
             let mut closest_enemy_distance_squared = f32::INFINITY;
             let mut closest_enemy_entity: Option<Entity> = None;
 
+            // Food doesn't attack or get attacked.
+            if *object == Object::Food {
+                continue;
+            }
+
             for neighbor in neighbors.iter() {
-                let (_other_object, other_velocity) = others.get(neighbor.entity).unwrap();
+                let (other_object, other_velocity) = others.get(neighbor.entity).unwrap();
+
+                // Food can't be targeted.
+                if *other_object == Object::Food {
+                    continue;
+                }
+
                 let distance_squared = neighbor.delta.length_squared();
                 // Try attacking, only workers can attack.
                 if *object == Self::Worker && distance_squared < closest_enemy_distance_squared {
@@ -111,6 +123,7 @@ impl Object {
     pub fn death(
         mut objects: Query<(Entity, &Self, &GridEntity, &Health, &Transform, &Team)>,
         mut commands: Commands,
+        mut object_commands: ObjectCommands,
         mut effect_commands: EffectCommands,
         mut grid: ResMut<Grid2<EntitySet>>,
     ) {
@@ -124,7 +137,11 @@ impl Object {
                     team: *team,
                 });
                 if object == &Object::Plankton {
-                    // commands.spawn()
+                    object_commands.spawn(ObjectSpec {
+                        object: Object::Food,
+                        position: transform.translation.xy(),
+                        ..default()
+                    })
                 }
             }
         }

@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 use super::ObjectSpec;
 #[allow(unused_imports)]
-use super::{objective::ObjectiveDebugger, Object, Team, TeamMaterials, ZooidAssets};
+use super::{objective::ObjectiveDebugger, Object, ObjectAssets, Team, TeamMaterials};
 
 pub struct ZooidWorkerPlugin;
 impl Plugin for ZooidWorkerPlugin {

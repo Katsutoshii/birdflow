@@ -242,6 +242,9 @@ impl Objectives {
         time: Res<Time>,
     ) {
         for (mut objectives, object, transform, velocity, mut acceleration) in &mut query {
+            if *object == Object::Food {
+                continue;
+            }
             let config = configs.objects.get(object).unwrap();
             let obstacles_acceleration = obstacles_grid
                 .obstacles_acceleration(transform.translation.xy(), *velocity)

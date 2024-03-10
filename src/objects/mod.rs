@@ -29,7 +29,7 @@ impl Plugin for ObjectsPlugin {
             ObjectPlugin,
             DamagePlugin,
         ))
-        .init_resource::<ZooidAssets>()
+        .init_resource::<ObjectAssets>()
         .configure_sets(FixedUpdate, SystemStage::get_config());
     }
 }
@@ -69,12 +69,14 @@ impl Team {
 #[derive(Default, Clone)]
 pub struct TeamMaterials {
     pub primary: Handle<ColorMaterial>,
+    pub secondary: Handle<ColorMaterial>,
     pub background: Handle<ColorMaterial>,
 }
 impl TeamMaterials {
     pub fn new(color: Color, assets: &mut Assets<ColorMaterial>) -> Self {
         Self {
             primary: assets.add(ColorMaterial::from(color)),
+            secondary: assets.add(ColorMaterial::from(color.with_a(0.6))),
             background: assets.add(ColorMaterial::from(color.with_a(0.3))),
         }
     }
@@ -82,16 +84,16 @@ impl TeamMaterials {
 
 /// Handles to common zooid assets.
 #[derive(Resource)]
-pub struct ZooidAssets {
+pub struct ObjectAssets {
     pub mesh: Handle<Mesh>,
     team_materials: Vec<TeamMaterials>,
 }
-impl ZooidAssets {
+impl ObjectAssets {
     fn get_team_material(&self, team: Team) -> TeamMaterials {
         self.team_materials.get(team as usize).unwrap().clone()
     }
 }
-impl FromWorld for ZooidAssets {
+impl FromWorld for ObjectAssets {
     fn from_world(world: &mut World) -> Self {
         let mesh = {
             let mut meshes = world.get_resource_mut::<Assets<Mesh>>().unwrap();
