@@ -36,12 +36,24 @@ pub enum Object {
 }
 
 #[derive(Clone)]
-struct NearestEnemy {
+struct NearestNeighbor {
     pub distance_squared: f32,
     pub entity: Entity,
     pub object: Object,
     pub velocity: Velocity,
     pub carrier: Option<Carrier>,
+}
+trait NearestNeighborExtension {
+    fn distance_squared(&self) -> f32;
+}
+impl NearestNeighborExtension for Option<NearestNeighbor> {
+    fn distance_squared(&self) -> f32 {
+        if let Some(nearest_neighbor) = self {
+            nearest_neighbor.distance_squared
+        } else {
+            f32::INFINITY
+        }
+    }
 }
 
 impl Object {
@@ -83,51 +95,56 @@ impl Object {
 
     pub fn update_objective(
         mut query: Query<(Entity, &Self, &mut Objectives, &Health, &EnemyNeighbors)>,
-        others: Query<(&Self, &Velocity)>,
+        others: Query<(&Self, &Velocity, Option<&Carrier>)>,
         configs: Res<Configs>,
         mut damage_events: EventWriter<DamageEvent>,
     ) {
         for (entity, object, mut objectives, health, neighbors) in &mut query {
             let config = &configs.objects[object];
-
-            let mut closest_enemy_distance_squared = f32::INFINITY;
-            let mut closest_enemy_entity: Option<Entity> = None;
-
+            let mut nearest_neighbor: Option<NearestNeighbor> = None;
             for neighbor in neighbors.iter() {
-                let (_other_object, other_velocity) = others.get(neighbor.entity).unwrap();
+                let (other_object, other_velocity, other_carrier) =
+                    others.get(neighbor.entity).unwrap();
 
-                let distance_squared = neighbor.delta.length_squared();
-                // Try attacking, only workers can attack.
-                if object.can_attack() && distance_squared < closest_enemy_distance_squared {
-                    closest_enemy_distance_squared = distance_squared;
-                    closest_enemy_entity = Some(neighbor.entity);
-                }
-
-                // If we got hit.
-                if config.is_colliding(distance_squared)
-                    && config.is_damage_velocity(other_velocity.length_squared())
-                    && health.damageable()
-                {
-                    damage_events.send(DamageEvent {
-                        damager: neighbor.entity,
-                        damaged: entity,
-                        amount: 1,
+                if neighbor.distance_squared < nearest_neighbor.distance_squared() {
+                    nearest_neighbor = Some(NearestNeighbor {
+                        distance_squared: neighbor.distance_squared,
+                        entity: neighbor.entity,
                         velocity: *other_velocity,
+                        object: *other_object,
+                        carrier: other_carrier.copied(),
                     });
                 }
             }
-            if let Some(entity) = closest_enemy_entity {
-                objectives.start_attacking(entity)
+            if let Some(nearest_neighbor) = nearest_neighbor {
+                if object.can_attack() {
+                    objectives.start_attacking(nearest_neighbor.entity)
+                }
+
+                if config.is_colliding(nearest_neighbor.distance_squared)
+                    && config.is_damage_velocity(nearest_neighbor.velocity.length_squared())
+                    && health.damageable()
+                {
+                    damage_events.send(DamageEvent {
+                        damager: nearest_neighbor.entity,
+                        damaged: entity,
+                        amount: 1,
+                        velocity: nearest_neighbor.velocity,
+                    });
+                }
             }
         }
     }
 
+    /// Returns true if an object can attack.
     pub fn can_attack(self) -> bool {
         match self {
             Self::Worker => true,
             Self::Food | Self::Head | Self::Plankton => false,
         }
     }
+
+    /// System for objects dying.
     pub fn death(
         mut objects: Query<(Entity, &Self, &GridEntity, &Health, &Transform, &Team)>,
         mut commands: Commands,

@@ -111,12 +111,12 @@ impl Objective {
 
     /// Gets a random attack delay.
     pub fn attack_delay() -> Duration {
-        Duration::from_millis(rand::thread_rng().gen_range(0..300))
+        Duration::from_millis(rand::thread_rng().gen_range(0..100))
     }
 
     /// Gets a random attack cooldown.
     pub fn attack_cooldown() -> Duration {
-        Duration::from_millis(rand::thread_rng().gen_range(0..1200))
+        Duration::from_millis(rand::thread_rng().gen_range(500..1000))
     }
 
     /// Resolves an objective.
