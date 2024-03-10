@@ -4,8 +4,6 @@ use crate::prelude::*;
 use bevy::{prelude::*, text::Text2dBounds};
 use rand::Rng;
 
-use super::object::AttackEvent;
-
 pub struct ObjectivePlugin;
 impl Plugin for ObjectivePlugin {
     fn build(&self, app: &mut App) {
@@ -227,8 +225,8 @@ impl Objectives {
     }
 
     // Start attacking
-    pub fn start_attacking(&mut self, attack_event: &AttackEvent) {
-        if let Some(objective) = self.last().try_attacking(attack_event.entity) {
+    pub fn start_attacking(&mut self, entity: Entity) {
+        if let Some(objective) = self.last().try_attacking(entity) {
             self.push(objective);
         }
     }

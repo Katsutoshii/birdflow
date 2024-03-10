@@ -219,7 +219,7 @@ impl GridSpec {
 
     /// Get in radius.
     pub fn get_in_radius(&self, position: Vec2, radius: f32) -> Vec<RowCol> {
-        self.get_in_radius_discrete(self.to_rowcol(position), self.discretize(radius))
+        self.get_in_radius_discrete(self.to_rowcol(position), self.discretize(radius) + 1)
     }
 
     /// Get in radius, with discrete cell position inputs.

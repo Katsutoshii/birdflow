@@ -1,8 +1,9 @@
-use std::sync::Mutex;
-
 use self::effects::{EffectCommands, EffectSize, FireworkSpec};
 
-use super::{DamageEvent, InteractionConfig};
+use super::{
+    neighbors::{AlliedNeighbors, EnemyNeighbors},
+    DamageEvent, InteractionConfig,
+};
 use crate::prelude::*;
 use bevy::prelude::*;
 
@@ -13,25 +14,13 @@ impl Plugin for ObjectPlugin {
         app.register_type::<Object>().add_systems(
             FixedUpdate,
             (
-                Object::update.in_set(SystemStage::Compute),
+                Object::update_acceleration.in_set(SystemStage::Compute),
+                Object::update_attack.in_set(SystemStage::Compute),
                 Object::death.in_set(SystemStage::Despawn),
                 ObjectBackground::update.in_set(SystemStage::Compute),
             ),
         );
     }
-}
-
-/// Signals to begin attacking.
-pub struct AttackEvent {
-    pub entity: Entity,
-    pub waypoint_event: CreateWaypointEvent,
-}
-
-/// Stores results from processing neighboring objects.
-pub struct ProcessNeighborsResult {
-    pub acceleration: Acceleration,
-    pub attack_event: Option<AttackEvent>,
-    pub damage_event: Option<DamageEvent>,
 }
 
 /// Entities that can interact with each other.
@@ -44,64 +33,79 @@ pub enum Object {
     Plankton,
 }
 impl Object {
-    /// Update objects acceleration and objectives.
-    #[allow(clippy::type_complexity)]
-    #[allow(clippy::too_many_arguments)]
-    pub fn update(
-        mut objects: Query<(
-            Entity,
-            &Self,
-            &Velocity,
-            &mut Acceleration,
-            &mut Objectives,
-            &mut Health,
-            &Transform,
-            &Team,
-        )>,
-        other_objects: Query<(&Self, &Velocity, &Transform, &Team)>,
-        grid: Res<Grid2<EntitySet>>,
+    pub fn update_acceleration(
+        mut query: Query<(&Self, &Velocity, &mut Acceleration, &AlliedNeighbors)>,
+        others: Query<(&Self, &Velocity)>,
         configs: Res<Configs>,
-        mut create_waypoint_events: EventWriter<CreateWaypointEvent>,
+    ) {
+        query
+            .par_iter_mut()
+            .for_each(|(object, velocity, mut final_acceleration, neighbors)| {
+                let mut acceleration = Acceleration::ZERO;
+                let config = &configs.objects[object];
+                for neighbor in neighbors.iter() {
+                    let (other_object, other_velocity) = others.get(neighbor.entity).unwrap();
+                    let interaction = &config.interactions[other_object];
+                    let distance_squared = neighbor.delta.length_squared();
+                    // Separation
+                    acceleration += Self::separation_acceleration(
+                        -neighbor.delta,
+                        distance_squared,
+                        *velocity,
+                        interaction,
+                    );
+                    // Alignment
+                    acceleration += Self::alignment_acceleration(
+                        distance_squared,
+                        config.neighbor_radius * config.neighbor_radius,
+                        *velocity,
+                        *other_velocity,
+                        interaction,
+                    );
+                }
+                if !neighbors.is_empty() {
+                    *final_acceleration += acceleration * (1.0 / (neighbors.len() as f32));
+                }
+            });
+    }
+
+    pub fn update_attack(
+        mut query: Query<(Entity, &Self, &mut Objectives, &Health, &EnemyNeighbors)>,
+        others: Query<(&Self, &Velocity)>,
+        configs: Res<Configs>,
         mut damage_events: EventWriter<DamageEvent>,
     ) {
-        let create_waypoint_events: Mutex<&mut EventWriter<CreateWaypointEvent>> =
-            Mutex::new(&mut create_waypoint_events);
-        let damage_events: Mutex<&mut EventWriter<DamageEvent>> = Mutex::new(&mut damage_events);
-        objects.par_iter_mut().for_each(
-            |(
-                entity,
-                object,
-                &velocity,
-                mut acceleration,
-                mut objectives,
-                health,
-                transform,
-                team,
-            )| {
-                let config = configs.objects.get(object).unwrap();
-                let neighbors_result = object.process_neighbors(
-                    entity,
-                    team,
-                    velocity,
-                    transform,
-                    &other_objects,
-                    &grid,
-                    &health,
-                    config,
-                );
-                *acceleration += neighbors_result.acceleration;
-                if let Some(attack_event) = neighbors_result.attack_event {
-                    objectives.start_attacking(&attack_event);
-                    create_waypoint_events
-                        .lock()
-                        .unwrap()
-                        .send(attack_event.waypoint_event);
+        for (entity, object, mut objectives, health, neighbors) in &mut query {
+            let config = &configs.objects[object];
+
+            let mut closest_enemy_distance_squared = f32::INFINITY;
+            let mut closest_enemy_entity: Option<Entity> = None;
+
+            for neighbor in neighbors.iter() {
+                let (_other_object, other_velocity) = others.get(neighbor.entity).unwrap();
+                let distance_squared = neighbor.delta.length_squared();
+                // Try attacking, only workers can attack.
+                if *object == Self::Worker && distance_squared < closest_enemy_distance_squared {
+                    closest_enemy_distance_squared = distance_squared;
+                    closest_enemy_entity = Some(neighbor.entity);
                 }
-                if let Some(damage_event) = neighbors_result.damage_event {
-                    damage_events.lock().unwrap().send(damage_event);
+
+                // If we got hit.
+                if config.is_hit(distance_squared, other_velocity.length_squared())
+                    && health.damageable()
+                {
+                    damage_events.send(DamageEvent {
+                        damager: neighbor.entity,
+                        damaged: entity,
+                        amount: 1,
+                        velocity: *other_velocity,
+                    });
                 }
-            },
-        )
+            }
+            if let Some(entity) = closest_enemy_entity {
+                objectives.start_attacking(entity)
+            }
+        }
     }
 
     pub fn death(
@@ -124,115 +128,6 @@ impl Object {
                 }
             }
         }
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    /// Compute acceleration for this timestemp.
-    pub fn process_neighbors(
-        &self,
-        entity: Entity,
-        team: &Team,
-        velocity: Velocity,
-        transform: &Transform,
-        entities: &Query<(&Object, &Velocity, &Transform, &Team)>,
-        grid: &Grid2<EntitySet>,
-        health: &Health,
-        config: &ObjectConfig,
-    ) -> ProcessNeighborsResult {
-        let mut acceleration = Acceleration::ZERO;
-        // Forces from other entities
-        let position = transform.translation.xy();
-        let other_entities = grid.get_entities_in_radius(position, config);
-
-        let mut closest_enemy_distance_squared = f32::INFINITY;
-        let mut attack_event: Option<AttackEvent> = None;
-        let mut damage_event: Option<DamageEvent> = None;
-
-        for other_entity in &other_entities {
-            if entity == *other_entity {
-                continue;
-            }
-
-            let (other, &other_velocity, other_transform, other_team) =
-                entities.get(*other_entity).expect("Invalid grid entity.");
-
-            let other_position = other_transform.translation.xy();
-            let delta = other_position - position;
-            if team == other_team {
-                acceleration += self.other_acceleration(
-                    transform,
-                    velocity,
-                    other,
-                    other_transform,
-                    other_velocity,
-                    config,
-                ) * (1.0 / (other_entities.len() as f32));
-            } else {
-                // If the other entity is on the enemy team:
-                let distance_squared = delta.length_squared();
-
-                // Try attacking, only workers can attack.
-                if *self == Self::Worker && distance_squared < closest_enemy_distance_squared {
-                    closest_enemy_distance_squared = distance_squared;
-                    attack_event = Some(AttackEvent {
-                        entity: *other_entity,
-                        waypoint_event: CreateWaypointEvent {
-                            destination: other_position,
-                            sources: vec![position],
-                        },
-                    })
-                }
-
-                // If we got hit.
-                if config.is_hit(distance_squared, other_velocity.length_squared())
-                    && health.damageable()
-                {
-                    damage_event = Some(DamageEvent {
-                        damager: *other_entity,
-                        damaged: entity,
-                        amount: 1,
-                        velocity: other_velocity,
-                    });
-                }
-            }
-        }
-        ProcessNeighborsResult {
-            acceleration,
-            attack_event,
-            damage_event,
-        }
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn other_acceleration(
-        &self,
-        transform: &Transform,
-        velocity: Velocity,
-        other: &Self,
-        other_transform: &Transform,
-        other_velocity: Velocity,
-        config: &ObjectConfig,
-    ) -> Acceleration {
-        let mut acceleration = Acceleration::ZERO;
-        let interaction = config.interactions.get(other).unwrap();
-        let position_delta = transform.translation.xy() - other_transform.translation.xy(); // Towards self, away from other.
-        let distance_squared = position_delta.length_squared();
-        let radius_squared = config.neighbor_radius * config.neighbor_radius;
-        if distance_squared > radius_squared {
-            return acceleration;
-        }
-        // Separation
-        acceleration +=
-            Self::separation_acceleration(position_delta, distance_squared, velocity, interaction);
-        // Alignment
-        acceleration += Self::alignment_acceleration(
-            distance_squared,
-            radius_squared,
-            velocity,
-            other_velocity,
-            interaction,
-        );
-        acceleration
     }
 
     /// Compute acceleration from separation.

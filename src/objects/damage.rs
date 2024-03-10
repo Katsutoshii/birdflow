@@ -12,7 +12,7 @@ impl Plugin for DamagePlugin {
             (
                 Health::update
                     .in_set(SystemStage::Compute)
-                    .after(Object::update),
+                    .after(Object::update_attack),
                 DamageEvent::update
                     .in_set(SystemStage::Compute)
                     .after(Health::update),

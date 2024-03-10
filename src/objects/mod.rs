@@ -11,8 +11,9 @@ pub use self::{
     objective::{Objective, ObjectiveConfig, ObjectiveDebugger, Objectives},
 };
 use self::{
-    damage::DamagePlugin, object::ObjectPlugin, objective::ObjectivePlugin,
-    plankton::PlanktonPlugin, zooid_head::ZooidHeadPlugin, zooid_worker::ZooidWorkerPlugin,
+    damage::DamagePlugin, neighbors::NeighborsPlugin, object::ObjectPlugin,
+    objective::ObjectivePlugin, plankton::PlanktonPlugin, zooid_head::ZooidHeadPlugin,
+    zooid_worker::ZooidWorkerPlugin,
 };
 
 /// Plugin for running zooids simulation.
@@ -20,6 +21,7 @@ pub struct ObjectsPlugin;
 impl Plugin for ObjectsPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
+            NeighborsPlugin,
             ObjectivePlugin,
             ZooidHeadPlugin,
             ZooidWorkerPlugin,
@@ -35,6 +37,7 @@ impl Plugin for ObjectsPlugin {
 mod commands;
 mod config;
 mod damage;
+mod neighbors;
 mod object;
 mod objective;
 mod plankton;

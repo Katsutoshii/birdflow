@@ -13,8 +13,8 @@
         Worker: (
           physics_material: Zooid,
           neighbor_radius: 128.0,
-          obstacle_acceleration: 5.0,
-          nav_flow_factor: 2.0,
+          obstacle_acceleration: 6.0,
+          nav_flow_factor: 1.0,
           attack_velocity: 30.0,
           spawn_velocity: 10.0,
           waypoint: (
@@ -27,17 +27,17 @@
           death_speed: 5.0,
           interactions: ({
             Worker: (
-              separation_radius: 100.0,
-              separation_acceleration: 18.0,
-              cohesion_acceleration: 2.5,
+              separation_radius: 64.0,
+              separation_acceleration: 50.0,
+              cohesion_acceleration: 2.0,
               alignment_factor: 0.3,
               slow_factor: 0.0,
             ),
             Head: (
-              separation_radius: 100.0,
-              separation_acceleration: 3.0,
+              separation_radius: 64.0,
+              separation_acceleration: 10.0,
               cohesion_acceleration: 0.5,
-              alignment_factor: 0.0001,
+              alignment_factor: 2.0,
               slow_factor: 0.1,
             ),
             Plankton: (
@@ -67,9 +67,9 @@
           interactions: ({
             Worker: (
               separation_radius: 40.0,
-              separation_acceleration: 1.0,
+              separation_acceleration: 2.0,
               cohesion_acceleration: 0.1,
-              alignment_factor: 0.0,
+              alignment_factor: 0.1,
               slow_factor: 0.0,
             ),
             Head: (

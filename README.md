@@ -22,6 +22,16 @@ Dynamic objects have lots of shared behavior, e.g. chasing and repelling with ea
 But what about unique interactions?
 Should they be in a different system or just a match case in the update?
 
+How to model a resource being carried by something?
+- Carrier has a CarryToEntity objective so it can't attack.
+- When carried, the Object is parented in front of the carrier.
+- The Head detects nearby food.
+
+For all pairs:
+- Set a component that says the neighboring entities that frame.
+- Then downstream:
+- For neighbor in neighbors
+
 ## How should resource gathering work?
 
 - A zooid is normally hovering around the nearest head.

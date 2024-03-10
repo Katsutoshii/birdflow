@@ -5,6 +5,7 @@ use bevy::{ecs::schedule::SystemSetConfigs, prelude::*};
 pub enum SystemStage {
     Spawn,
     PreCompute,
+    FindNeighbors,
     Compute,
     PostCompute,
     Apply,

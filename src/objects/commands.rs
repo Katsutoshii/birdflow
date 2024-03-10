@@ -2,8 +2,8 @@ use crate::prelude::*;
 use bevy::{ecs::system::SystemParam, prelude::*, sprite::MaterialMesh2dBundle};
 
 use super::{
-    object::ObjectBackground, plankton::Plankton, zooid_head::ZooidHead, zooid_worker::ZooidWorker,
-    TeamMaterials, ZooidAssets,
+    neighbors::NeighborsBundle, object::ObjectBackground, plankton::Plankton,
+    zooid_head::ZooidHead, zooid_worker::ZooidWorker, TeamMaterials, ZooidAssets,
 };
 
 #[derive(Default, Debug)]
@@ -64,6 +64,7 @@ impl ObjectCommands<'_, '_> {
                         },
                         Selected::default(),
                         Health::new(3),
+                        NeighborsBundle::default(),
                         Name::new("Zooid"),
                     ))
                     .with_children(|parent| {
@@ -92,6 +93,7 @@ impl ObjectCommands<'_, '_> {
                     spec.objectives,
                     Selected::default(),
                     Health::new(6),
+                    NeighborsBundle::default(),
                     Name::new("ZooidHead"),
                 ));
                 entity_commands.with_children(|parent| {
@@ -127,6 +129,7 @@ impl ObjectCommands<'_, '_> {
                         spec.objectives,
                         Health::new(1),
                         Selected::default(),
+                        NeighborsBundle::default(),
                         Name::new("Plankton"),
                     ))
                     .with_children(|parent| {
