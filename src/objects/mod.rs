@@ -1,6 +1,11 @@
 use crate::prelude::*;
 use bevy::prelude::*;
 
+use self::{
+    carry::CarryPlugin, damage::DamagePlugin, neighbors::NeighborsPlugin, object::ObjectPlugin,
+    objective::ObjectivePlugin, plankton::PlanktonPlugin, zooid_head::ZooidHeadPlugin,
+    zooid_worker::ZooidWorkerPlugin,
+};
 pub use self::{
     commands::{ObjectCommands, ObjectSpec},
     config::{
@@ -10,17 +15,13 @@ pub use self::{
     object::Object,
     objective::{Objective, ObjectiveConfig, ObjectiveDebugger, Objectives},
 };
-use self::{
-    damage::DamagePlugin, neighbors::NeighborsPlugin, object::ObjectPlugin,
-    objective::ObjectivePlugin, plankton::PlanktonPlugin, zooid_head::ZooidHeadPlugin,
-    zooid_worker::ZooidWorkerPlugin,
-};
 
 /// Plugin for running zooids simulation.
 pub struct ObjectsPlugin;
 impl Plugin for ObjectsPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins((
+            CarryPlugin,
             NeighborsPlugin,
             ObjectivePlugin,
             ZooidHeadPlugin,
@@ -34,6 +35,7 @@ impl Plugin for ObjectsPlugin {
     }
 }
 
+mod carry;
 mod commands;
 mod config;
 mod damage;

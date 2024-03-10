@@ -1,6 +1,7 @@
 use self::effects::{EffectCommands, EffectSize, FireworkSpec};
 
 use super::{
+    carry::{Carrier, CarryEvent},
     neighbors::{AlliedNeighbors, EnemyNeighbors},
     DamageEvent, InteractionConfig, ObjectSpec,
 };
@@ -15,7 +16,7 @@ impl Plugin for ObjectPlugin {
             FixedUpdate,
             (
                 Object::update_acceleration.in_set(SystemStage::Compute),
-                Object::update_attack.in_set(SystemStage::Compute),
+                Object::update_objective.in_set(SystemStage::Compute),
                 Object::death.in_set(SystemStage::Despawn),
                 ObjectBackground::update.in_set(SystemStage::Compute),
             ),
@@ -33,6 +34,16 @@ pub enum Object {
     Plankton,
     Food,
 }
+
+#[derive(Clone)]
+struct NearestEnemy {
+    pub distance_squared: f32,
+    pub entity: Entity,
+    pub object: Object,
+    pub velocity: Velocity,
+    pub carrier: Option<Carrier>,
+}
+
 impl Object {
     pub fn update_acceleration(
         mut query: Query<(&Self, &Velocity, &mut Acceleration, &AlliedNeighbors)>,
@@ -70,7 +81,7 @@ impl Object {
             });
     }
 
-    pub fn update_attack(
+    pub fn update_objective(
         mut query: Query<(Entity, &Self, &mut Objectives, &Health, &EnemyNeighbors)>,
         others: Query<(&Self, &Velocity)>,
         configs: Res<Configs>,
@@ -82,28 +93,19 @@ impl Object {
             let mut closest_enemy_distance_squared = f32::INFINITY;
             let mut closest_enemy_entity: Option<Entity> = None;
 
-            // Food doesn't attack or get attacked.
-            if *object == Object::Food {
-                continue;
-            }
-
             for neighbor in neighbors.iter() {
-                let (other_object, other_velocity) = others.get(neighbor.entity).unwrap();
-
-                // Food can't be targeted.
-                if *other_object == Object::Food {
-                    continue;
-                }
+                let (_other_object, other_velocity) = others.get(neighbor.entity).unwrap();
 
                 let distance_squared = neighbor.delta.length_squared();
                 // Try attacking, only workers can attack.
-                if *object == Self::Worker && distance_squared < closest_enemy_distance_squared {
+                if object.can_attack() && distance_squared < closest_enemy_distance_squared {
                     closest_enemy_distance_squared = distance_squared;
                     closest_enemy_entity = Some(neighbor.entity);
                 }
 
                 // If we got hit.
-                if config.is_hit(distance_squared, other_velocity.length_squared())
+                if config.is_colliding(distance_squared)
+                    && config.is_damage_velocity(other_velocity.length_squared())
                     && health.damageable()
                 {
                     damage_events.send(DamageEvent {
@@ -120,6 +122,12 @@ impl Object {
         }
     }
 
+    pub fn can_attack(self) -> bool {
+        match self {
+            Self::Worker => true,
+            Self::Food | Self::Head | Self::Plankton => false,
+        }
+    }
     pub fn death(
         mut objects: Query<(Entity, &Self, &GridEntity, &Health, &Transform, &Team)>,
         mut commands: Commands,

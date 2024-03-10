@@ -74,10 +74,10 @@ impl Default for ObjectConfig {
     }
 }
 impl ObjectConfig {
-    /// Returns true if it's a hit.
-    pub fn is_hit(&self, distance_squared: f32, velocity_squared: f32) -> bool {
-        // info!("{}", velocity_squared);
-        (distance_squared < self.hit_radius * self.hit_radius)
-            && (velocity_squared > self.death_speed * self.death_speed)
+    pub fn is_colliding(&self, distance_squared: f32) -> bool {
+        distance_squared < self.hit_radius * self.hit_radius
+    }
+    pub fn is_damage_velocity(&self, velocity_squared: f32) -> bool {
+        velocity_squared > self.death_speed * self.death_speed
     }
 }

@@ -14,6 +14,7 @@ pub struct Neighbor {
     pub entity: Entity,
     pub object: Object,
     pub delta: Vec2,
+    pub distance_squared: f32,
 }
 
 #[derive(Component, Deref, DerefMut, Default)]
@@ -30,6 +31,7 @@ pub struct NeighborsBundle {
 
 pub fn update(
     mut query: Query<(
+        Entity,
         &mut EnemyNeighbors,
         &mut AlliedNeighbors,
         &Object,
@@ -41,7 +43,7 @@ pub fn update(
     configs: Res<Configs>,
 ) {
     query.par_iter_mut().for_each(
-        |(mut enemy_neighbors, mut allied_neighbors, object, team, transform)| {
+        |(entity, mut enemy_neighbors, mut allied_neighbors, object, team, transform)| {
             let config = &configs.objects[object];
             let position = transform.translation().xy();
             let other_entities = grid.get_entities_in_radius(position, config.neighbor_radius);
@@ -52,11 +54,15 @@ pub fn update(
             allied_neighbors.reserve_exact(other_entities.len());
 
             for other_entity in other_entities {
+                if entity == other_entity {
+                    continue;
+                }
                 let (other_object, other_team, other_transform) = others.get(other_entity).unwrap();
                 let other_position = other_transform.translation().xy();
 
                 let delta = other_position - position;
-                if delta.length_squared() > config.neighbor_radius * config.neighbor_radius {
+                let distance_squared = delta.length_squared();
+                if distance_squared > config.neighbor_radius * config.neighbor_radius {
                     continue;
                 }
 
@@ -64,6 +70,7 @@ pub fn update(
                     entity: other_entity,
                     object: *other_object,
                     delta,
+                    distance_squared,
                 };
                 if team == other_team {
                     allied_neighbors.push(neighbor)
