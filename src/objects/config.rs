@@ -45,7 +45,7 @@ pub struct ObjectConfig {
     pub nav_flow_factor: f32,
     pub attack_velocity: f32,
     pub spawn_velocity: f32,
-    pub waypoint: ObjectiveConfig,
+    pub objective: ObjectiveConfig,
     pub hit_radius: f32,
     pub death_speed: f32,
     // Interactions
@@ -60,7 +60,7 @@ impl Default for ObjectConfig {
             nav_flow_factor: 1.,
             attack_velocity: 40.,
             spawn_velocity: 2.0,
-            waypoint: ObjectiveConfig::default(),
+            objective: ObjectiveConfig::default(),
             hit_radius: 10.0,
             death_speed: 9.0,
             interactions: InteractionConfigs({

@@ -250,7 +250,7 @@ impl Objectives {
                 .obstacles_acceleration(transform.translation.xy(), *velocity)
                 * config.obstacle_acceleration;
             *acceleration += obstacles_acceleration;
-            let resolved = objectives.resolve(transform, &others, &time, &config.waypoint);
+            let resolved = objectives.resolve(transform, &others, &time, &config.objective);
             *acceleration +=
                 resolved.acceleration(transform, *velocity, config, &grid_spec, &navigation_grid);
         }
@@ -369,7 +369,7 @@ impl ResolvedObjective {
             let target_cell_position = nav.grid.to_world_position(target_cell);
             let flow_acceleration = nav.grid.flow_acceleration5(position, config);
             flow_acceleration
-                + config.waypoint.slow_force(
+                + config.objective.slow_force(
                     velocity,
                     position,
                     target_cell_position,

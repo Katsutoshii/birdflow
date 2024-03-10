@@ -60,7 +60,7 @@
             nav_flow_factor: 1.0,
             attack_velocity: 30.,
             spawn_velocity: 10.0,
-            waypoint: (
+            objective: ObjectiveConfig(
               max_acceleration: 3.0,
               repell_radius: 32.0,
               slow_factor: 0.2,
@@ -108,7 +108,7 @@
             nav_flow_factor: 1.,
             attack_velocity: 0.,
             spawn_velocity: 2.0,
-            waypoint: (
+            objective: ObjectiveConfig(
               max_acceleration: 3.5,
               repell_radius: 32.0,
               slow_factor: 0.2,
@@ -156,7 +156,7 @@
             nav_flow_factor: 1.,
             attack_velocity: 0.0,
             spawn_velocity: 2.0,
-            waypoint: (
+            objective: ObjectiveConfig(
               max_acceleration: 0.0,
               repell_radius: 0.0,
               slow_factor: 0.0,
@@ -202,7 +202,7 @@
             nav_flow_factor: 1.,
             attack_velocity: 0.0,
             spawn_velocity: 2.0,
-            waypoint: (
+            objective: ObjectiveConfig(
               max_acceleration: 0.0,
               repell_radius: 0.0,
               slow_factor: 0.0,
