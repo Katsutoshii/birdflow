@@ -79,7 +79,7 @@ impl TeamMaterials {
     pub fn new(color: Color, assets: &mut Assets<ColorMaterial>) -> Self {
         Self {
             primary: assets.add(ColorMaterial::from(color)),
-            secondary: assets.add(ColorMaterial::from(color.with_a(0.6))),
+            secondary: assets.add(ColorMaterial::from(color.with_a(0.8).with_g(0.8))),
             background: assets.add(ColorMaterial::from(color.with_a(0.3))),
         }
     }

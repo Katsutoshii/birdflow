@@ -4,7 +4,7 @@ use crate::prelude::*;
 use bevy::{prelude::*, text::Text2dBounds};
 use rand::Rng;
 
-use super::{CarriedBy, Carrier};
+use super::CarriedBy;
 
 pub struct ObjectivePlugin;
 impl Plugin for ObjectivePlugin {
@@ -126,14 +126,13 @@ impl Objective {
     pub fn resolve(
         &mut self,
         transform: &Transform,
-        carrier: Option<&Carrier>,
         query: &Query<(&Transform, Option<&Velocity>), Without<CarriedBy>>,
         time: &Time,
         config: &ObjectiveConfig,
     ) -> ResolvedObjective {
-        match (self, carrier) {
-            (Self::None, _) => ResolvedObjective::None,
-            (Self::FollowEntity(entity), None) => {
+        match self {
+            Self::None => ResolvedObjective::None,
+            Self::FollowEntity(entity) => {
                 if let Ok((other_transform, _other_velocity)) = query.get(*entity) {
                     ResolvedObjective::FollowEntity {
                         entity: *entity,
@@ -145,26 +144,11 @@ impl Objective {
                     ResolvedObjective::None
                 }
             }
-            (Self::FollowEntity(entity), Some(_carrier)) => {
-                if let Ok((other_transform, _other_velocity)) = query.get(*entity) {
-                    ResolvedObjective::CarryToEntity {
-                        entity: *entity,
-                        position: other_transform.translation.xy(),
-                    }
-                } else {
-                    warn!("Invalid entity for follow!");
-                    warn!("{:?}", query.get(*entity));
-                    ResolvedObjective::None
-                }
-            }
-            (
-                Self::AttackEntity {
-                    entity,
-                    frame,
-                    cooldown,
-                },
-                _,
-            ) => {
+            Self::AttackEntity {
+                entity,
+                frame,
+                cooldown,
+            } => {
                 cooldown.tick(time.delta());
                 if let Ok((other_transform, other_velocity)) = query.get(*entity) {
                     let position = transform.translation.xy();
@@ -257,16 +241,8 @@ impl Objectives {
     }
 
     /// Update acceleration from the current objective.
-    #[allow(clippy::type_complexity)]
     pub fn update(
-        mut query: Query<(
-            &mut Self,
-            &Object,
-            Option<&Carrier>,
-            &Transform,
-            &Velocity,
-            &mut Acceleration,
-        )>,
+        mut query: Query<(&mut Self, &Object, &Transform, &Velocity, &mut Acceleration)>,
         others: Query<(&Transform, Option<&Velocity>), Without<CarriedBy>>,
         configs: Res<Configs>,
         grid_spec: Res<GridSpec>,
@@ -274,7 +250,7 @@ impl Objectives {
         obstacles_grid: Res<Grid2<Obstacle>>,
         time: Res<Time>,
     ) {
-        for (mut objectives, object, carrier, transform, velocity, mut acceleration) in &mut query {
+        for (mut objectives, object, transform, velocity, mut acceleration) in &mut query {
             if *object == Object::Food {
                 continue;
             }
@@ -283,8 +259,7 @@ impl Objectives {
                 .obstacles_acceleration(transform.translation.xy(), *velocity)
                 * config.obstacle_acceleration;
             *acceleration += obstacles_acceleration;
-            let resolved =
-                objectives.resolve(transform, carrier, &others, &time, &config.objective);
+            let resolved = objectives.resolve(transform, &others, &time, &config.objective);
             *acceleration +=
                 resolved.acceleration(transform, *velocity, config, &grid_spec, &navigation_grid);
         }
@@ -295,15 +270,12 @@ impl Objectives {
     pub fn resolve(
         &mut self,
         transform: &Transform,
-        carrier: Option<&Carrier>,
         query: &Query<(&Transform, Option<&Velocity>), Without<CarriedBy>>,
         time: &Time,
         config: &ObjectiveConfig,
     ) -> ResolvedObjective {
         while self.last() != &Objective::None {
-            let resolved = self
-                .last_mut()
-                .resolve(transform, carrier, query, time, config);
+            let resolved = self.last_mut().resolve(transform, query, time, config);
             if resolved != ResolvedObjective::None {
                 return resolved;
             }
@@ -321,8 +293,6 @@ pub enum ResolvedObjective {
     None,
     /// Entity wants to follow the transform of another entity.
     FollowEntity { entity: Entity, position: Vec2 },
-    /// Entity wants to deliver an item to the target entity
-    CarryToEntity { entity: Entity, position: Vec2 },
     /// Attack Entity
     AttackEntity {
         entity: Entity,
@@ -355,20 +325,6 @@ impl ResolvedObjective {
                 navigation_grid,
                 /*slow_factor=*/ 1.0,
             ),
-            Self::CarryToEntity {
-                entity: _,
-                position: target_position,
-            } => {
-                Self::accelerate_to_position(
-                    position,
-                    *target_position,
-                    config,
-                    velocity,
-                    grid_spec,
-                    navigation_grid,
-                    /*slow_factor=*/ 0.0,
-                ) + Self::accelerate_to_dropoff(position, *target_position, config)
-            }
             Self::AttackEntity {
                 entity: _,
                 position,

@@ -146,7 +146,7 @@ impl ObjectCommands<'_, '_> {
                         mesh: self.assets.mesh.clone().into(),
                         transform: Transform::default()
                             .with_scale(Vec2::splat(10.0).extend(1.))
-                            .with_translation(spec.position.extend(zindex::PLANKTON)),
+                            .with_translation(spec.position.extend(zindex::FOOD)),
                         material: team_material.secondary,
                         ..default()
                     },
