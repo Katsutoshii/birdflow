@@ -101,15 +101,14 @@ impl Object {
                 let interaction = &config.interactions[other_object];
                 let radius_squared = config.neighbor_radius * config.neighbor_radius;
 
-                // Separation
-                acceleration += Self::separation_acceleration(
-                    -neighbor.delta,
-                    neighbor.distance_squared,
-                    *object.velocity,
-                    interaction,
-                );
-                // Alignment only applied when not carrying.
+                // Don't apply neighbor forces when carrying items.
                 if object.carrier.is_none() {
+                    acceleration += Self::separation_acceleration(
+                        -neighbor.delta,
+                        neighbor.distance_squared,
+                        *object.velocity,
+                        interaction,
+                    );
                     acceleration += Self::alignment_acceleration(
                         neighbor.distance_squared,
                         radius_squared,
