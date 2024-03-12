@@ -2,8 +2,12 @@ use crate::prelude::*;
 use bevy::{ecs::system::SystemParam, prelude::*, sprite::MaterialMesh2dBundle};
 
 use super::{
-    neighbors::NeighborsBundle, object::ObjectBackground, plankton::Plankton,
-    zooid_head::ZooidHead, zooid_worker::ZooidWorker, ObjectAssets, TeamMaterials,
+    neighbors::NeighborsBundle,
+    object::ObjectBackground,
+    plankton::Plankton,
+    zooid_head::{NearestZooidHead, ZooidHead},
+    zooid_worker::ZooidWorker,
+    ObjectAssets, TeamMaterials,
 };
 
 #[derive(Default, Debug)]
@@ -45,10 +49,11 @@ impl ObjectCommands<'_, '_> {
                 self.commands
                     .spawn((
                         ZooidWorker::default(),
+                        NearestZooidHead::default(),
                         Object::Worker,
                         spec.team,
                         PhysicsBundle {
-                            material: PhysicsMaterialType::Zooid,
+                            material: config.physics_material,
                             velocity,
                             ..default()
                         },
@@ -84,7 +89,7 @@ impl ObjectCommands<'_, '_> {
                         ..default()
                     },
                     PhysicsBundle {
-                        material: PhysicsMaterialType::SlowZooid,
+                        material: config.physics_material,
                         velocity,
                         ..default()
                     },
@@ -119,7 +124,7 @@ impl ObjectCommands<'_, '_> {
                             ..default()
                         },
                         PhysicsBundle {
-                            material: PhysicsMaterialType::Plankton,
+                            material: config.physics_material,
                             velocity,
                             ..default()
                         },
@@ -146,7 +151,7 @@ impl ObjectCommands<'_, '_> {
                         ..default()
                     },
                     PhysicsBundle {
-                        material: PhysicsMaterialType::Plankton,
+                        material: config.physics_material,
                         velocity: Velocity::ZERO,
                         ..default()
                     },

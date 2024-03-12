@@ -19,6 +19,7 @@ pub struct InteractionConfig {
     pub cohesion_acceleration: f32,
     pub alignment_factor: f32,
     pub slow_factor: f32,
+    pub damage_amount: i32,
 }
 impl Default for InteractionConfig {
     fn default() -> Self {
@@ -28,6 +29,7 @@ impl Default for InteractionConfig {
             cohesion_acceleration: 0.0,
             alignment_factor: 0.0,
             slow_factor: 0.0,
+            damage_amount: 0,
         }
     }
 }
@@ -39,7 +41,7 @@ pub struct ObjectConfigs(pub HashMap<Object, ObjectConfig>);
 #[derive(Clone, Reflect, Debug)]
 /// Specifies stats per object type.
 pub struct ObjectConfig {
-    physics_material: PhysicsMaterialType,
+    pub physics_material: PhysicsMaterialType,
     pub neighbor_radius: f32,
     pub obstacle_acceleration: f32,
     pub nav_flow_factor: f32,

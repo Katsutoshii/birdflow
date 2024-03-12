@@ -1,12 +1,12 @@
 use self::effects::{EffectCommands, EffectSize, FireworkSpec};
 
 use super::{
-    carry::{Carrier, CarryEvent},
+    carry::{CarriedBy, Carrier, CarryEvent},
     neighbors::{AlliedNeighbors, EnemyNeighbors},
     DamageEvent, InteractionConfig, ObjectSpec,
 };
 use crate::prelude::*;
-use bevy::prelude::*;
+use bevy::{ecs::query::QueryData, prelude::*};
 
 /// Plugin for running zooids simulation.
 pub struct ObjectPlugin;
@@ -42,6 +42,7 @@ struct NearestNeighbor {
     pub object: Object,
     pub velocity: Velocity,
     pub carrier: Option<Carrier>,
+    pub carried_by: Option<CarriedBy>,
 }
 trait NearestNeighborExtension {
     fn distance_squared(&self) -> f32;
@@ -56,81 +57,145 @@ impl NearestNeighborExtension for Option<NearestNeighbor> {
     }
 }
 
+#[derive(QueryData)]
+#[query_data(mutable)]
+pub struct UpdateAccelerationQueryData {
+    entity: Entity,
+    object: &'static Object,
+    velocity: &'static Velocity,
+    acceleration: &'static mut Acceleration,
+    carrier: Option<&'static Carrier>,
+    neighbors: &'static AlliedNeighbors,
+}
+
+#[derive(QueryData)]
+#[query_data(mutable)]
+pub struct UpdateObjectiveQueryData {
+    entity: Entity,
+    object: &'static Object,
+    objectives: &'static mut Objectives,
+    carrier: Option<&'static Carrier>,
+    health: &'static Health,
+    neighbors: &'static EnemyNeighbors,
+}
+
+#[derive(QueryData)]
+pub struct UpdateObjectiveNeighborQueryData {
+    object: &'static Object,
+    velocity: &'static Velocity,
+    carrier: Option<&'static Carrier>,
+    carried_by: Option<&'static CarriedBy>,
+}
+
 impl Object {
     pub fn update_acceleration(
-        mut query: Query<(&Self, &Velocity, &mut Acceleration, &AlliedNeighbors)>,
+        mut query: Query<UpdateAccelerationQueryData>,
         others: Query<(&Self, &Velocity)>,
         configs: Res<Configs>,
     ) {
-        query
-            .par_iter_mut()
-            .for_each(|(object, velocity, mut final_acceleration, neighbors)| {
-                let mut acceleration = Acceleration::ZERO;
-                let config = &configs.objects[object];
-                for neighbor in neighbors.iter() {
-                    let (other_object, other_velocity) = others.get(neighbor.entity).unwrap();
-                    let interaction = &config.interactions[other_object];
-                    let distance_squared = neighbor.delta.length_squared();
-                    // Separation
-                    acceleration += Self::separation_acceleration(
-                        -neighbor.delta,
-                        distance_squared,
-                        *velocity,
-                        interaction,
-                    );
-                    // Alignment
+        query.par_iter_mut().for_each(|mut object| {
+            let mut acceleration = Acceleration::ZERO;
+            let config = &configs.objects[object.object];
+            for neighbor in object.neighbors.iter() {
+                let (other_object, other_velocity) = others.get(neighbor.entity).unwrap();
+                let interaction = &config.interactions[other_object];
+                let radius_squared = config.neighbor_radius * config.neighbor_radius;
+
+                // Separation
+                acceleration += Self::separation_acceleration(
+                    -neighbor.delta,
+                    neighbor.distance_squared,
+                    *object.velocity,
+                    interaction,
+                );
+                // Alignment only applied when not carrying.
+                if object.carrier.is_none() {
                     acceleration += Self::alignment_acceleration(
-                        distance_squared,
-                        config.neighbor_radius * config.neighbor_radius,
-                        *velocity,
+                        neighbor.distance_squared,
+                        radius_squared,
+                        *object.velocity,
                         *other_velocity,
                         interaction,
                     );
                 }
-                if !neighbors.is_empty() {
-                    *final_acceleration += acceleration * (1.0 / (neighbors.len() as f32));
-                }
-            });
+            }
+            if !object.neighbors.is_empty() {
+                *object.acceleration += acceleration * (1.0 / (object.neighbors.len() as f32));
+            }
+        });
     }
 
     pub fn update_objective(
-        mut query: Query<(Entity, &Self, &mut Objectives, &Health, &EnemyNeighbors)>,
-        others: Query<(&Self, &Velocity, Option<&Carrier>)>,
+        mut query: Query<UpdateObjectiveQueryData>,
+        others: Query<UpdateObjectiveNeighborQueryData>,
         configs: Res<Configs>,
         mut damage_events: EventWriter<DamageEvent>,
+        mut carry_events: EventWriter<CarryEvent>,
     ) {
-        for (entity, object, mut objectives, health, neighbors) in &mut query {
-            let config = &configs.objects[object];
+        for mut object in &mut query {
+            let config = &configs.objects[object.object];
             let mut nearest_neighbor: Option<NearestNeighbor> = None;
-            for neighbor in neighbors.iter() {
-                let (other_object, other_velocity, other_carrier) =
-                    others.get(neighbor.entity).unwrap();
+            for neighbor in object.neighbors.iter() {
+                let other = others.get(neighbor.entity).unwrap();
 
                 if neighbor.distance_squared < nearest_neighbor.distance_squared() {
                     nearest_neighbor = Some(NearestNeighbor {
                         distance_squared: neighbor.distance_squared,
                         entity: neighbor.entity,
-                        velocity: *other_velocity,
-                        object: *other_object,
-                        carrier: other_carrier.copied(),
+                        velocity: *other.velocity,
+                        object: *other.object,
+                        carrier: other.carrier.copied(),
+                        carried_by: other.carried_by.cloned(),
+                    });
+                }
+
+                // Food specific behavior.
+                let radius_squared = config.neighbor_radius * config.neighbor_radius;
+                if *object.object == Object::Food
+                    && neighbor.object == Object::Head
+                    && neighbor.distance_squared < radius_squared * 0.1
+                {
+                    damage_events.send(DamageEvent {
+                        damager: neighbor.entity,
+                        damaged: object.entity,
+                        amount: 1,
+                        velocity: Velocity::ZERO,
                     });
                 }
             }
-            if let Some(nearest_neighbor) = nearest_neighbor {
-                if object.can_attack() {
-                    objectives.start_attacking(nearest_neighbor.entity)
-                }
-
-                if config.is_colliding(nearest_neighbor.distance_squared)
-                    && config.is_damage_velocity(nearest_neighbor.velocity.length_squared())
-                    && health.damageable()
+            if let Some(neighbor) = nearest_neighbor {
+                // An object should only attack a neighbor if that neighbor is not being carried.
+                if object.object.can_attack()
+                    && neighbor.object.can_be_attacked()
+                    && object.carrier.is_none()
+                    && neighbor.carried_by.is_none()
                 {
-                    damage_events.send(DamageEvent {
-                        damager: nearest_neighbor.entity,
-                        damaged: entity,
-                        amount: 1,
-                        velocity: nearest_neighbor.velocity,
-                    });
+                    object.objectives.start_attacking(neighbor.entity)
+                }
+                let interaction = &config.interactions[&neighbor.object];
+                if config.is_colliding(neighbor.distance_squared) {
+                    // If we can carry
+                    if object.object.can_be_carried()
+                        && neighbor.object.can_carry()
+                        && neighbor.carrier.is_none()
+                    {
+                        carry_events.send(CarryEvent {
+                            carrier: neighbor.entity,
+                            carried: object.entity,
+                        });
+                    }
+                    // If we can be damaged this frame.
+                    else if interaction.damage_amount > 0
+                        && config.is_damage_velocity(neighbor.velocity.length_squared())
+                        && object.health.damageable()
+                    {
+                        damage_events.send(DamageEvent {
+                            damager: neighbor.entity,
+                            damaged: object.entity,
+                            amount: interaction.damage_amount,
+                            velocity: neighbor.velocity,
+                        });
+                    }
                 }
             }
         }
@@ -141,6 +206,30 @@ impl Object {
         match self {
             Self::Worker => true,
             Self::Food | Self::Head | Self::Plankton => false,
+        }
+    }
+
+    /// Returns true if an object can be attacked.
+    pub fn can_be_attacked(self) -> bool {
+        match self {
+            Self::Worker | Self::Head | Self::Plankton => true,
+            Self::Food => true,
+        }
+    }
+
+    /// Returns true if an object can carry.
+    pub fn can_carry(self) -> bool {
+        match self {
+            Self::Worker => true,
+            Self::Food | Self::Head | Self::Plankton => false,
+        }
+    }
+
+    /// Returns true if an object can carry.
+    pub fn can_be_carried(self) -> bool {
+        match self {
+            Self::Food => true,
+            Self::Worker | Self::Head | Self::Plankton => false,
         }
     }
 

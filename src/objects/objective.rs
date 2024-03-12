@@ -4,20 +4,26 @@ use crate::prelude::*;
 use bevy::{prelude::*, text::Text2dBounds};
 use rand::Rng;
 
+use super::{CarriedBy, Carrier};
+
 pub struct ObjectivePlugin;
 impl Plugin for ObjectivePlugin {
     fn build(&self, app: &mut App) {
-        app.register_type::<ObjectiveConfig>().add_systems(
-            FixedUpdate,
-            (
-                Objectives::update
-                    .in_set(SystemStage::PostCompute)
-                    .after(NavigationGrid2::update_waypoints),
-                ObjectiveDebugger::update
-                    .in_set(SystemStage::PostCompute)
-                    .after(Objectives::update),
-            ),
-        );
+        app.register_type::<ObjectiveConfig>()
+            .register_type::<Objectives>()
+            .register_type::<Vec<Objective>>()
+            .register_type::<Objective>()
+            .add_systems(
+                FixedUpdate,
+                (
+                    Objectives::update
+                        .in_set(SystemStage::PostCompute)
+                        .after(NavigationGrid2::update_waypoints),
+                    ObjectiveDebugger::update
+                        .in_set(SystemStage::PostCompute)
+                        .after(Objectives::update),
+                ),
+            );
     }
 }
 #[derive(Debug, Clone, Reflect)]
@@ -75,7 +81,8 @@ pub struct AttackEntity {
 }
 
 /// Represents the objective of the owning entity.
-#[derive(Component, Default, Debug, Clone, PartialEq)]
+#[derive(Component, Default, Debug, Clone, PartialEq, Reflect)]
+#[reflect(Component)]
 pub enum Objective {
     /// Entity has no objective.
     #[default]
@@ -101,11 +108,7 @@ impl Objective {
                     TimerMode::Repeating,
                 ),
             }),
-            Self::AttackEntity {
-                entity: _,
-                frame: _,
-                cooldown: _,
-            } => None,
+            Self::AttackEntity { .. } => None,
         }
     }
 
@@ -123,32 +126,55 @@ impl Objective {
     pub fn resolve(
         &mut self,
         transform: &Transform,
-        query: &Query<(&Transform, &Velocity)>,
+        carrier: Option<&Carrier>,
+        query: &Query<(&Transform, Option<&Velocity>), Without<CarriedBy>>,
         time: &Time,
         config: &ObjectiveConfig,
     ) -> ResolvedObjective {
-        match self {
-            Self::None => ResolvedObjective::None,
-            Self::FollowEntity(entity) => {
+        match (self, carrier) {
+            (Self::None, _) => ResolvedObjective::None,
+            (Self::FollowEntity(entity), None) => {
                 if let Ok((other_transform, _other_velocity)) = query.get(*entity) {
                     ResolvedObjective::FollowEntity {
                         entity: *entity,
                         position: other_transform.translation.xy(),
                     }
                 } else {
+                    warn!("Invalid entity for follow!");
+                    warn!("{:?}", query.get(*entity));
                     ResolvedObjective::None
                 }
             }
-            Self::AttackEntity {
-                entity,
-                frame,
-                cooldown,
-            } => {
+            (Self::FollowEntity(entity), Some(_carrier)) => {
+                if let Ok((other_transform, _other_velocity)) = query.get(*entity) {
+                    ResolvedObjective::CarryToEntity {
+                        entity: *entity,
+                        position: other_transform.translation.xy(),
+                    }
+                } else {
+                    warn!("Invalid entity for follow!");
+                    warn!("{:?}", query.get(*entity));
+                    ResolvedObjective::None
+                }
+            }
+            (
+                Self::AttackEntity {
+                    entity,
+                    frame,
+                    cooldown,
+                },
+                _,
+            ) => {
                 cooldown.tick(time.delta());
                 if let Ok((other_transform, other_velocity)) = query.get(*entity) {
                     let position = transform.translation.xy();
                     let other_position = other_transform.translation.xy();
-                    let target_position = other_position + other_velocity.0;
+                    let target_position = other_position
+                        + if let Some(velocity) = other_velocity {
+                            velocity.0
+                        } else {
+                            Vec2::ZERO
+                        };
                     let delta = target_position - position;
                     if delta.length_squared() < config.attack_radius * config.attack_radius
                         && cooldown.finished()
@@ -172,21 +198,19 @@ impl Objective {
         }
     }
 
+    /// If this objective is following an entity, return that Entity.
     pub fn get_followed_entity(&self) -> Option<Entity> {
         match self {
-            Self::AttackEntity {
-                entity,
-                frame: _,
-                cooldown: _,
-            } => Some(*entity),
+            Self::AttackEntity { entity, .. } => Some(*entity),
             Self::FollowEntity(entity) => Some(*entity),
-            _ => None,
+            Self::None => None,
         }
     }
 }
 /// Represents the objectives of the owning entity.
 /// The stack always has Objective::None at the bottom.
-#[derive(Component, Debug, Clone)]
+#[derive(Component, Debug, Clone, Reflect)]
+#[reflect(Component)]
 pub struct Objectives(Vec<Objective>);
 impl Default for Objectives {
     fn default() -> Self {
@@ -227,21 +251,30 @@ impl Objectives {
     // Start attacking
     pub fn start_attacking(&mut self, entity: Entity) {
         if let Some(objective) = self.last().try_attacking(entity) {
+            info!("Start attacking!");
             self.push(objective);
         }
     }
 
     /// Update acceleration from the current objective.
+    #[allow(clippy::type_complexity)]
     pub fn update(
-        mut query: Query<(&mut Self, &Object, &Transform, &Velocity, &mut Acceleration)>,
-        others: Query<(&Transform, &Velocity)>,
+        mut query: Query<(
+            &mut Self,
+            &Object,
+            Option<&Carrier>,
+            &Transform,
+            &Velocity,
+            &mut Acceleration,
+        )>,
+        others: Query<(&Transform, Option<&Velocity>), Without<CarriedBy>>,
         configs: Res<Configs>,
         grid_spec: Res<GridSpec>,
         navigation_grid: Res<NavigationGrid2>,
         obstacles_grid: Res<Grid2<Obstacle>>,
         time: Res<Time>,
     ) {
-        for (mut objectives, object, transform, velocity, mut acceleration) in &mut query {
+        for (mut objectives, object, carrier, transform, velocity, mut acceleration) in &mut query {
             if *object == Object::Food {
                 continue;
             }
@@ -250,7 +283,8 @@ impl Objectives {
                 .obstacles_acceleration(transform.translation.xy(), *velocity)
                 * config.obstacle_acceleration;
             *acceleration += obstacles_acceleration;
-            let resolved = objectives.resolve(transform, &others, &time, &config.objective);
+            let resolved =
+                objectives.resolve(transform, carrier, &others, &time, &config.objective);
             *acceleration +=
                 resolved.acceleration(transform, *velocity, config, &grid_spec, &navigation_grid);
         }
@@ -261,12 +295,15 @@ impl Objectives {
     pub fn resolve(
         &mut self,
         transform: &Transform,
-        query: &Query<(&Transform, &Velocity)>,
+        carrier: Option<&Carrier>,
+        query: &Query<(&Transform, Option<&Velocity>), Without<CarriedBy>>,
         time: &Time,
         config: &ObjectiveConfig,
     ) -> ResolvedObjective {
         while self.last() != &Objective::None {
-            let resolved = self.last_mut().resolve(transform, query, time, config);
+            let resolved = self
+                .last_mut()
+                .resolve(transform, carrier, query, time, config);
             if resolved != ResolvedObjective::None {
                 return resolved;
             }
@@ -284,6 +321,8 @@ pub enum ResolvedObjective {
     None,
     /// Entity wants to follow the transform of another entity.
     FollowEntity { entity: Entity, position: Vec2 },
+    /// Entity wants to deliver an item to the target entity
+    CarryToEntity { entity: Entity, position: Vec2 },
     /// Attack Entity
     AttackEntity {
         entity: Entity,
@@ -316,6 +355,20 @@ impl ResolvedObjective {
                 navigation_grid,
                 /*slow_factor=*/ 1.0,
             ),
+            Self::CarryToEntity {
+                entity: _,
+                position: target_position,
+            } => {
+                Self::accelerate_to_position(
+                    position,
+                    *target_position,
+                    config,
+                    velocity,
+                    grid_spec,
+                    navigation_grid,
+                    /*slow_factor=*/ 0.0,
+                ) + Self::accelerate_to_dropoff(position, *target_position, config)
+            }
             Self::AttackEntity {
                 entity: _,
                 position,
@@ -381,6 +434,21 @@ impl ResolvedObjective {
             //     "Missing target_cell. This is okay if it's only for one frame. {:?}",
             //     target_cell
             // );
+            Acceleration::ZERO
+        }
+    }
+
+    /// Accelerates towards an object when close.
+    pub fn accelerate_to_dropoff(
+        position: Vec2,
+        target_position: Vec2,
+        config: &ObjectConfig,
+    ) -> Acceleration {
+        let delta = target_position - position;
+        let radius_squared = config.neighbor_radius * config.neighbor_radius;
+        if delta.length_squared() < radius_squared {
+            Acceleration(delta.normalize_or_zero() * 2.)
+        } else {
             Acceleration::ZERO
         }
     }

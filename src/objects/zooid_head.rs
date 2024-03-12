@@ -1,6 +1,6 @@
 use crate::prelude::*;
 use bevy::prelude::*;
-use bevy::utils::HashSet;
+use bevy::utils::{Entry, HashMap, HashSet};
 
 use super::Object;
 use super::{ObjectCommands, ObjectSpec, Team};
@@ -14,6 +14,7 @@ impl Plugin for ZooidHeadPlugin {
                 ZooidHead::spawn.in_set(SystemStage::Spawn),
                 ZooidHead::spawn_zooids.in_set(SystemStage::Spawn),
                 ZooidHead::despawn_zooids.in_set(SystemStage::Despawn),
+                NearestZooidHead::update.in_set(SystemStage::PreCompute),
             ),
         );
     }
@@ -87,6 +88,48 @@ impl ZooidHead {
             if let Object::Worker = object {
                 commands.entity(entity).despawn_recursive();
                 entities.insert(entity);
+            }
+        }
+    }
+}
+
+#[derive(Component, Debug, Default, Reflect)]
+#[reflect(Component)]
+pub struct NearestZooidHead {
+    pub entity: Option<Entity>,
+}
+impl NearestZooidHead {
+    /// Each worker tracks its nearest head.
+    pub fn update(
+        mut query: Query<(&mut Self, &Team, &GlobalTransform), Without<ZooidHead>>,
+        heads: Query<(Entity, &Team, &GlobalTransform), With<ZooidHead>>,
+    ) {
+        let mut team_heads: HashMap<Team, HashMap<Entity, Vec2>> = HashMap::default();
+        for (entity, team, transform) in &heads {
+            let entry = match team_heads.entry(*team) {
+                Entry::Occupied(o) => o.into_mut(),
+                Entry::Vacant(v) => v.insert(HashMap::default()),
+            };
+            entry.insert(entity, transform.translation().xy());
+        }
+        for (mut nearest_head, team, transform) in &mut query {
+            if let Some(heads) = team_heads.get(team) {
+                if let Some(entity) = nearest_head.entity {
+                    if !heads.contains_key(&entity) {
+                        nearest_head.entity = None;
+                    }
+                } else {
+                    let position = transform.translation().xy();
+                    let (entity, _) = heads
+                        .iter()
+                        .max_by(|(_, p1), (_, p2)| {
+                            let d1 = position.distance_squared(**p1);
+                            let d2 = position.distance_squared(**p2);
+                            d1.partial_cmp(&d2).unwrap()
+                        })
+                        .unwrap();
+                    nearest_head.entity = Some(*entity);
+                }
             }
         }
     }

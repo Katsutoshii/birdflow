@@ -22,6 +22,8 @@ pub mod waypoint;
 pub mod window;
 pub mod zindex;
 
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
+
 pub mod prelude {
     pub use crate::{
         aabb::Aabb2,
@@ -64,6 +66,7 @@ fn main() {
             inputs::InputActionPlugin,
             grid::GridPlugin,
             objects::ObjectsPlugin,
+            WorldInspectorPlugin::new(),
             console::CustomConsolePlugin,
             scene::LoadableScenePlugin,
             selector::SelectorPlugin,

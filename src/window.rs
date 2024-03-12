@@ -22,7 +22,7 @@ pub fn custom_plugin() -> WindowPlugin {
     WindowPlugin {
         primary_window: Some(Window {
             cursor: Cursor {
-                visible: false,
+                visible: true,
                 ..default()
             },
             title: "Bevy Zooids".into(),
