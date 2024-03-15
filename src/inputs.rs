@@ -39,16 +39,6 @@ impl Plugin for InputActionPlugin {
     }
 }
 
-/// Represents the state of an input.
-#[derive(Event, Default, PartialEq, Clone, Copy, Debug, Hash)]
-pub enum InputState {
-    #[default]
-    None,
-    Pressed,
-    Held,
-    Released,
-}
-
 /// Describes an action input by the user.
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Hash, Reflect)]
 pub enum InputAction {

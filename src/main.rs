@@ -36,7 +36,7 @@ pub mod prelude {
             CreateWaypointEvent, EntityGridEvent, EntitySet, Grid2, Grid2Plugin, GridEntity,
             GridSize, GridSpec, NavigationGrid2, Obstacle, RowCol, RowColDistance,
         },
-        inputs::{ControlAction, ControlEvent, InputState},
+        inputs::{ControlAction, ControlEvent},
         meshes,
         objects::{
             DamageEvent, Health, InteractionConfigs, Object, ObjectCommands, ObjectConfig,
