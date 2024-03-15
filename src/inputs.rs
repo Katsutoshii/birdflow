@@ -1,3 +1,6 @@
+use bevy::{prelude::*, sprite::Mesh2dHandle, utils::HashMap};
+use enum_iterator::{all, Sequence};
+
 /// Inputs are configured via an input map (TODO).
 /// Mouse events are translated into InputActions.
 /// Rays are cast to determine the target of the InputAction.
@@ -6,8 +9,6 @@ use std::{
     ops::{Index, IndexMut},
     time::Duration,
 };
-
-use bevy::{prelude::*, sprite::Mesh2dHandle, utils::HashMap};
 
 use crate::{prelude::*, raycast::raycast};
 
@@ -45,10 +46,8 @@ pub enum RawInput {
 }
 
 /// Describes an action input by the user.
-#[derive(Default, PartialEq, Clone, Copy, Debug, Hash)]
+#[derive(PartialEq, Clone, Copy, Debug, Hash, Sequence)]
 pub enum InputAction {
-    #[default]
-    None,
     Primary,
     Secondary,
     PanCamera,
@@ -60,21 +59,9 @@ pub enum InputAction {
     SpawnFood,
 }
 impl InputAction {
-    const NUM_ACTIONS: usize = 9;
-    const ACTIONS: [Self; Self::NUM_ACTIONS] = [
-        Self::Primary,
-        Self::Secondary,
-        Self::PanCamera,
-        Self::SpawnHead,
-        Self::SpawnZooid,
-        Self::SpawnRed,
-        Self::SpawnBlue,
-        Self::SpawnPlankton,
-        Self::SpawnFood,
-    ];
     pub fn mouse_buttons() -> Vec<MouseButton> {
         let mut result = Vec::new();
-        for action in Self::ACTIONS {
+        for action in all::<Self>() {
             if let RawInput::MouseButton(mouse_button) = RawInput::from(action) {
                 result.push(mouse_button);
             }
@@ -83,7 +70,7 @@ impl InputAction {
     }
     pub fn key_codes() -> Vec<KeyCode> {
         let mut result = Vec::new();
-        for action in Self::ACTIONS {
+        for action in all::<Self>() {
             if let RawInput::KeyCode(key_code) = RawInput::from(action) {
                 result.push(key_code);
             }
@@ -94,7 +81,6 @@ impl InputAction {
 impl From<InputAction> for RawInput {
     fn from(value: InputAction) -> Self {
         match value {
-            InputAction::None => unreachable!(),
             InputAction::Primary => Self::MouseButton(MouseButton::Left),
             InputAction::Secondary => Self::MouseButton(MouseButton::Right),
             InputAction::PanCamera => Self::MouseButton(MouseButton::Middle),
@@ -170,7 +156,7 @@ impl InputEvent {
     ) {
         let cursor = cursor.single();
         let ray = Ray3d::new(cursor.translation(), -Vec3::Z);
-        for action in InputAction::ACTIONS {
+        for action in all::<InputAction>() {
             if let Some(event) = Self::process_input(&mouse_input, &keyboard_input, action, ray) {
                 event_writer.send(event);
             }
@@ -202,7 +188,6 @@ impl ControlEvent {
     ) -> Option<Self> {
         match (raycast_event.target, event.action) {
             (RaycastTarget::None, _) => None,
-            (_, InputAction::None) => None,
             (RaycastTarget::WorldGrid, InputAction::Primary) => Some(Self {
                 action: ControlAction::Select,
                 state: event.state,
