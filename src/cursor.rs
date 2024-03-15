@@ -48,6 +48,11 @@ impl Cursor {
             self,
         )
     }
+
+    /// Get the transform for the cursor.
+    pub fn ray3d(transform: &GlobalTransform) -> Ray3d {
+        Ray3d::new(transform.translation(), -Vec3::Z)
+    }
 }
 
 /// Handles to common grid assets.

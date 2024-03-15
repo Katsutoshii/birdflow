@@ -1,5 +1,20 @@
 (
   resources: {
+    "birdflow::inputs::InputConfig": InputConfig(
+      keyboard: {
+        KeyX: SpawnHead,
+        KeyZ: SpawnZooid,
+        Minus: SpawnRed,
+        Equal: SpawnBlue,
+        KeyP: SpawnPlankton,
+        KeyF: SpawnFood
+      },
+      mouse: {
+        Left: Primary,
+        Right: Secondary,
+        Middle: PanCamera,
+      }
+    ),
     "birdflow::grid::spec::GridSpec": (
       rows: 256,
       cols: 256,

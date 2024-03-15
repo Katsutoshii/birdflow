@@ -68,13 +68,8 @@ impl NavigationShaderMaterial {
         mut input_actions: EventReader<ControlEvent>,
     ) {
         let material = shader_assets.get_mut(&assets.shader_material).unwrap();
-        for &ControlEvent {
-            action,
-            state,
-            position: _,
-        } in input_actions.read()
-        {
-            if action == ControlAction::Move && state != InputState::Released {
+        for control in input_actions.read() {
+            if control.is_released(ControlAction::Move) {
                 material.grid = vec![0.; material.grid.len()];
             }
         }

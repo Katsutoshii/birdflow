@@ -70,22 +70,14 @@ impl Waypoint {
         mut commands: Commands,
         assets: Res<WaypointAssets>,
     ) {
-        for &ControlEvent {
-            action,
-            state,
-            position,
-        } in control_events.read()
-        {
-            if action != ControlAction::Move {
-                continue;
-            }
-            if state == InputState::Released {
+        for control in control_events.read() {
+            if !control.is_pressed(ControlAction::Move) {
                 continue;
             }
 
             // Spawn a new waypoint.
             let waypoint_bundle =
-                Waypoint::default().bundle(&assets, position.extend(zindex::WAYPOINT));
+                Waypoint::default().bundle(&assets, control.position.extend(zindex::WAYPOINT));
             let entity = commands.spawn(waypoint_bundle).id();
 
             let mut sources = Vec::new();
@@ -99,7 +91,7 @@ impl Waypoint {
             if !sources.is_empty() {
                 event_writer.send(CreateWaypointEvent {
                     sources,
-                    destination: position,
+                    destination: control.position,
                 });
             }
         }

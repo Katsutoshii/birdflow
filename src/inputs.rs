@@ -1,6 +1,9 @@
-use bevy::{prelude::*, sprite::Mesh2dHandle, utils::HashMap};
-use enum_iterator::{all, Sequence};
+use bevy::input::keyboard::KeyboardInput;
+use bevy::input::mouse::MouseButtonInput;
+use bevy::input::ButtonState;
+use bevy::{prelude::*, utils::HashMap};
 
+use std::hash::Hash;
 /// Inputs are configured via an input map (TODO).
 /// Mouse events are translated into InputActions.
 /// Rays are cast to determine the target of the InputAction.
@@ -10,7 +13,8 @@ use std::{
     time::Duration,
 };
 
-use crate::{prelude::*, raycast::raycast};
+use crate::prelude::*;
+use crate::raycast::RaycastCommands;
 
 /// Plugin for input action events.
 pub struct InputActionPlugin;
@@ -18,6 +22,11 @@ impl Plugin for InputActionPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<KeyCode>()
             .register_type::<MouseButton>()
+            .register_type::<InputAction>()
+            .register_type::<HashMap<MouseButton, InputAction>>()
+            .register_type::<HashMap<KeyCode, InputAction>>()
+            .register_type::<InputConfig>()
+            .insert_resource(InputConfig::default())
             .add_event::<ControlEvent>()
             .add_event::<InputEvent>()
             .add_systems(
@@ -40,13 +49,8 @@ pub enum InputState {
     Released,
 }
 
-pub enum RawInput {
-    MouseButton(MouseButton),
-    KeyCode(KeyCode),
-}
-
 /// Describes an action input by the user.
-#[derive(PartialEq, Clone, Copy, Debug, Hash, Sequence)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, Hash, Reflect)]
 pub enum InputAction {
     Primary,
     Secondary,
@@ -58,206 +62,77 @@ pub enum InputAction {
     SpawnPlankton,
     SpawnFood,
 }
-impl InputAction {
-    pub fn mouse_buttons() -> Vec<MouseButton> {
-        let mut result = Vec::new();
-        for action in all::<Self>() {
-            if let RawInput::MouseButton(mouse_button) = RawInput::from(action) {
-                result.push(mouse_button);
-            }
-        }
-        result
-    }
-    pub fn key_codes() -> Vec<KeyCode> {
-        let mut result = Vec::new();
-        for action in all::<Self>() {
-            if let RawInput::KeyCode(key_code) = RawInput::from(action) {
-                result.push(key_code);
-            }
-        }
-        result
-    }
-}
-impl From<InputAction> for RawInput {
-    fn from(value: InputAction) -> Self {
-        match value {
-            InputAction::Primary => Self::MouseButton(MouseButton::Left),
-            InputAction::Secondary => Self::MouseButton(MouseButton::Right),
-            InputAction::PanCamera => Self::MouseButton(MouseButton::Middle),
-            InputAction::SpawnHead => Self::KeyCode(KeyCode::KeyM),
-            InputAction::SpawnRed => Self::KeyCode(KeyCode::Minus),
-            InputAction::SpawnBlue => Self::KeyCode(KeyCode::Equal),
-            InputAction::SpawnZooid => Self::KeyCode(KeyCode::KeyZ),
-            InputAction::SpawnPlankton => Self::KeyCode(KeyCode::KeyP),
-            InputAction::SpawnFood => Self::KeyCode(KeyCode::KeyF),
-        }
-    }
-}
-impl InputAction {}
 
-#[derive(Event, PartialEq, Clone, Copy, Debug)]
+/// Specifies input mapping.
+#[derive(Resource, Clone, Default, Reflect)]
+#[reflect(Resource)]
+pub struct InputConfig {
+    pub keyboard: HashMap<KeyCode, InputAction>,
+    pub mouse: HashMap<MouseButton, InputAction>,
+}
+
+#[derive(Event)]
 pub struct InputEvent {
     pub action: InputAction,
-    pub state: InputState,
-    pub ray: Ray3d,
+    pub state: ButtonState,
 }
 impl InputEvent {
-    fn process_input(
-        input: &ButtonInput<MouseButton>,
-        keyboard_input: &ButtonInput<KeyCode>,
-        action: InputAction,
-        ray: Ray3d,
-    ) -> Option<Self> {
-        match RawInput::from(action) {
-            RawInput::MouseButton(mouse_button) => {
-                let state = if input.pressed(mouse_button) {
-                    if input.just_pressed(mouse_button) {
-                        InputState::Pressed
-                    } else {
-                        InputState::Held
-                    }
-                } else if input.just_released(mouse_button) {
-                    InputState::Released
-                } else {
-                    InputState::None
-                };
-                if state != InputState::None {
-                    Some(Self { action, state, ray })
-                } else {
-                    None
-                }
-            }
-            RawInput::KeyCode(key_code) => {
-                let state = if keyboard_input.pressed(key_code) {
-                    if keyboard_input.just_pressed(key_code) {
-                        InputState::Pressed
-                    } else {
-                        InputState::Held
-                    }
-                } else if keyboard_input.just_released(key_code) {
-                    InputState::Released
-                } else {
-                    InputState::None
-                };
-                if state != InputState::None {
-                    Some(Self { action, state, ray })
-                } else {
-                    None
-                }
+    pub fn update(
+        mut inputs: EventWriter<Self>,
+        mut keyboard_inputs: EventReader<KeyboardInput>,
+        mut mouse_inputs: EventReader<MouseButtonInput>,
+        config: Res<InputConfig>,
+    ) {
+        for event in keyboard_inputs.read() {
+            let KeyboardInput {
+                key_code, state, ..
+            } = event;
+            if let Some(&action) = config.keyboard.get(key_code) {
+                inputs.send(Self {
+                    action,
+                    state: *state,
+                });
             }
         }
-    }
-
-    pub fn update(
-        mouse_input: Res<ButtonInput<MouseButton>>,
-        keyboard_input: Res<ButtonInput<KeyCode>>,
-        cursor: Query<&GlobalTransform, With<Cursor>>,
-        mut event_writer: EventWriter<Self>,
-    ) {
-        let cursor = cursor.single();
-        let ray = Ray3d::new(cursor.translation(), -Vec3::Z);
-        for action in all::<InputAction>() {
-            if let Some(event) = Self::process_input(&mouse_input, &keyboard_input, action, ray) {
-                event_writer.send(event);
+        for event in mouse_inputs.read() {
+            let MouseButtonInput { button, state, .. } = event;
+            if let Some(&action) = config.mouse.get(button) {
+                inputs.send(Self {
+                    action,
+                    state: *state,
+                });
             }
         }
     }
 }
 
+#[derive(Resource, Deref, DerefMut)]
+pub struct ControlActions {
+    #[deref]
+    pub input: ButtonInput<ControlAction>,
+    pub position: RaycastEvent,
+}
+impl ControlActions {}
+
 /// Describes an input action and the worldspace position where it occurred.
-#[derive(Event, Default, Debug)]
+#[derive(Event, Debug)]
 pub struct ControlEvent {
     pub action: ControlAction,
-    pub state: InputState,
+    pub state: ButtonState,
     pub position: Vec2,
 }
 impl ControlEvent {
     pub fn is_pressed(&self, action: ControlAction) -> bool {
-        self.action == action && self.state == InputState::Pressed
-    }
-    pub fn is_held(&self, action: ControlAction) -> bool {
-        self.action == action && self.state == InputState::Held
+        self.action == action && self.state == ButtonState::Pressed
     }
     pub fn is_released(&self, action: ControlAction) -> bool {
-        self.action == action && self.state == InputState::Released
-    }
-    fn get_control(
-        event: &InputEvent,
-        raycast_event: &RaycastEvent,
-        grid_spec: &GridSpec,
-    ) -> Option<Self> {
-        match (raycast_event.target, event.action) {
-            (RaycastTarget::None, _) => None,
-            (RaycastTarget::WorldGrid, InputAction::Primary) => Some(Self {
-                action: ControlAction::Select,
-                state: event.state,
-                position: raycast_event.world_position,
-            }),
-            (RaycastTarget::WorldGrid, InputAction::Secondary) => Some(Self {
-                action: ControlAction::Move,
-                state: event.state,
-                position: raycast_event.world_position,
-            }),
-            (RaycastTarget::WorldGrid, InputAction::PanCamera) => Some(Self {
-                action: ControlAction::PanCamera,
-                state: event.state,
-                position: raycast_event.world_position,
-            }),
-            (RaycastTarget::Minimap, InputAction::Primary) => Some(Self {
-                action: ControlAction::PanCamera,
-                state: event.state,
-                position: grid_spec
-                    .local_to_world_position(raycast_event.position * Vec2 { x: 1., y: -1. }),
-            }),
-            (RaycastTarget::Minimap, InputAction::Secondary) => Some(Self {
-                action: ControlAction::Move,
-                state: event.state,
-                position: grid_spec
-                    .local_to_world_position(raycast_event.position * Vec2 { x: 1., y: -1. }),
-            }),
-            (RaycastTarget::Minimap, InputAction::PanCamera) => Some(Self {
-                action: ControlAction::PanCamera,
-                state: event.state,
-                position: grid_spec
-                    .local_to_world_position(raycast_event.position * Vec2 { x: 1., y: -1. }),
-            }),
-            (_, InputAction::SpawnHead) => Some(Self {
-                action: ControlAction::SpawnHead,
-                state: event.state,
-                position: raycast_event.world_position,
-            }),
-            (_, InputAction::SpawnZooid) => Some(Self {
-                action: ControlAction::SpawnZooid,
-                state: event.state,
-                position: raycast_event.world_position,
-            }),
-            (_, InputAction::SpawnRed) => Some(Self {
-                action: ControlAction::SpawnRed,
-                state: event.state,
-                position: raycast_event.world_position,
-            }),
-            (_, InputAction::SpawnBlue) => Some(Self {
-                action: ControlAction::SpawnBlue,
-                state: event.state,
-                position: raycast_event.world_position,
-            }),
-            (_, InputAction::SpawnPlankton) => Some(Self {
-                action: ControlAction::SpawnPlankton,
-                state: event.state,
-                position: raycast_event.world_position,
-            }),
-            (_, InputAction::SpawnFood) => Some(Self {
-                action: ControlAction::SpawnFood,
-                state: event.state,
-                position: raycast_event.world_position,
-            }),
-        }
+        self.action == action && self.state == ButtonState::Released
     }
     pub fn update(
-        meshes: Query<(Entity, &RaycastTarget, &Mesh2dHandle, &GlobalTransform)>,
-        mesh_assets: Res<Assets<Mesh>>,
+        raycast: RaycastCommands,
         mut input_events: EventReader<InputEvent>,
-        mut event_writer: EventWriter<Self>,
+        mut control_events: EventWriter<ControlEvent>,
+        cursor: Query<&GlobalTransform, With<Cursor>>,
         grid_spec: Option<Res<GridSpec>>,
         mut timers: Local<ControlTimers>,
         time: Res<Time>,
@@ -267,29 +142,68 @@ impl ControlEvent {
         } else {
             return;
         };
+        let mut raycast_event = None;
         for event in input_events.read() {
-            if let Some(raycast_event) = raycast(event.ray, meshes.iter(), &mesh_assets) {
-                if let Some(control_event) = Self::get_control(event, &raycast_event, &grid_spec) {
-                    if control_event.action == ControlAction::Move {
-                        match control_event.state {
-                            InputState::None => {}
-                            InputState::Pressed => {
-                                timers[ControlAction::Move].reset();
-                                timers[ControlAction::Move].tick(time.delta());
-                            }
-                            InputState::Held => {
-                                timers[ControlAction::Move].tick(time.delta());
-                                if !timers[ControlAction::Move].finished() {
-                                    continue;
-                                }
-                            }
-                            InputState::Released => {
-                                timers[ControlAction::Move].reset();
-                            }
+            if raycast_event.is_none() {
+                raycast_event = raycast.raycast(Cursor::ray3d(cursor.single()))
+            }
+            if let Some(raycast_event) = &raycast_event {
+                let action = ControlAction::from((raycast_event.target, event.action));
+
+                // Skip this action if the timer isn't ready.
+                if let Some(timer) = timers.get_mut(&action) {
+                    match event.state {
+                        ButtonState::Pressed => {
+                            timer.unpause();
+                            timer.reset();
+                        }
+                        ButtonState::Released => {
+                            timer.pause();
                         }
                     }
-                    // info!("{:?}", &control_event);
-                    event_writer.send(control_event);
+                }
+
+                let event = ControlEvent {
+                    action,
+                    state: event.state,
+                    position: match raycast_event.target {
+                        RaycastTarget::Minimap => grid_spec.local_to_world_position(
+                            raycast_event.position * Vec2 { x: 1., y: -1. },
+                        ),
+                        RaycastTarget::WorldGrid => raycast_event.world_position,
+                        RaycastTarget::None => raycast_event.position,
+                    },
+                };
+                control_events.send(event);
+            }
+        }
+        // Tick all active timers.
+        for (&action, timer) in timers.iter_mut() {
+            if timer.paused() {
+                continue;
+            }
+
+            if raycast_event.is_none() {
+                raycast_event = raycast.raycast(Cursor::ray3d(cursor.single()))
+            }
+            timer.tick(time.delta());
+            if timer.finished() {
+                timer.reset();
+                if let Some(raycast_event) = &raycast_event {
+                    let event = ControlEvent {
+                        action,
+                        state: ButtonState::Pressed,
+                        position: match raycast_event.target {
+                            RaycastTarget::Minimap => grid_spec.local_to_world_position(
+                                raycast_event.position * Vec2 { x: 1., y: -1. },
+                            ),
+                            RaycastTarget::WorldGrid => raycast_event.world_position,
+                            RaycastTarget::None => raycast_event.position,
+                        },
+                    };
+                    info!("Held!");
+                    dbg!(&event);
+                    control_events.send(event);
                 }
             }
         }
@@ -312,6 +226,26 @@ pub enum ControlAction {
     SpawnPlankton,
     SpawnFood,
 }
+impl From<(RaycastTarget, InputAction)> for ControlAction {
+    fn from(value: (RaycastTarget, InputAction)) -> Self {
+        match value {
+            (RaycastTarget::Minimap, InputAction::Primary) => Self::PanCamera,
+            (RaycastTarget::Minimap, InputAction::PanCamera) => Self::PanCamera,
+            (RaycastTarget::Minimap, InputAction::Secondary) => Self::Move,
+            (RaycastTarget::WorldGrid, InputAction::Primary) => Self::Select,
+            (RaycastTarget::WorldGrid, InputAction::Secondary) => Self::Move,
+            (RaycastTarget::WorldGrid, InputAction::PanCamera) => Self::PanCamera,
+            (RaycastTarget::WorldGrid, InputAction::SpawnHead) => Self::SpawnHead,
+            (RaycastTarget::WorldGrid, InputAction::SpawnZooid) => Self::SpawnZooid,
+            (RaycastTarget::WorldGrid, InputAction::SpawnRed) => Self::SpawnRed,
+            (RaycastTarget::WorldGrid, InputAction::SpawnBlue) => Self::SpawnBlue,
+            (RaycastTarget::WorldGrid, InputAction::SpawnPlankton) => Self::SpawnPlankton,
+            (RaycastTarget::WorldGrid, InputAction::SpawnFood) => Self::SpawnFood,
+            (RaycastTarget::None, _) => Self::None,
+            _ => Self::None,
+        }
+    }
+}
 
 /// Collection of timers to prevent input action spam.
 #[derive(Deref, DerefMut)]
@@ -321,8 +255,15 @@ impl Default for ControlTimers {
         let mut timers = Self(HashMap::default());
         timers.insert(
             ControlAction::Move,
-            Timer::new(Duration::from_millis(500), TimerMode::Repeating),
+            Timer::new(Duration::from_millis(100), TimerMode::Repeating),
         );
+        timers.insert(
+            ControlAction::Select,
+            Timer::new(Duration::from_millis(5), TimerMode::Repeating),
+        );
+        for (_action, timer) in timers.iter_mut() {
+            timer.pause();
+        }
         timers
     }
 }

@@ -1,9 +1,10 @@
 use bevy::{
+    input::ButtonState,
     prelude::*,
     sprite::{MaterialMesh2dBundle, Mesh2dHandle},
 };
 
-use crate::{inputs::InputState, prelude::*};
+use crate::prelude::*;
 
 #[derive(Component, Default, PartialEq, Clone)]
 pub enum Selected {
@@ -52,36 +53,32 @@ impl Selector {
         configs: Res<Configs>,
         mut events: EventReader<ControlEvent>,
     ) {
-        for &ControlEvent {
-            action,
-            state,
-            position,
-        } in events.read()
-        {
-            if action != ControlAction::Select {
+        for control in events.read() {
+            if control.action != ControlAction::Select {
                 continue;
             }
+            dbg!(control);
             let (mut selector, mut transform, mut visibility) = query.single_mut();
 
-            match state {
-                InputState::Pressed => {
-                    // Reset other selections.
-                    for (_object, _transform, _team, mut selected, _mesh) in &mut objects {
-                        if let Selected::Selected { child_entity } = selected.as_ref() {
-                            commands.entity(*child_entity).despawn()
+            match control.state {
+                ButtonState::Pressed => {
+                    if *visibility == Visibility::Hidden {
+                        info!("First press");
+                        // Reset other selections.
+                        for (_object, _transform, _team, mut selected, _mesh) in &mut objects {
+                            if let Selected::Selected { child_entity } = selected.as_ref() {
+                                commands.entity(*child_entity).despawn()
+                            }
+                            *selected = Selected::Unselected;
                         }
-                        *selected = Selected::Unselected;
+                        selector.aabb.min = control.position;
+                        *visibility = Visibility::Visible;
+                        transform.scale = Vec3::ZERO;
+                        transform.translation = control.position.extend(zindex::SELECTOR);
                     }
 
-                    selector.aabb.min = position;
-                    selector.aabb.max = position;
-
-                    *visibility = Visibility::Visible;
-                    transform.scale = Vec3::ZERO;
-                    transform.translation = position.extend(zindex::SELECTOR);
-                }
-                InputState::Held => {
-                    selector.aabb.max = position;
+                    // While held
+                    selector.aabb.max = control.position;
                     // Resize the square to match the bounding box.
                     transform.translation = selector.aabb.center().extend(zindex::SELECTOR);
                     transform.scale = selector.aabb.size().extend(0.0);
@@ -105,10 +102,9 @@ impl Selector {
                         }
                     }
                 }
-                InputState::Released => {
+                ButtonState::Released => {
                     *visibility = Visibility::Hidden;
                 }
-                _ => {}
             }
         }
     }
