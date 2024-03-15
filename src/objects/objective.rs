@@ -28,7 +28,6 @@ impl Plugin for ObjectivePlugin {
 }
 #[derive(Debug, Clone, Reflect)]
 pub struct ObjectiveConfig {
-    pub max_acceleration: f32,
     pub repell_radius: f32,
     pub slow_factor: f32,
     pub attack_radius: f32,
@@ -36,7 +35,6 @@ pub struct ObjectiveConfig {
 impl Default for ObjectiveConfig {
     fn default() -> Self {
         Self {
-            max_acceleration: 0.0,
             repell_radius: 1.0,
             slow_factor: 0.0,
             attack_radius: 32.0,

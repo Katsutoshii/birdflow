@@ -85,9 +85,6 @@ pub fn update(
         let prev_velocity = *velocity;
 
         velocity.0 += acceleration.0;
-        if velocity.length_squared() != 0.0 {
-            velocity.0 = velocity.clamp_length_min(material.min_velocity);
-        }
         let overflow = velocity.length_squared() / (material.max_velocity.powi(2)) * 0.1;
         velocity.0 = velocity.clamp_length_max(material.max_velocity);
         velocity.0 *= overflow.clamp(1.0, 10.0);
@@ -98,7 +95,6 @@ pub fn update(
         if obstacles[obstacles.to_rowcol(new_position)] == Obstacle::Empty {
             transform.translation = new_position.extend(0.);
         } else {
-            // *velocity = *velocity * -0.00001;
             velocity.0 *= -0.5;
             transform.translation += velocity.0.extend(0.);
         }
@@ -126,14 +122,12 @@ pub enum PhysicsMaterialType {
 #[derive(Clone, Reflect, Debug)]
 pub struct PhysicsMaterial {
     max_velocity: f32,
-    min_velocity: f32,
     velocity_smoothing: f32,
 }
 impl Default for PhysicsMaterial {
     fn default() -> Self {
         Self {
             max_velocity: 10.0,
-            min_velocity: 0.5,
             velocity_smoothing: 0.,
         }
     }

@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use self::effects::{EffectCommands, EffectSize, FireworkSpec};
 
 use super::{
@@ -94,7 +96,8 @@ impl Object {
         configs: Res<Configs>,
     ) {
         query.par_iter_mut().for_each(|mut object| {
-            let mut acceleration = Acceleration::ZERO;
+            let mut seaparation_acceleration = Acceleration::ZERO;
+            let mut alignment_acceleration = Acceleration::ZERO;
             let config = &configs.objects[object.object];
             for neighbor in object.neighbors.iter() {
                 let (other_object, other_velocity) = others.get(neighbor.entity).unwrap();
@@ -103,13 +106,13 @@ impl Object {
 
                 // Don't apply neighbor forces when carrying items.
                 if object.carrier.is_none() {
-                    acceleration += Self::separation_acceleration(
+                    seaparation_acceleration += Self::separation_acceleration(
                         -neighbor.delta,
                         neighbor.distance_squared,
                         *object.velocity,
                         interaction,
                     );
-                    acceleration += Self::alignment_acceleration(
+                    alignment_acceleration += Self::alignment_acceleration(
                         neighbor.distance_squared,
                         radius_squared,
                         *object.velocity,
@@ -119,8 +122,13 @@ impl Object {
                 }
             }
             if !object.neighbors.is_empty() {
-                *object.acceleration += acceleration * (1.0 / (object.neighbors.len() as f32));
+                *object.acceleration += alignment_acceleration
+                    * (1.0 / (object.neighbors.len() as f32))
+                    + seaparation_acceleration;
             }
+            let spin_amount = (1.0 - object.velocity.length_squared()).max(0.);
+            let turn_vector = Mat2::from_angle(PI / 8.) * object.velocity.0 * spin_amount;
+            *object.acceleration += Acceleration(turn_vector);
         });
     }
 
