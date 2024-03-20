@@ -126,7 +126,7 @@ impl Object {
                     * (1.0 / (object.neighbors.len() as f32))
                     + seaparation_acceleration;
             }
-            let spin_amount = (1.0 - object.velocity.length_squared()).max(0.);
+            let spin_amount = (config.idle_speed * 2. - object.velocity.length_squared()).max(0.);
             let turn_vector = Mat2::from_angle(PI / 8.) * object.velocity.0 * spin_amount;
             *object.acceleration += Acceleration(turn_vector);
         });

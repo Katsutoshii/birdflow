@@ -1,4 +1,4 @@
-use std::{f32::consts::PI, time::Duration};
+use std::time::Duration;
 
 use crate::prelude::*;
 use bevy::{prelude::*, text::Text2dBounds};
@@ -344,19 +344,14 @@ impl ResolvedObjective {
                     ) + Acceleration(delta.normalize() * 0.0)
                 }
             }
-            // If no objective, slow down and circle about.
+            // If no objective, slow down.
             Self::None => {
-                // If velocity is less than 10, don't slow down.
-                let idle_slow_threshold = 1.;
+                let idle_slow_threshold = config.idle_speed;
                 let velocity_squared = velocity.length_squared();
-                assert!(velocity_squared != 0f32);
                 let slow_magnitude =
                     (velocity_squared - idle_slow_threshold).max(0.) / velocity_squared;
                 let slow_vector = -velocity.0 * slow_magnitude;
-
-                let turn_speed = 0.5;
-                let turn_vector = Mat2::from_angle(PI / 8.) * velocity.0 * turn_speed;
-                Acceleration(turn_vector + slow_vector)
+                Acceleration(slow_vector)
             }
         }
     }

@@ -50,6 +50,7 @@ pub struct ObjectConfig {
     pub objective: ObjectiveConfig,
     pub hit_radius: f32,
     pub death_speed: f32,
+    pub idle_speed: f32,
     // Interactions
     pub interactions: InteractionConfigs,
 }
@@ -65,6 +66,7 @@ impl Default for ObjectConfig {
             objective: ObjectiveConfig::default(),
             hit_radius: 10.0,
             death_speed: 9.0,
+            idle_speed: 0.5,
             interactions: InteractionConfigs({
                 let mut interactions = HashMap::new();
                 interactions.insert(Object::Worker, InteractionConfig::default());
